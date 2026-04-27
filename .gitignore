@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.hypothesis/
+
+# Type checking
+.mypy_cache/
+
+# IDE
+.vscode/
+.idea/
+
+# Runtime directories (user data - never commit)
+uploads/
+work/
+output/
+pipeline_output/
+
+# Demo archive folder
+archive_before_demo/
+
+# PyInstaller build artefacts
+build/
+dist/
+*.spec.bak
+
+# Inno Setup output
+installer/Output/
+
+# Loose Excel test files in root
+*.xlsx
+*.xlsm
+*.log
+*.json
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,843 @@
+/* Excel Normalization Web App - Styles */
+
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #f5f7fa;
+    color: #333;
+    min-height: 100vh;
+    direction: rtl;
+}
+
+/* Error Banner */
+.error-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: #e53e3e;
+    color: white;
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 1000;
+    font-size: 14px;
+}
+
+.error-banner.hidden {
+    display: none;
+}
+
+.dismiss-btn {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 0 8px;
+    line-height: 1;
+}
+
+/* Container */
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px 16px;
+}
+
+header {
+    margin-bottom: 24px;
+    text-align: center;
+}
+
+header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: #2d3748;
+    margin-bottom: 4px;
+}
+
+.subtitle {
+    color: #718096;
+    font-size: 14px;
+}
+
+/* Cards */
+.card {
+    background: white;
+    border-radius: 8px;
+    padding: 24px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.card h2 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #2d3748;
+    margin-bottom: 16px;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* Buttons */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, opacity 0.15s;
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn-primary {
+    background: #4299e1;
+    color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: #3182ce;
+}
+
+.btn-success {
+    background: #48bb78;
+    color: white;
+}
+
+.btn-success:hover:not(:disabled) {
+    background: #38a169;
+}
+
+.btn-secondary {
+    background: #718096;
+    color: white;
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background: #4a5568;
+}
+
+.btn-danger {
+    background: #e53e3e;
+    color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+    background: #c53030;
+}
+
+/* File Input */
+.file-input-wrapper {
+    margin-bottom: 12px;
+}
+
+#file-input {
+    display: block;
+    width: 100%;
+    padding: 8px;
+    border: 2px dashed #cbd5e0;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+#file-input:focus {
+    outline: none;
+    border-color: #4299e1;
+}
+
+.status-message {
+    margin-top: 8px;
+    font-size: 13px;
+    color: #718096;
+}
+
+/* Sheet Tabs */
+.sheet-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.sheet-tab {
+    padding: 8px 16px;
+    border: 2px solid #e2e8f0;
+    border-radius: 6px;
+    background: white;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.15s;
+}
+
+.sheet-tab:hover {
+    border-color: #4299e1;
+    color: #4299e1;
+}
+
+.sheet-tab.active {
+    background: #4299e1;
+    border-color: #4299e1;
+    color: white;
+}
+
+/* Action Bar */
+.action-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+/* Institution bar */
+.institution-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 8px 12px;
+    background: #f0f4ff;
+    border: 1px solid #c3d0f0;
+    border-radius: 6px;
+}
+
+.institution-label {
+    font-weight: 600;
+    font-size: 13px;
+    color: #2d3748;
+    white-space: nowrap;
+}
+
+.inst-input {
+    padding: 4px 8px;
+    border: 1px solid #c3d0f0;
+    border-radius: 4px;
+    font-size: 13px;
+    background: #fff;
+    min-width: 90px;
+}
+
+.inst-input.inst-name {
+    min-width: 180px;
+}
+
+/* MosadType free-text inputs — narrower since they hold short user values */
+.inst-input.inst-type-input {
+    min-width: 64px;
+    max-width: 90px;
+}
+
+.inst-select {
+    padding: 4px 8px;
+    border: 1px solid #c3d0f0;
+    border-radius: 4px;
+    font-size: 13px;
+    background: #fff;
+}
+
+/* Apply-slot selector next to the apply button */
+.inst-type-apply-select {
+    min-width: 90px;
+}
+
+.institution-label.inst-type-label {
+    margin-right: 4px;
+}
+
+.btn-sm {
+    padding: 4px 10px;
+    font-size: 12px;
+}
+
+.btn-outline {
+    background: transparent;
+    border: 1px solid #4a6fa5;
+    color: #4a6fa5;
+}
+
+.btn-outline:hover {
+    background: #4a6fa5;
+    color: #fff;
+}
+
+/* Grid */
+.grid-stats {
+    font-size: 13px;
+    color: #718096;
+    margin-bottom: 12px;
+}
+
+/* U-09: Freeze the grid header row so it stays visible while scrolling */
+.grid-container {
+    overflow-x: auto;
+    overflow-y: auto;
+    max-height: 70vh;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+}
+
+table.data-grid thead tr {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: #edf2f7;
+}
+
+table.data-grid {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+table.data-grid th {
+    background: #edf2f7;
+    padding: 8px 12px;
+    text-align: right;
+    font-weight: 600;
+    color: #4a5568;
+    border-bottom: 2px solid #e2e8f0;
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+table.data-grid th.corrected-header {
+    background: #c6f6d5;
+    color: #276749;
+}
+
+table.data-grid th.status-header {
+    background: #fefcbf;
+    color: #744210;
+}
+
+table.data-grid td {
+    padding: 6px 12px;
+    border-bottom: 1px solid #f0f0f0;
+    vertical-align: middle;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+table.data-grid tr:nth-child(even) {
+    background: #f9fafb;
+}
+
+table.data-grid tr:hover {
+    background: #ebf8ff;
+}
+
+/* Corrected cell highlight */
+td.corrected-cell {
+    background: #f0fff4;
+    color: #276749;
+}
+
+td.corrected-changed {
+    background: #c6f6d5;
+    color: #22543d;
+    font-weight: 500;
+}
+
+/* Status cell (identifier_status, birth_date_status, entry_date_status) */
+td.status-cell {
+    background: #fffff0;
+    color: #744210;
+    font-style: italic;
+    cursor: default;
+}
+
+/* U-02: Visually distinguish error status cells from empty/OK ones */
+td.status-error {
+    background: #fff0f0;
+    color: #c0392b;
+    font-weight: 500;
+    font-style: normal;
+}
+
+td.status-ok {
+    background: transparent;
+    color: inherit;
+    font-style: normal;
+}
+
+/* Inline edit input */
+td.editing {
+    padding: 2px 4px;
+}
+
+td.editing input {
+    width: 100%;
+    padding: 4px 8px;
+    border: 2px solid #4299e1;
+    border-radius: 4px;
+    font-size: 13px;
+    outline: none;
+}
+
+/* Row selection */
+th.col-select,
+td.col-select {
+    width: 36px;
+    min-width: 36px;
+    text-align: center;
+    padding: 4px 6px;
+    /* Sticky right: checkbox column is the first DOM column = rightmost in RTL */
+    position: sticky;
+    right: 0;
+    z-index: 2;
+    background: inherit;
+}
+
+/* Per-row delete button column */
+th.col-del,
+td.col-del {
+    width: 28px;
+    min-width: 28px;
+    text-align: center;
+    padding: 2px 4px;
+    /* Sticky right: delete column sits just left of the checkbox column */
+    position: sticky;
+    right: 36px;
+    z-index: 2;
+    background: inherit;
+}
+
+/* Header cells for the two sticky utility columns need a higher z-index
+   so they sit above both the regular sticky header cells (z-index:1) and
+   the sticky body cells (z-index:2), and correctly cover scrolled content
+   at the top-right corner of the grid. */
+thead th.col-select {
+    z-index: 12;
+    background: #edf2f7;
+}
+
+thead th.col-del {
+    z-index: 12;
+    background: #edf2f7;
+}
+
+/* Body sticky cells: give them an explicit white background so they cover
+   scrolled data columns behind them.  Row-state overrides follow below. */
+tbody td.col-select,
+tbody td.col-del {
+    background: #ffffff;
+}
+
+/* Even rows */
+table.data-grid tr:nth-child(even) td.col-select,
+table.data-grid tr:nth-child(even) td.col-del {
+    background: #f9fafb;
+}
+
+/* Hover — must override the tr:hover rule which sets background on tr, not td */
+table.data-grid tr:hover td.col-select,
+table.data-grid tr:hover td.col-del {
+    background: #ebf8ff;
+}
+
+/* Selected rows */
+tr.row-selected td.col-select,
+tr.row-selected td.col-del {
+    background: #ebf8ff !important;
+}
+
+/* Rows with change badge */
+tr.row-has-changes td.col-select,
+tr.row-has-changes td.col-del {
+    background: #f0f7ff;
+}
+
+/* Thin separator line on the inner edge of each sticky column so the
+   boundary is visible when data columns scroll underneath */
+td.col-select,
+th.col-select {
+    border-left: 1px solid #e2e8f0;
+}
+
+td.col-del,
+th.col-del {
+    border-left: 1px solid #e2e8f0;
+}
+
+.btn-row-delete {
+    background: none;
+    border: none;
+    color: #e53e3e;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 2px 5px;
+    border-radius: 4px;
+    line-height: 1;
+    opacity: 0.4;
+    transition: opacity 0.15s, background 0.15s;
+}
+
+tr:hover .btn-row-delete {
+    opacity: 1;
+}
+
+.btn-row-delete:hover {
+    background: #fff5f5;
+    opacity: 1;
+}
+
+tr.row-selected td {
+    background: #ebf8ff !important;
+}
+
+/* U-07: Row-level change indicator */
+tr.row-has-changes {
+    background-color: #f0f7ff;
+}
+
+.change-badge {
+    display: inline-block;
+    background: #3182ce;
+    color: white;
+    border-radius: 10px;
+    padding: 1px 6px;
+    font-size: 11px;
+    margin-left: 4px;
+    vertical-align: middle;
+    cursor: default;
+    line-height: 1.4;
+}
+
+/* U-05: Sheet tab warning style for sheets with normalization issues */
+.sheet-tab.sheet-tab-warning {
+    border-color: #f6ad55;
+    color: #c05621;
+    background: #fffaf0;
+}
+
+.sheet-tab.sheet-tab-warning.active {
+    background: #c05621;
+    border-color: #c05621;
+    color: white;
+}
+.file-tab {
+    background: #f7fafc;
+    border-color: #bee3f8;
+    color: #2b6cb0;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.file-tab.active {
+    background: #2b6cb0;
+    border-color: #2b6cb0;
+    color: white;
+}
+
+/* Loading spinner */
+.loading {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid #e2e8f0;
+    border-top-color: #4299e1;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    vertical-align: middle;
+    margin-left: 6px;
+}
+
+/* U-08: Keyboard shortcut hint inside buttons */
+.kbd-hint {
+    display: inline-block;
+    background: rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.4);
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-size: 11px;
+    font-family: monospace;
+    margin-left: 6px;
+    vertical-align: middle;
+    line-height: 1.4;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* -------------------------------------------------------------------------
+   Column-level filtering
+   ------------------------------------------------------------------------- */
+
+/* Column header wrapper: label + filter button side by side */
+.col-header-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    width: 100%;
+}
+
+/* The small ▾ filter toggle button inside each column header */
+.col-filter-btn {
+    flex-shrink: 0;
+    background: none;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    color: #a0aec0;
+    font-size: 11px;
+    line-height: 1;
+    padding: 1px 4px;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.col-filter-btn:hover {
+    color: #4299e1;
+    border-color: #bee3f8;
+    background: #ebf8ff;
+}
+
+/* Active state: column has at least one value selected */
+.col-filter-btn.col-filter-active {
+    color: #2b6cb0;
+    border-color: #4299e1;
+    background: #bee3f8;
+    font-weight: 700;
+}
+
+/* Highlight the entire th when its column is filtered */
+table.data-grid th:has(.col-filter-btn.col-filter-active) {
+    outline: 2px solid #4299e1;
+    outline-offset: -2px;
+}
+
+/* Floating dropdown panel */
+.col-filter-dropdown {
+    position: absolute;
+    z-index: 9999;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    min-width: 180px;
+    max-width: 280px;
+    display: flex;
+    flex-direction: column;
+    direction: rtl;
+}
+
+/* Search box inside the dropdown */
+.col-filter-search {
+    margin: 8px 8px 4px;
+    padding: 5px 8px;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    font-size: 12px;
+    outline: none;
+    direction: rtl;
+}
+
+.col-filter-search:focus {
+    border-color: #4299e1;
+}
+
+/* Scrollable value list */
+.col-filter-list {
+    overflow-y: auto;
+    max-height: 220px;
+    padding: 4px 0;
+}
+
+/* Each value row */
+.col-filter-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 12px;
+    cursor: pointer;
+    font-size: 13px;
+    user-select: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.col-filter-item:hover {
+    background: #ebf8ff;
+}
+
+.col-filter-item input[type=checkbox] {
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+/* Footer with clear button */
+.col-filter-footer {
+    border-top: 1px solid #e2e8f0;
+    padding: 6px 8px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.col-filter-clear-btn {
+    background: none;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    color: #718096;
+    font-size: 12px;
+    padding: 3px 10px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+.col-filter-clear-btn:hover {
+    background: #fff5f5;
+    color: #e53e3e;
+    border-color: #feb2b2;
+}
+
+/* "Clear all filters" action bar button */
+.btn-filter-clear {
+    background: #ebf8ff;
+    color: #2b6cb0;
+    border: 1px solid #bee3f8;
+}
+
+.btn-filter-clear:hover:not(:disabled) {
+    background: #bee3f8;
+    color: #2c5282;
+}
+
+/* -------------------------------------------------------------------------
+   Full-screen grid overlay
+   ------------------------------------------------------------------------- */
+
+/* Header row inside the normal grid section: title + expand button side by side */
+.grid-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    gap: 12px;
+}
+
+.grid-section-header h2 {
+    margin-bottom: 0;
+}
+
+/* The expand button next to the grid title */
+.btn-expand-grid {
+    flex-shrink: 0;
+    background: #edf2f7;
+    border: 1px solid #cbd5e0;
+    border-radius: 6px;
+    color: #4a5568;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 5px 12px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    white-space: nowrap;
+}
+
+.btn-expand-grid:hover {
+    background: #4299e1;
+    border-color: #4299e1;
+    color: white;
+}
+
+/* Full-screen overlay backdrop */
+.grid-overlay {
+    position: fixed;
+    inset: 0;                  /* top/right/bottom/left: 0 */
+    z-index: 2000;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    direction: rtl;
+}
+
+.grid-overlay.hidden {
+    display: none !important;
+}
+
+/* Top bar inside the overlay: title, stats, close button */
+.grid-overlay-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 10px 16px;
+    background: #edf2f7;
+    border-bottom: 2px solid #e2e8f0;
+    flex-shrink: 0;
+}
+
+.grid-overlay-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #2d3748;
+    flex: 1;
+}
+
+.grid-overlay-stats {
+    font-size: 13px;
+    color: #718096;
+}
+
+.btn-overlay-close {
+    flex-shrink: 0;
+    background: #e53e3e;
+    border: none;
+    border-radius: 6px;
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 6px 14px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.btn-overlay-close:hover {
+    background: #c53030;
+}
+
+/* The scrollable grid area inside the overlay — fills all remaining space */
+.grid-overlay-container {
+    flex: 1;
+    overflow-x: auto;
+    overflow-y: auto;
+    padding: 0;
+}
+
+/* Inside the overlay the table should fill the full available width */
+.grid-overlay-container table.data-grid {
+    width: 100%;
+}
+
+/* Prevent body scroll while overlay is open */
+body.grid-overlay-open {
+    overflow: hidden;
+}
