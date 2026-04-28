@@ -16,11 +16,11 @@ Covers:
 import pytest
 from openpyxl import Workbook
 
-from src.excel_normalization.io_layer.excel_reader import ExcelReader
-from src.excel_normalization.io_layer.excel_to_json_extractor import ExcelToJsonExtractor
-from src.excel_normalization.processing.normalization_pipeline import NormalizationPipeline
-from src.excel_normalization.engines.date_engine import DateEngine
-from src.excel_normalization.data_types import SheetDataset, DateFormatPattern
+from src.excel_standardization.io_layer.excel_reader import ExcelReader
+from src.excel_standardization.io_layer.excel_to_json_extractor import ExcelToJsonExtractor
+from src.excel_standardization.processing.standardization_pipeline import standardizationPipeline
+from src.excel_standardization.engines.date_engine import DateEngine
+from src.excel_standardization.data_types import SheetDataset, DateFormatPattern
 
 
 # ---------------------------------------------------------------------------
@@ -28,7 +28,7 @@ from src.excel_normalization.data_types import SheetDataset, DateFormatPattern
 # ---------------------------------------------------------------------------
 
 def _make_pipeline():
-    p = NormalizationPipeline(date_engine=DateEngine())
+    p = standardizationPipeline(date_engine=DateEngine())
     p._date_format_pattern = DateFormatPattern.DDMM
     return p
 
@@ -143,11 +143,11 @@ class TestDetectColumnsSplitBirthPlainEntry:
 
 
 # ---------------------------------------------------------------------------
-# 3. Pipeline: plain birth_date normalization
+# 3. Pipeline: plain birth_date standardization
 # ---------------------------------------------------------------------------
 
 class TestPipelinePlainBirthDate:
-    """NormalizationPipeline must fully normalize plain birth_date values into structured year/month/day."""
+    """standardizationPipeline must fully normalize plain birth_date values into structured year/month/day."""
 
     def test_valid_date_corrected(self):
         pipeline = _make_pipeline()
@@ -198,11 +198,11 @@ class TestPipelinePlainBirthDate:
 
 
 # ---------------------------------------------------------------------------
-# 4. Pipeline: plain entry_date normalization
+# 4. Pipeline: plain entry_date standardization
 # ---------------------------------------------------------------------------
 
 class TestPipelinePlainEntryDate:
-    """NormalizationPipeline must fully normalize plain entry_date values into structured year/month/day."""
+    """standardizationPipeline must fully normalize plain entry_date values into structured year/month/day."""
 
     def test_valid_date_corrected(self):
         pipeline = _make_pipeline()

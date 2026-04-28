@@ -1,10 +1,10 @@
-# Excel Data Normalization System
+# Excel Data standardization System
 
-A Python-based Excel data normalization system that replicates the exact behavior of a legacy VBA implementation. The system processes Excel workbooks containing person records (residents, staff, etc.) from various sources, normalizing inconsistent data into a standardized format.
+A Python-based Excel data standardization system that replicates the exact behavior of a legacy VBA implementation. The system processes Excel workbooks containing person records (residents, staff, etc.) from various sources, standardizing inconsistent data into a standardized format.
 
 ## Overview
 
-This system transforms person records with inconsistent structures, mixed languages (Hebrew/English), varying date formats, and invalid identifiers. It reads the original workbook without modifying it, runs the normalization pipeline, and writes a clean output file with standardized corrected values in a fixed column schema.
+This system transforms person records with inconsistent structures, mixed languages (Hebrew/English), varying date formats, and invalid identifiers. It reads the original workbook without modifying it, runs the standardization pipeline, and writes a clean output file with standardized corrected values in a fixed column schema.
 
 ### Key Features
 
@@ -19,7 +19,7 @@ This system transforms person records with inconsistent structures, mixed langua
 The system normalizes four categories of data:
 
 1. **Names**: First name, last name, father's name
-   - Text normalization with language detection
+   - Text standardization with language detection
    - Diacritic removal
    - Father name pattern removal
 
@@ -57,7 +57,7 @@ pip install -e ".[dev]"
 
 ## Web Application
 
-The easiest way to use this system is through the local web application, which provides a browser-based UI for uploading, normalizing, editing, and downloading Excel workbooks — no command line required.
+The easiest way to use this system is through the local web application, which provides a browser-based UI for uploading, standardizing, editing, and downloading Excel workbooks — no command line required.
 
 ### Start the Web App
 
@@ -75,7 +75,7 @@ http://localhost:8000
 
 1. **Upload** — Select and upload an `.xlsx` or `.xlsm` file
 2. **View** — Browse sheet data in the grid
-3. **Normalize** — Click "Run Normalization" to process all sheets
+3. **Normalize** — Click "Run standardization" to process all sheets
 4. **Edit** — Click any cell to edit its value inline
 5. **Export** — Click "Export / Download" to download the corrected workbook
 
@@ -88,7 +88,7 @@ The web app runs entirely locally — no internet connection required, no data l
 Process an Excel workbook:
 
 ```bash
-python -m excel_normalization.cli path/to/workbook.xlsx
+python -m excel_standardization.cli path/to/workbook.xlsx
 ```
 
 Or if installed as a package:
@@ -101,10 +101,10 @@ excel-normalize path/to/workbook.xlsx
 
 ```bash
 # Process a workbook in the current directory
-python -m excel_normalization.cli data.xlsx
+python -m excel_standardization.cli data.xlsx
 
 # Process a workbook with full path
-python -m excel_normalization.cli /path/to/workbook.xlsx
+python -m excel_standardization.cli /path/to/workbook.xlsx
 ```
 
 ### Output
@@ -114,7 +114,7 @@ The system:
 - Writes a new output file named `{input_stem}_normalized.xlsx` in the same directory
 - The output uses a fixed column schema with standardized Hebrew field names
 - Creates a log file in the same directory as the input file
-- Log file format: `normalization_YYYYMMDD_HHMMSS.log`
+- Log file format: `standardization_YYYYMMDD_HHMMSS.log`
 
 ## Architecture
 
@@ -127,7 +127,7 @@ The system follows a layered architecture with strict separation of concerns:
 └─────────────────────────────────────────────────────────────┘
                             │
 ┌─────────────────────────────────────────────────────────────┐
-│                 NormalizationOrchestrator                   │
+│                 standardizationOrchestrator                   │
 │           (Coordinates processing across worksheets)        │
 └─────────────────────────────────────────────────────────────┘
                             │
@@ -198,7 +198,7 @@ Run the test suite:
 pytest
 
 # Run with coverage report
-pytest --cov=src/excel_normalization --cov-report=html
+pytest --cov=src/excel_standardization --cov-report=html
 
 # Run specific test file
 pytest tests/test_cli.py -v
@@ -215,12 +215,12 @@ The project includes:
 
 ## VBA Compatibility
 
-This Python system replicates the exact behavior of the legacy VBA implementation. All normalization, validation, and transformation logic follows the same rules observed in the VBA code.
+This Python system replicates the exact behavior of the legacy VBA implementation. All standardization, validation, and transformation logic follows the same rules observed in the VBA code.
 
 ### Key Compatibility Points
 
 - Same header matching logic (exact text with partial match)
-- Same text normalization rules (diacritics, language detection, spacing)
+- Same text standardization rules (diacritics, language detection, spacing)
 - Same date parsing logic (format detection, two-digit year expansion)
 - Same Israeli ID checksum algorithm
 - Same status messages (in Hebrew)
@@ -239,9 +239,9 @@ This Python system replicates the exact behavior of the legacy VBA implementatio
 ## Project Structure
 
 ```
-excel-data-normalization/
+excel-data-standardization/
 ├── src/
-│   └── excel_normalization/
+│   └── excel_standardization/
 │       ├── __init__.py
 │       ├── cli.py                    # CLI entry point
 │       ├── orchestrator.py           # Orchestration layer
@@ -256,10 +256,10 @@ excel-data-normalization/
 │       │   ├── date_processor.py     # Date field processing
 │       │   └── identifier_processor.py  # ID/passport processing
 │       └── engines/
-│           ├── name_engine.py        # Name normalization logic
+│           ├── name_engine.py        # Name standardization logic
 │           ├── text_processor.py     # Text manipulation utilities
 │           ├── date_engine.py        # Date parsing and validation
-│           ├── gender_engine.py      # Gender normalization logic
+│           ├── gender_engine.py      # Gender standardization logic
 │           └── identifier_engine.py  # ID/passport validation logic
 ├── tests/
 │   ├── test_cli.py

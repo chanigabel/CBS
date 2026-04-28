@@ -1,10 +1,10 @@
 # JSON Schema Documentation
 
-This directory contains JSON Schema definitions for the Excel normalization data structures. These schemas define the structure, types, and validation rules for the JSON-based data pipeline.
+This directory contains JSON Schema definitions for the Excel standardization data structures. These schemas define the structure, types, and validation rules for the JSON-based data pipeline.
 
 ## Overview
 
-The Excel normalization system uses JSON as the internal data representation to decouple Excel complexity from normalization logic. The schemas define three core data structures:
+The Excel standardization system uses JSON as the internal data representation to decouple Excel complexity from standardization logic. The schemas define three core data structures:
 
 1. **JsonRow**: A single data row with original and corrected field values
 2. **SheetDataset**: All data from a single worksheet
@@ -192,7 +192,7 @@ Original fields contain values extracted directly from Excel without modificatio
 
 ### Corrected Fields
 
-Corrected fields contain normalized values after applying normalization engines:
+Corrected fields contain normalized values after applying standardization engines:
 - Use snake_case naming with `_corrected` suffix
 - Examples: `first_name_corrected`, `last_name_corrected`, `gender_corrected`
 
@@ -200,7 +200,7 @@ Corrected fields contain normalized values after applying normalization engines:
 
 1. **Every original field MUST have a corresponding corrected field**
    - If `first_name` exists, `first_name_corrected` must also exist
-   - Even if no normalization was applied, the corrected field must be present
+   - Even if no standardization was applied, the corrected field must be present
 
 2. **No orphaned corrected fields**
    - A corrected field cannot exist without its original field
@@ -208,10 +208,10 @@ Corrected fields contain normalized values after applying normalization engines:
 
 3. **Original values are never modified**
    - Original fields preserve exact values from Excel
-   - Normalization results are stored only in corrected fields
+   - standardization results are stored only in corrected fields
 
 4. **Corrected fields may contain original values**
-   - If normalization fails or is not applicable, corrected field contains original value
+   - If standardization fails or is not applicable, corrected field contains original value
    - This ensures corrected fields always have a value when original field has a value
 
 ### Date Field Naming
@@ -247,13 +247,13 @@ pip install jsonschema
 ### Basic Usage
 
 ```python
-from excel_normalization.schema_validation import (
+from excel_standardization.schema_validation import (
     validate_json_row,
     validate_sheet_dataset_schema,
     validate_workbook_dataset_schema,
     validate_field_naming_convention
 )
-from excel_normalization.data_types import SheetDataset, JsonRow
+from excel_standardization.data_types import SheetDataset, JsonRow
 
 # Validate a JsonRow
 row = {"first_name": "John", "first_name_corrected": "John"}
@@ -303,7 +303,7 @@ except ValidationError as e:
 The module provides utilities for working with the field naming convention:
 
 ```python
-from excel_normalization.schema_validation import (
+from excel_standardization.schema_validation import (
     get_corrected_field_name,
     get_original_field_name,
     is_corrected_field,
@@ -373,13 +373,13 @@ Additional requirements validated:
 
 ## Integration with Python Code
 
-The schemas are designed to match the Python dataclasses defined in `src/excel_normalization/data_types.py`:
+The schemas are designed to match the Python dataclasses defined in `src/excel_standardization/data_types.py`:
 
 - `JsonRow` → Python type alias `Dict[str, Any]`
 - `SheetDataset` → Python `@dataclass SheetDataset`
 - `WorkbookDataset` → Python `@dataclass WorkbookDataset`
 
-The validation utilities in `src/excel_normalization/schema_validation.py` bridge the gap between Python dataclasses and JSON schemas, allowing runtime validation of data structures.
+The validation utilities in `src/excel_standardization/schema_validation.py` bridge the gap between Python dataclasses and JSON schemas, allowing runtime validation of data structures.
 
 ## Usage in Testing
 
@@ -395,7 +395,7 @@ Example property-based test:
 ```python
 from hypothesis import given
 from hypothesis_jsonschema import from_schema
-from excel_normalization.schema_validation import load_schema, validate_json_row
+from excel_standardization.schema_validation import load_schema, validate_json_row
 
 # Generate random JsonRow instances that conform to schema
 json_row_schema = load_schema("json_row.schema.json")

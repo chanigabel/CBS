@@ -1,4 +1,4 @@
-"""Launcher entry point for the Excel Normalization desktop application.
+"""Launcher entry point for the Excel standardization desktop application.
 
 This script is the PyInstaller entry point.  It:
 1. Starts the Uvicorn server on a free local port.
@@ -26,7 +26,7 @@ import uvicorn
 
 def _setup_logging() -> None:
     if getattr(sys, "frozen", False):
-        log_dir = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "ExcelNormalization"
+        log_dir = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "Excelstandardization"
     else:
         log_dir = Path.cwd()
 
@@ -156,8 +156,8 @@ def main() -> None:
     chrome = _find_chrome()
     browser_label = f"Chrome ({chrome})" if chrome else "default browser"
 
-    logger.info(f"Starting Excel Normalization at {url}")
-    print(f"\n  Excel Normalization is running at {url}")
+    logger.info(f"Starting Excel standardization at {url}")
+    print(f"\n  Excel standardization is running at {url}")
     print(f"  Opening in {browser_label}...")
     print("  Press Ctrl+C to stop.\n")
 

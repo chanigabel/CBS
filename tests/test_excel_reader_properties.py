@@ -4,7 +4,7 @@ These tests validate universal correctness properties that should hold
 across all possible inputs, not just specific examples.
 
 Tests cover:
-- Text normalization idempotence
+- Text standardization idempotence
 - Keyword recognition completeness
 - Corrected column exclusion
 - Best row selection
@@ -14,21 +14,21 @@ Tests cover:
 import pytest
 from hypothesis import given, strategies as st, assume
 from openpyxl import Workbook
-from src.excel_normalization.io_layer.excel_reader import ExcelReader
+from src.excel_standardization.io_layer.excel_reader import ExcelReader
 
 
-class TestTextNormalizationProperties:
-    """Property-based tests for text normalization.
+class TestTextstandardizationProperties:
+    """Property-based tests for text standardization.
     
     **Validates: Requirements 2.1-2.6**
     """
 
     @given(st.text())
-    def test_normalization_idempotence(self, text):
-        """Property: Normalizing twice should equal normalizing once.
+    def test_standardization_idempotence(self, text):
+        """Property: standardizing twice should equal standardizing once.
         
-        For any text input, applying normalization twice should produce
-        the same result as applying it once. This ensures the normalization
+        For any text input, applying standardization twice should produce
+        the same result as applying it once. This ensures the standardization
         function is idempotent.
         """
         reader = ExcelReader()
@@ -37,7 +37,7 @@ class TestTextNormalizationProperties:
         assert once == twice, f"Idempotence failed: {once!r} != {twice!r}"
 
     @given(st.text())
-    def test_normalization_removes_line_breaks(self, text):
+    def test_standardization_removes_line_breaks(self, text):
         """Property: Normalized text should contain no line breaks."""
         reader = ExcelReader()
         normalized = reader._normalize_text(text)
@@ -45,7 +45,7 @@ class TestTextNormalizationProperties:
         assert "\r" not in normalized, "Normalized text contains \\r"
 
     @given(st.text())
-    def test_normalization_removes_parentheses(self, text):
+    def test_standardization_removes_parentheses(self, text):
         """Property: Normalized text should contain no parentheses."""
         reader = ExcelReader()
         normalized = reader._normalize_text(text)
@@ -53,7 +53,7 @@ class TestTextNormalizationProperties:
         assert ")" not in normalized, "Normalized text contains )"
 
     @given(st.text())
-    def test_normalization_removes_brackets(self, text):
+    def test_standardization_removes_brackets(self, text):
         """Property: Normalized text should contain no brackets."""
         reader = ExcelReader()
         normalized = reader._normalize_text(text)
@@ -61,7 +61,7 @@ class TestTextNormalizationProperties:
         assert "]" not in normalized, "Normalized text contains ]"
 
     @given(st.text())
-    def test_normalization_removes_braces(self, text):
+    def test_standardization_removes_braces(self, text):
         """Property: Normalized text should contain no braces."""
         reader = ExcelReader()
         normalized = reader._normalize_text(text)
@@ -69,7 +69,7 @@ class TestTextNormalizationProperties:
         assert "}" not in normalized, "Normalized text contains }"
 
     @given(st.text())
-    def test_normalization_no_leading_trailing_whitespace(self, text):
+    def test_standardization_no_leading_trailing_whitespace(self, text):
         """Property: Normalized text should have no leading/trailing whitespace."""
         reader = ExcelReader()
         normalized = reader._normalize_text(text)
@@ -80,14 +80,14 @@ class TestTextNormalizationProperties:
             assert not normalized.endswith("\t"), "Normalized text ends with tab"
 
     @given(st.text())
-    def test_normalization_single_spaces(self, text):
+    def test_standardization_single_spaces(self, text):
         """Property: Normalized text should have no consecutive spaces."""
         reader = ExcelReader()
         normalized = reader._normalize_text(text)
         assert "  " not in normalized, "Normalized text contains consecutive spaces"
 
     @given(st.text())
-    def test_normalization_lowercase(self, text):
+    def test_standardization_lowercase(self, text):
         """Property: Normalized text should be lowercase."""
         reader = ExcelReader()
         normalized = reader._normalize_text(text)
@@ -97,12 +97,12 @@ class TestTextNormalizationProperties:
                 pytest.fail(f"Normalized text contains uppercase: {char}")
 
     @given(st.text())
-    def test_normalization_deterministic(self, text):
-        """Property: Normalization should be deterministic."""
+    def test_standardization_deterministic(self, text):
+        """Property: standardization should be deterministic."""
         reader = ExcelReader()
         result1 = reader._normalize_text(text)
         result2 = reader._normalize_text(text)
-        assert result1 == result2, "Normalization is not deterministic"
+        assert result1 == result2, "standardization is not deterministic"
 
 
 class TestKeywordRecognitionProperties:

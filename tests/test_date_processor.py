@@ -6,11 +6,11 @@ and entry date fields with split year/month/day columns.
 
 import pytest
 from openpyxl import Workbook
-from src.excel_normalization.processing.date_processor import DateFieldProcessor
-from src.excel_normalization.io_layer.excel_reader import ExcelReader
-from src.excel_normalization.io_layer.excel_writer import ExcelWriter
-from src.excel_normalization.engines.date_engine import DateEngine
-from src.excel_normalization.data_types import DateFormatPattern, DateFieldType
+from src.excel_standardization.processing.date_processor import DateFieldProcessor
+from src.excel_standardization.io_layer.excel_reader import ExcelReader
+from src.excel_standardization.io_layer.excel_writer import ExcelWriter
+from src.excel_standardization.engines.date_engine import DateEngine
+from src.excel_standardization.data_types import DateFormatPattern, DateFieldType
 
 
 @pytest.fixture
@@ -229,7 +229,7 @@ class TestApplyMajorityCenturyCorrection:
 
     def _auto_result(self, year, month=6, day=15, is_valid=True):
         """Build a DateParseResult that looks like an auto-completed year."""
-        from src.excel_normalization.data_types import DateParseResult
+        from src.excel_standardization.data_types import DateParseResult
         r = DateParseResult(
             year=year, month=month, day=day,
             is_valid=is_valid, status_text="",
@@ -239,7 +239,7 @@ class TestApplyMajorityCenturyCorrection:
 
     def _explicit_result(self, year, month=6, day=15, is_valid=True):
         """Build a DateParseResult that looks like an explicit 4-digit year."""
-        from src.excel_normalization.data_types import DateParseResult
+        from src.excel_standardization.data_types import DateParseResult
         r = DateParseResult(
             year=year, month=month, day=day,
             is_valid=is_valid, status_text="",
@@ -375,7 +375,7 @@ class TestApplyMajorityCenturyCorrection:
 
     def test_invalid_rows_ignored_in_counting(self):
         """Rows with year=None (parse failures) don't affect the majority count."""
-        from src.excel_normalization.data_types import DateParseResult
+        from src.excel_standardization.data_types import DateParseResult
         proc = self._make_processor()
         invalid = DateParseResult(
             year=None, month=None, day=None,

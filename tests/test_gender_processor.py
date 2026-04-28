@@ -1,20 +1,20 @@
 """Tests for GenderFieldProcessor.
 
 This module tests the GenderFieldProcessor class to ensure it correctly
-finds gender headers with line break normalization, prepares output columns,
+finds gender headers with line break standardization, prepares output columns,
 and processes gender data.
 """
 
 import pytest
 from openpyxl import Workbook
-from src.excel_normalization.processing.gender_processor import GenderFieldProcessor
-from src.excel_normalization.io_layer.excel_reader import ExcelReader
-from src.excel_normalization.io_layer.excel_writer import ExcelWriter
-from src.excel_normalization.engines.gender_engine import GenderEngine
+from src.excel_standardization.processing.gender_processor import GenderFieldProcessor
+from src.excel_standardization.io_layer.excel_reader import ExcelReader
+from src.excel_standardization.io_layer.excel_writer import ExcelWriter
+from src.excel_standardization.engines.gender_engine import GenderEngine
 
 
 def test_find_headers_with_line_breaks():
-    """Test that gender header is found with line break normalization."""
+    """Test that gender header is found with line break standardization."""
     # Create a workbook with gender header containing line breaks
     wb = Workbook()
     ws = wb.active

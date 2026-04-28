@@ -18,8 +18,8 @@ from datetime import datetime
 from openpyxl import Workbook
 from openpyxl.worksheet.worksheet import Worksheet
 
-from src.excel_normalization.io_layer import ExcelReader, ExcelToJsonExtractor
-from src.excel_normalization.data_types import ColumnHeaderInfo
+from src.excel_standardization.io_layer import ExcelReader, ExcelToJsonExtractor
+from src.excel_standardization.data_types import ColumnHeaderInfo
 
 
 @pytest.fixture

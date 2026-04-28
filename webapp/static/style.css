@@ -1,4 +1,4 @@
-/* Excel Normalization Web App - Styles */
+/* Excel standardization Web App - Styles */
 
 *, *::before, *::after {
     box-sizing: border-box;
@@ -529,7 +529,7 @@ tr.row-has-changes {
     line-height: 1.4;
 }
 
-/* U-05: Sheet tab warning style for sheets with normalization issues */
+/* U-05: Sheet tab warning style for sheets with standardization issues */
 .sheet-tab.sheet-tab-warning {
     border-color: #f6ad55;
     color: #c05621;

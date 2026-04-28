@@ -3,7 +3,7 @@
 import pytest
 from fastapi import HTTPException
 
-from src.excel_normalization.data_types import SheetDataset, WorkbookDataset
+from src.excel_standardization.data_types import SheetDataset, WorkbookDataset
 from webapp.models.session import SessionRecord
 from webapp.services.session_service import SessionService
 from webapp.services.workbook_service import WorkbookService

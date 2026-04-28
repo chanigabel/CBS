@@ -1,9 +1,9 @@
-"""Preservation Property Tests - Normalization Behavior Unchanged
+"""Preservation Property Tests - standardization Behavior Unchanged
 
 **Validates: Requirements 3.1, 3.2, 3.3, 3.4**
 
 IMPORTANT: These tests verify that the fixed code produces exactly the same
-normalized Excel output as the original code, preserving all normalization logic,
+normalized Excel output as the original code, preserving all standardization logic,
 engine execution order, corrected field creation, and logging behavior.
 
 These tests should PASS on unfixed code to establish the baseline behavior.
@@ -15,11 +15,11 @@ import pytest
 from hypothesis import given, strategies as st, settings, assume
 from openpyxl import Workbook, load_workbook
 
-from src.excel_normalization.orchestrator import NormalizationOrchestrator
+from src.excel_standardization.orchestrator import standardizationOrchestrator
 
 
 class TestPreservationProperty:
-    """Test that normalization behavior is preserved after adding debugging."""
+    """Test that standardization behavior is preserved after adding debugging."""
 
     def test_excel_output_preservation_simple(self):
         """Test that Excel output is identical with sample data.
@@ -59,8 +59,8 @@ class TestPreservationProperty:
             # Save input file
             wb.save(input_path)
             
-            # Run the normalization pipeline
-            orchestrator = NormalizationOrchestrator()
+            # Run the standardization pipeline
+            orchestrator = standardizationOrchestrator()
             orchestrator.process_workbook_json(input_path, output_path)
             
             # ASSERTIONS: Verify expected behavior is preserved
@@ -103,7 +103,7 @@ class TestPreservationProperty:
         ),
     )
     def test_excel_output_preservation_property(self, num_rows, first_names, last_names, genders):
-        """Property 2: Preservation - Normalization Behavior Unchanged
+        """Property 2: Preservation - standardization Behavior Unchanged
         
         **Validates: Requirements 3.1, 3.2, 3.3, 3.4**
         """
@@ -130,7 +130,7 @@ class TestPreservationProperty:
             
             wb.save(input_path)
             
-            orchestrator = NormalizationOrchestrator()
+            orchestrator = standardizationOrchestrator()
             orchestrator.process_workbook_json(input_path, output_path)
             
             assert os.path.exists(output_path), "Output Excel file should be created"
@@ -170,7 +170,7 @@ class TestPreservationProperty:
             
             wb.save(input_path)
             
-            orchestrator = NormalizationOrchestrator()
+            orchestrator = standardizationOrchestrator()
             orchestrator.process_workbook_json(input_path, output_path)
             
             wb_out = load_workbook(output_path)
@@ -218,7 +218,7 @@ class TestPreservationProperty:
             
             wb.save(input_path)
             
-            orchestrator = NormalizationOrchestrator()
+            orchestrator = standardizationOrchestrator()
             orchestrator.process_workbook_json(input_path, output_path)
             
             wb_out = load_workbook(output_path)
@@ -258,7 +258,7 @@ class TestPreservationProperty:
             
             wb.save(input_path)
             
-            orchestrator = NormalizationOrchestrator()
+            orchestrator = standardizationOrchestrator()
             orchestrator.process_workbook_json(input_path, output_path)
             
             assert os.path.exists(output_path), "Pipeline should complete and create output file"
@@ -308,7 +308,7 @@ class TestPreservationProperty:
             
             wb.save(input_path)
             
-            orchestrator = NormalizationOrchestrator()
+            orchestrator = standardizationOrchestrator()
             orchestrator.process_workbook_json(input_path, output_path)
             
             assert os.path.exists(output_path), "Output Excel file should be created"

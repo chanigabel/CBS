@@ -3,13 +3,13 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "excel-data-normalization"
+name = "excel-data-standardization"
 version = "1.0.0"
-description = "Python-based Excel data normalization system replicating legacy VBA behavior"
+description = "Python-based Excel data standardization system replicating legacy VBA behavior"
 readme = "README.md"
 requires-python = ">=3.9"
 authors = [
-    {name = "Excel Normalization Team"}
+    {name = "Excel standardization Team"}
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -41,7 +41,7 @@ dev = [
 ]
 
 [project.scripts]
-excel-normalize = "excel_normalization.cli:cli_entry_point"
+excel-normalize = "excel_standardization.cli:cli_entry_point"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -50,7 +50,7 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = [
     "--verbose",
-    "--cov=src/excel_normalization",
+    "--cov=src/excel_standardization",
     "--cov-report=term-missing",
     "--cov-report=html",
 ]

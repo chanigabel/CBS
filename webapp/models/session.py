@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 from typing import List, Optional
-from src.excel_normalization.data_types import WorkbookDataset
+from src.excel_standardization.data_types import WorkbookDataset
 
 
 @dataclass
@@ -14,7 +14,7 @@ class SessionRecord:
         source_file_path: Path to the original uploaded file (never modified)
         working_copy_path: Path to the working copy used for processing
         original_filename: The original filename as uploaded by the user
-        status: Current session status: "uploaded" | "normalized"
+        status: Current session status: "uploaded" | "standardized"
         workbook_dataset: Extracted/normalized WorkbookDataset (None until extracted)
         edits: Manual cell edits recorded as {(sheet_name, row_idx, field): new_value}
         mosad_id: Institution identifier (MosadID) — workbook-level

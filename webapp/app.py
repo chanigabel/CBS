@@ -1,10 +1,10 @@
-"""FastAPI application entry point for the Excel Normalization Web App.
+"""FastAPI application entry point for the Excel standardization Web App.
 
 Development:
     uvicorn webapp.app:app --reload
 
 Packaged (via launcher):
-    ExcelNormalization.exe
+    Excelstandardization.exe
 """
 
 import logging
@@ -19,7 +19,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.middleware.base import BaseHTTPMiddleware
 from contextlib import asynccontextmanager
 
-from webapp.api import upload, workbook, normalize, edit, export, institution
+from webapp.api import upload, workbook, standardize, edit, export, institution
 
 # ---------------------------------------------------------------------------
 # Asset path resolution — works both in development and inside a PyInstaller
@@ -62,7 +62,7 @@ async def lifespan(app: FastAPI):
     from webapp.dependencies import UPLOADS_DIR, WORK_DIR, OUTPUT_DIR
     for directory in (UPLOADS_DIR, WORK_DIR, OUTPUT_DIR):
         directory.mkdir(parents=True, exist_ok=True)
-    logger.info("Excel Normalization Web App started.")
+    logger.info("Excel standardization Web App started.")
     logger.info(f"Static assets: {_STATIC_DIR}")
     logger.info(f"Templates:     {_TEMPLATES_DIR}")
     yield
@@ -73,8 +73,8 @@ async def lifespan(app: FastAPI):
 # ---------------------------------------------------------------------------
 
 app = FastAPI(
-    title="Excel Normalization Web App",
-    description="Local web application for normalizing Excel workbooks",
+    title="Excel standardization Web App",
+    description="Local web application for standardizing Excel workbooks",
     version="1.0.0",
     lifespan=lifespan,
 )
@@ -102,7 +102,7 @@ templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
 # Register API routers
 app.include_router(upload.router, prefix="/api")
 app.include_router(workbook.router, prefix="/api")
-app.include_router(normalize.router, prefix="/api")
+app.include_router(standardize.router, prefix="/api")
 app.include_router(edit.router, prefix="/api")
 app.include_router(export.router, prefix="/api")
 app.include_router(institution.router, prefix="/api")

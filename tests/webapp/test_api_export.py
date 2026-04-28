@@ -32,7 +32,7 @@ def test_export_returns_404_for_unknown_session(client):
 
 
 def test_export_after_upload_without_normalize(client):
-    """Export should work even without normalization (uses raw data)."""
+    """Export should work even without standardization (uses raw data)."""
     file_bytes = make_xlsx_bytes(["Sheet1"])
     response = client.post(
         "/api/upload",

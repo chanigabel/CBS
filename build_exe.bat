@@ -1,32 +1,32 @@
 @echo off
 REM ============================================================
-REM  build_exe.bat  —  Build the ExcelNormalization.exe bundle
+REM  build_exe.bat  —  Build the Excelstandardization.exe bundle
 REM
 REM  Prerequisites (run once):
 REM    pip install pyinstaller
 REM    pip install -r requirements.txt
 REM
-REM  Output: dist\ExcelNormalization\ExcelNormalization.exe
-REM          dist\ExcelNormalization\_internal\webapp\static\
-REM          dist\ExcelNormalization\_internal\webapp\templates\
+REM  Output: dist\Excelstandardization\Excelstandardization.exe
+REM          dist\Excelstandardization\_internal\webapp\static\
+REM          dist\Excelstandardization\_internal\webapp\templates\
 REM ============================================================
 
 setlocal
 
 echo.
 echo ============================================================
-echo  Excel Normalization — EXE Build
+echo  Excel standardization — EXE Build
 echo ============================================================
 echo.
 
 REM Clean previous build artefacts
-if exist build\ExcelNormalization (
+if exist build\Excelstandardization (
     echo Cleaning previous build...
-    rmdir /s /q build\ExcelNormalization
+    rmdir /s /q build\Excelstandardization
 )
-if exist dist\ExcelNormalization (
+if exist dist\Excelstandardization (
     echo Cleaning previous dist...
-    rmdir /s /q dist\ExcelNormalization
+    rmdir /s /q dist\Excelstandardization
 )
 
 REM Remove stale __pycache__ so PyInstaller sees fresh bytecode
@@ -37,7 +37,7 @@ for /d /r . %%d in (__pycache__) do (
 
 echo.
 echo Running PyInstaller...
-pyinstaller ExcelNormalization.spec --noconfirm
+pyinstaller Excelstandardization.spec --noconfirm
 
 if errorlevel 1 (
     echo.
@@ -51,15 +51,15 @@ REM ---------------------------------------------------------------
 echo.
 echo Verifying output...
 
-if not exist "dist\ExcelNormalization\ExcelNormalization.exe" (
-    echo ERROR: ExcelNormalization.exe not found in dist folder.
+if not exist "dist\Excelstandardization\Excelstandardization.exe" (
+    echo ERROR: Excelstandardization.exe not found in dist folder.
     exit /b 1
 )
-if not exist "dist\ExcelNormalization\_internal\webapp\static\app.js" (
+if not exist "dist\Excelstandardization\_internal\webapp\static\app.js" (
     echo ERROR: _internal\webapp\static\app.js missing from bundle.
     exit /b 1
 )
-if not exist "dist\ExcelNormalization\_internal\webapp\templates\index.html" (
+if not exist "dist\Excelstandardization\_internal\webapp\templates\index.html" (
     echo ERROR: _internal\webapp\templates\index.html missing from bundle.
     exit /b 1
 )
@@ -67,7 +67,7 @@ if not exist "dist\ExcelNormalization\_internal\webapp\templates\index.html" (
 echo.
 echo ============================================================
 echo  Build complete.
-echo  Executable: dist\ExcelNormalization\ExcelNormalization.exe
+echo  Executable: dist\Excelstandardization\Excelstandardization.exe
 echo ============================================================
 echo.
 endlocal

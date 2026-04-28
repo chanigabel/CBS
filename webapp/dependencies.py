@@ -2,7 +2,7 @@
 
 Runtime directories are resolved to a writable location that works both
 during development (relative to CWD) and inside a PyInstaller-packaged exe
-(under %LOCALAPPDATA%\\ExcelNormalization).
+(under %LOCALAPPDATA%\\Excelstandardization).
 """
 
 import os
@@ -12,7 +12,7 @@ from pathlib import Path
 from webapp.services.session_service import SessionService
 from webapp.services.upload_service import UploadService
 from webapp.services.workbook_service import WorkbookService
-from webapp.services.normalization_service import NormalizationService
+from webapp.services.standardization_service import standardizationService
 from webapp.services.edit_service import EditService
 from webapp.services.export_service import ExportService
 
@@ -20,12 +20,12 @@ from webapp.services.export_service import ExportService
 def _get_data_dir() -> Path:
     """Return the writable data directory for runtime files.
 
-    - Packaged (PyInstaller): %LOCALAPPDATA%\\ExcelNormalization
+    - Packaged (PyInstaller): %LOCALAPPDATA%\\Excelstandardization
     - Development: project root (current working directory)
     """
     if getattr(sys, "frozen", False):
         # Running inside a PyInstaller bundle
-        base = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "ExcelNormalization"
+        base = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "Excelstandardization"
     else:
         base = Path.cwd()
     return base
@@ -46,7 +46,7 @@ for _d in (UPLOADS_DIR, WORK_DIR, OUTPUT_DIR):
 _session_service = SessionService()
 _upload_service = UploadService(_session_service, UPLOADS_DIR, WORK_DIR)
 _workbook_service = WorkbookService(_session_service)
-_normalization_service = NormalizationService(_session_service)
+_standardization_service = standardizationService(_session_service)
 _edit_service = EditService(_session_service)
 _export_service = ExportService(_session_service, OUTPUT_DIR)
 
@@ -63,8 +63,8 @@ def get_workbook_service() -> WorkbookService:
     return _workbook_service
 
 
-def get_normalization_service() -> NormalizationService:
-    return _normalization_service
+def get_standardization_service() -> standardizationService:
+    return _standardization_service
 
 
 def get_edit_service() -> EditService:

@@ -5,7 +5,7 @@ in complex Excel forms with variable header positions.
 """
 
 from openpyxl import Workbook
-from src.excel_normalization.io_layer.excel_reader import ExcelReader
+from src.excel_standardization.io_layer.excel_reader import ExcelReader
 
 
 def create_sample_workbook():

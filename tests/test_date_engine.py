@@ -2,8 +2,8 @@
 
 import pytest
 from datetime import datetime, date
-from src.excel_normalization.engines.date_engine import DateEngine
-from src.excel_normalization.data_types import DateFormatPattern
+from src.excel_standardization.engines.date_engine import DateEngine
+from src.excel_standardization.data_types import DateFormatPattern
 
 
 class TestExpandTwoDigitYear:
@@ -407,7 +407,7 @@ class TestValidateBusinessRules:
     
     def test_entry_date_empty_clears_status(self):
         """Entry date with 'תא ריק' status should be cleared."""
-        from src.excel_normalization.data_types import DateParseResult, DateFieldType
+        from src.excel_standardization.data_types import DateParseResult, DateFieldType
         
         engine = DateEngine()
         result = DateParseResult(
@@ -424,7 +424,7 @@ class TestValidateBusinessRules:
     
     def test_birth_date_empty_keeps_status(self):
         """Birth date with 'תא ריק' status should keep the status."""
-        from src.excel_normalization.data_types import DateParseResult, DateFieldType
+        from src.excel_standardization.data_types import DateParseResult, DateFieldType
         
         engine = DateEngine()
         result = DateParseResult(
@@ -441,7 +441,7 @@ class TestValidateBusinessRules:
     
     def test_invalid_date_keeps_status(self):
         """Invalid date should keep existing status."""
-        from src.excel_normalization.data_types import DateParseResult, DateFieldType
+        from src.excel_standardization.data_types import DateParseResult, DateFieldType
         
         engine = DateEngine()
         result = DateParseResult(
@@ -458,7 +458,7 @@ class TestValidateBusinessRules:
     
     def test_year_before_1900(self):
         """Year before 1900 should be marked invalid."""
-        from src.excel_normalization.data_types import DateParseResult, DateFieldType
+        from src.excel_standardization.data_types import DateParseResult, DateFieldType
         
         engine = DateEngine()
         result = DateParseResult(
@@ -475,7 +475,7 @@ class TestValidateBusinessRules:
     
     def test_future_birth_date(self):
         """Future birth date should be marked invalid."""
-        from src.excel_normalization.data_types import DateParseResult, DateFieldType
+        from src.excel_standardization.data_types import DateParseResult, DateFieldType
         
         engine = DateEngine()
         today = datetime.now()
@@ -495,7 +495,7 @@ class TestValidateBusinessRules:
     
     def test_future_entry_date(self):
         """Future entry date should be marked invalid with the cutoff-year status."""
-        from src.excel_normalization.data_types import DateParseResult, DateFieldType
+        from src.excel_standardization.data_types import DateParseResult, DateFieldType
         
         engine = DateEngine()
         today = datetime.now()
@@ -517,7 +517,7 @@ class TestValidateBusinessRules:
     
     def test_age_over_100_warning(self):
         """Birth date with age > 100 should show warning but remain valid."""
-        from src.excel_normalization.data_types import DateParseResult, DateFieldType
+        from src.excel_standardization.data_types import DateParseResult, DateFieldType
         
         engine = DateEngine()
         today = datetime.now()
@@ -539,7 +539,7 @@ class TestValidateBusinessRules:
     
     def test_age_exactly_100_no_warning(self):
         """Birth date with age exactly 100 should not show warning."""
-        from src.excel_normalization.data_types import DateParseResult, DateFieldType
+        from src.excel_standardization.data_types import DateParseResult, DateFieldType
         
         engine = DateEngine()
         today = datetime.now()
@@ -559,7 +559,7 @@ class TestValidateBusinessRules:
     
     def test_valid_date_passes_all_rules(self):
         """Valid date within acceptable range should pass all rules."""
-        from src.excel_normalization.data_types import DateParseResult, DateFieldType
+        from src.excel_standardization.data_types import DateParseResult, DateFieldType
         
         engine = DateEngine()
         
@@ -690,8 +690,8 @@ class TestEntryDateCutoffYear:
     """
 
     def setup_method(self):
-        from src.excel_normalization.engines.date_engine import DateEngine
-        from src.excel_normalization.data_types import DateParseResult, DateFieldType
+        from src.excel_standardization.engines.date_engine import DateEngine
+        from src.excel_standardization.data_types import DateParseResult, DateFieldType
         self.engine = DateEngine()
         self.DateParseResult = DateParseResult
         self.DateFieldType = DateFieldType

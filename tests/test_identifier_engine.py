@@ -4,7 +4,7 @@ Tests the pure business logic for Israeli ID and passport validation.
 """
 
 import pytest
-from src.excel_normalization.engines.identifier_engine import IdentifierEngine
+from src.excel_standardization.engines.identifier_engine import IdentifierEngine
 
 
 class TestClassifyIdValue:

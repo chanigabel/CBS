@@ -1,1 +1,1 @@
-"""Test package for excel_normalization."""
+"""Test package for excel_standardization."""

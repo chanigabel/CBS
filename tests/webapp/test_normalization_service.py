@@ -1,4 +1,4 @@
-"""Unit tests for NormalizationService."""
+"""Unit tests for standardizationService."""
 
 import io
 import pytest
@@ -6,10 +6,10 @@ from pathlib import Path
 from openpyxl import Workbook
 from fastapi import HTTPException
 
-from src.excel_normalization.data_types import SheetDataset, WorkbookDataset
+from src.excel_standardization.data_types import SheetDataset, WorkbookDataset
 from webapp.models.session import SessionRecord
 from webapp.services.session_service import SessionService
-from webapp.services.normalization_service import NormalizationService
+from webapp.services.standardization_service import standardizationService
 
 
 def make_xlsx_bytes(sheet_names=None) -> bytes:
@@ -36,8 +36,8 @@ def clear_registry():
 @pytest.fixture
 def session_with_file(tmp_path):
     """Create a session with a real xlsx file on disk and a pre-loaded dataset."""
-    from src.excel_normalization.io_layer.excel_to_json_extractor import ExcelToJsonExtractor
-    from src.excel_normalization.io_layer.excel_reader import ExcelReader
+    from src.excel_standardization.io_layer.excel_to_json_extractor import ExcelToJsonExtractor
+    from src.excel_standardization.io_layer.excel_reader import ExcelReader
 
     svc = SessionService()
     file_bytes = make_xlsx_bytes(["Sheet1"])
@@ -49,7 +49,7 @@ def session_with_file(tmp_path):
     source_path.parent.mkdir(parents=True, exist_ok=True)
     source_path.write_bytes(file_bytes)
 
-    # Pre-load the workbook dataset so normalization has data to work with
+    # Pre-load the workbook dataset so standardization has data to work with
     extractor = ExcelToJsonExtractor(ExcelReader(), skip_empty_rows=False,
                                      handle_formulas=True, preserve_types=True)
     wbd = extractor.extract_workbook_to_json(str(working_path))
@@ -63,20 +63,20 @@ def session_with_file(tmp_path):
         workbook_dataset=wbd,
     )
     svc.create(record)
-    return svc, NormalizationService(svc)
+    return svc, standardizationService(svc)
 
 
-def test_successful_normalization_sets_status_to_normalized(session_with_file):
+def test_successful_standardization_sets_status_to_normalized(session_with_file):
     svc, norm_svc = session_with_file
     response = norm_svc.normalize("test-session")
-    assert response.status == "normalized"
+    assert response.status == "standardized"
     assert response.session_id == "test-session"
 
     record = svc.get("test-session")
-    assert record.status == "normalized"
+    assert record.status == "standardized"
 
 
-def test_successful_normalization_returns_stats(session_with_file):
+def test_successful_standardization_returns_stats(session_with_file):
     _, norm_svc = session_with_file
     response = norm_svc.normalize("test-session")
     assert response.sheets_processed >= 1
@@ -84,7 +84,7 @@ def test_successful_normalization_returns_stats(session_with_file):
     assert len(response.per_sheet_stats) >= 1
 
 
-def test_normalization_updates_workbook_dataset(session_with_file):
+def test_standardization_updates_workbook_dataset(session_with_file):
     svc, norm_svc = session_with_file
     norm_svc.normalize("test-session")
     record = svc.get("test-session")
@@ -92,14 +92,14 @@ def test_normalization_updates_workbook_dataset(session_with_file):
     assert len(record.workbook_dataset.sheets) >= 1
 
 
-def test_normalization_raises_404_for_unknown_session(session_with_file):
+def test_standardization_raises_404_for_unknown_session(session_with_file):
     _, norm_svc = session_with_file
     with pytest.raises(HTTPException) as exc_info:
         norm_svc.normalize("ghost-session")
     assert exc_info.value.status_code == 404
 
 
-def test_normalization_raises_500_for_invalid_working_copy(tmp_path):
+def test_standardization_raises_500_for_invalid_working_copy(tmp_path):
     svc = SessionService()
     record = SessionRecord(
         session_id="bad-session",
@@ -109,7 +109,7 @@ def test_normalization_raises_500_for_invalid_working_copy(tmp_path):
         status="uploaded",
     )
     svc.create(record)
-    norm_svc = NormalizationService(svc)
+    norm_svc = standardizationService(svc)
     with pytest.raises(HTTPException) as exc_info:
         norm_svc.normalize("bad-session")
     assert exc_info.value.status_code == 500

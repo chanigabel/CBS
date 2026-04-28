@@ -25,7 +25,7 @@ from pathlib import Path
 import pytest
 from openpyxl import Workbook
 
-from src.excel_normalization.data_types import SheetDataset, WorkbookDataset
+from src.excel_standardization.data_types import SheetDataset, WorkbookDataset
 from webapp.models.requests import CellEditRequest, DeleteRowRequest
 from webapp.models.session import SessionRecord
 from webapp.services.edit_service import EditService
@@ -79,7 +79,7 @@ def _register_session(session_svc: SessionService, sheet: SheetDataset, tmp_path
         source_file_path=str(path),
         working_copy_path=str(path),
         original_filename="test.xlsx",
-        status="normalized",
+        status="standardized",
         workbook_dataset=wbd,
     )
     session_svc.create(record)
@@ -405,14 +405,14 @@ class TestCombinedOperations:
 
 
 # ---------------------------------------------------------------------------
-# 5. Normalization edit replay
+# 5. standardization edit replay
 # ---------------------------------------------------------------------------
 
-class TestNormalizationEditReplay:
-    """Test that edits are replayed correctly after normalization."""
+class TeststandardizationEditReplay:
+    """Test that edits are replayed correctly after standardization."""
 
-    def test_edit_survives_normalization(self, tmp_path):
-        """Manual edit must survive re-normalization."""
+    def test_edit_survives_standardization(self, tmp_path):
+        """Manual edit must survive re-standardization."""
         session_svc = _make_session_service()
         sheet = _sheet_with_helper_row()
         session_id = _register_session(session_svc, sheet, tmp_path)
@@ -432,11 +432,11 @@ class TestNormalizationEditReplay:
         assert ("Sheet1", rachel_uid, "first_name_corrected") in record.edits
         assert record.edits[("Sheet1", rachel_uid, "first_name_corrected")] == "Racheli"
         
-        # Simulate normalization replay
-        from webapp.services.normalization_service import NormalizationService
-        norm_svc = NormalizationService(session_svc)
+        # Simulate standardization replay
+        from webapp.services.standardization_service import standardizationService
+        norm_svc = standardizationService(session_svc)
         
-        # The normalization service replays edits by row_uid
+        # The standardization service replays edits by row_uid
         # We'll verify the edit is still there after a simulated reload
         sheet_obj = record.workbook_dataset.get_sheet_by_name("Sheet1")
         rachel_idx = next(i for i, r in enumerate(sheet_obj.rows)

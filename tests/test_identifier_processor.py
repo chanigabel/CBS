@@ -6,10 +6,10 @@ Israeli ID and passport fields together.
 
 import pytest
 from openpyxl import Workbook
-from src.excel_normalization.processing.identifier_processor import IdentifierFieldProcessor
-from src.excel_normalization.io_layer.excel_reader import ExcelReader
-from src.excel_normalization.io_layer.excel_writer import ExcelWriter
-from src.excel_normalization.engines.identifier_engine import IdentifierEngine
+from src.excel_standardization.processing.identifier_processor import IdentifierFieldProcessor
+from src.excel_standardization.io_layer.excel_reader import ExcelReader
+from src.excel_standardization.io_layer.excel_writer import ExcelWriter
+from src.excel_standardization.engines.identifier_engine import IdentifierEngine
 
 
 @pytest.fixture

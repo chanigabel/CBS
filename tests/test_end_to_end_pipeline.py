@@ -1,13 +1,13 @@
-"""End-to-end integration test for the complete normalization pipeline.
+"""End-to-end integration test for the complete standardization pipeline.
 
 This test validates the complete flow:
 1. Excel → JSON extraction (ExcelToJsonExtractor)
-2. JSON normalization (NormalizationPipeline)
+2. JSON standardization (standardizationPipeline)
 3. JSON → Excel export (JsonToExcelWriter)
 
 The test creates a sample Excel file with Hebrew data, processes it through
 the entire pipeline, and verifies that the output contains both original and
-corrected columns with proper normalization applied.
+corrected columns with proper standardization applied.
 """
 
 import os
@@ -15,28 +15,28 @@ import tempfile
 import pytest
 from openpyxl import Workbook, load_workbook
 
-from src.excel_normalization.io_layer.excel_reader import ExcelReader
-from src.excel_normalization.io_layer.excel_to_json_extractor import ExcelToJsonExtractor
-from src.excel_normalization.processing.normalization_pipeline import NormalizationPipeline
-from src.excel_normalization.io_layer.excel_writer import JsonToExcelWriter
-from src.excel_normalization.engines.name_engine import NameEngine
-from src.excel_normalization.engines.gender_engine import GenderEngine
-from src.excel_normalization.engines.date_engine import DateEngine
-from src.excel_normalization.engines.identifier_engine import IdentifierEngine
-from src.excel_normalization.engines.text_processor import TextProcessor
+from src.excel_standardization.io_layer.excel_reader import ExcelReader
+from src.excel_standardization.io_layer.excel_to_json_extractor import ExcelToJsonExtractor
+from src.excel_standardization.processing.standardization_pipeline import standardizationPipeline
+from src.excel_standardization.io_layer.excel_writer import JsonToExcelWriter
+from src.excel_standardization.engines.name_engine import NameEngine
+from src.excel_standardization.engines.gender_engine import GenderEngine
+from src.excel_standardization.engines.date_engine import DateEngine
+from src.excel_standardization.engines.identifier_engine import IdentifierEngine
+from src.excel_standardization.engines.text_processor import TextProcessor
 
 
 class TestEndToEndPipeline:
-    """Test the complete Excel normalization pipeline end-to-end."""
+    """Test the complete Excel standardization pipeline end-to-end."""
 
     def test_end_to_end_pipeline(self):
         """Test complete pipeline: Excel → JSON → Normalize → Excel.
         
         This test validates:
         1. ExcelToJsonExtractor extracts data correctly
-        2. NormalizationPipeline normalizes all fields
+        2. standardizationPipeline normalizes all fields
         3. JsonToExcelWriter exports with original and corrected columns
-        4. Corrected values differ from originals where normalization occurred
+        4. Corrected values differ from originals where standardization occurred
         """
         # Create temporary files
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -53,7 +53,7 @@ class TestEndToEndPipeline:
             for col_idx, header in enumerate(headers, 1):
                 ws.cell(row=1, column=col_idx, value=header)
             
-            # Add sample data with values that need normalization
+            # Add sample data with values that need standardization
             test_data = [
                 # Row 2: Name with extra spaces, male gender, valid date, valid ID
                 ["  יוסי  ", "כהן  ", "דוד", "ז", "15/05/1980", "123456782", "A1234567"],
@@ -88,7 +88,7 @@ class TestEndToEndPipeline:
             
             # Step 3: Normalize the data
             text_processor = TextProcessor()
-            pipeline = NormalizationPipeline(
+            pipeline = standardizationPipeline(
                 name_engine=NameEngine(text_processor),
                 gender_engine=GenderEngine(),
                 date_engine=DateEngine(),
@@ -97,7 +97,7 @@ class TestEndToEndPipeline:
             
             normalized_dataset = pipeline.normalize_dataset(sheet_dataset)
             
-            # Verify normalization created corrected fields
+            # Verify standardization created corrected fields
             assert len(normalized_dataset.rows) == 3
             first_row = normalized_dataset.rows[0]
             
@@ -137,7 +137,7 @@ class TestEndToEndPipeline:
             assert "id_number" in headers_found
             assert "id_number_corrected" in headers_found
             
-            # Step 6: Verify corrected values differ from originals where normalization occurred
+            # Step 6: Verify corrected values differ from originals where standardization occurred
             # Read first data row (row 2)
             data_row_idx = 2
             
@@ -164,7 +164,7 @@ class TestEndToEndPipeline:
             assert original_last_name == "כהן  "
             assert corrected_last_name == "כהן"
             
-            # Verify gender normalization (row 2: "ז" should become 1 for male)
+            # Verify gender standardization (row 2: "ז" should become 1 for male)
             gender_col = headers_found.index("gender") + 1
             gender_corrected_col = headers_found.index("gender_corrected") + 1
             
@@ -248,7 +248,7 @@ class TestEndToEndPipeline:
             
             # Normalize
             text_processor = TextProcessor()
-            pipeline = NormalizationPipeline(
+            pipeline = standardizationPipeline(
                 name_engine=NameEngine(text_processor),
                 gender_engine=GenderEngine(),
                 date_engine=DateEngine(),
@@ -332,7 +332,7 @@ class TestEndToEndPipeline:
             
             # Normalize
             text_processor = TextProcessor()
-            pipeline = NormalizationPipeline(
+            pipeline = standardizationPipeline(
                 name_engine=NameEngine(text_processor),
                 gender_engine=GenderEngine(),
                 date_engine=DateEngine(),
@@ -404,7 +404,7 @@ class TestEndToEndPipeline:
             
             # Normalize each sheet
             text_processor = TextProcessor()
-            pipeline = NormalizationPipeline(
+            pipeline = standardizationPipeline(
                 name_engine=NameEngine(text_processor),
                 gender_engine=GenderEngine(),
                 date_engine=DateEngine(),
@@ -417,7 +417,7 @@ class TestEndToEndPipeline:
                 normalized_sheets.append(normalized_sheet)
             
             # Create normalized workbook dataset
-            from src.excel_normalization.data_types import WorkbookDataset
+            from src.excel_standardization.data_types import WorkbookDataset
             normalized_workbook = WorkbookDataset(
                 source_file=input_path,
                 sheets=normalized_sheets,

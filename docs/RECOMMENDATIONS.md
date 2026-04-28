@@ -18,7 +18,7 @@ These are the highest-value gaps: behaviors that exist in production code but ha
 
 **Why it matters:** `record.edits` is populated but never replayed. This is the most dangerous silent data loss in the system. No test currently catches it.
 
-**File to add to:** `tests/webapp/test_normalization_service.py`
+**File to add to:** `tests/webapp/test_standardization_service.py`
 
 ```python
 def test_manual_edit_is_lost_after_renormalize(session_with_file):
@@ -56,7 +56,7 @@ def test_manual_edit_is_lost_after_renormalize(session_with_file):
 
 #### T-02 · Deleted rows return after re-normalize
 
-**File to add to:** `tests/webapp/test_normalization_service.py`
+**File to add to:** `tests/webapp/test_standardization_service.py`
 
 ```python
 def test_deleted_rows_return_after_renormalize(session_with_file):
@@ -86,16 +86,16 @@ def test_deleted_rows_return_after_renormalize(session_with_file):
 
 ---
 
-#### T-03 · Export before normalization produces blank personal-data columns
+#### T-03 · Export before standardization produces blank personal-data columns
 
 **File to add to:** `tests/webapp/test_export_service.py`
 
 ```python
-def test_export_before_normalization_produces_blank_corrected_columns(tmp_path):
-    """Export without prior normalization: all *_corrected fields absent → blank cells."""
+def test_export_before_standardization_produces_blank_corrected_columns(tmp_path):
+    """Export without prior standardization: all *_corrected fields absent → blank cells."""
     from openpyxl import load_workbook as lw
     svc, _ = make_session_with_workbook()
-    # Remove corrected fields to simulate pre-normalization state
+    # Remove corrected fields to simulate pre-standardization state
     record = svc.get("export-session")
     for row in record.workbook_dataset.sheets[0].rows:
         row.pop("first_name_corrected", None)
@@ -114,7 +114,7 @@ def test_export_before_normalization_produces_blank_corrected_columns(tmp_path):
 
 #### T-04 · Entry-before-birth NOT checked in web path (regression guard)
 
-**File to add to:** `tests/webapp/test_normalization_service.py`
+**File to add to:** `tests/webapp/test_standardization_service.py`
 
 ```python
 def test_entry_before_birth_not_flagged_in_web_path(tmp_path):
@@ -124,7 +124,7 @@ def test_entry_before_birth_not_flagged_in_web_path(tmp_path):
     import io
     from openpyxl import Workbook
     from webapp.services.upload_service import UploadService
-    from webapp.services.normalization_service import NormalizationService
+    from webapp.services.standardization_service import standardizationService
     from webapp.services.session_service import SessionService
 
     wb = Workbook()
@@ -139,7 +139,7 @@ def test_entry_before_birth_not_flagged_in_web_path(tmp_path):
     svc = SessionService(); svc.clear_all()
     upload_svc = UploadService(svc, tmp_path / "u", tmp_path / "w")
     resp = upload_svc.handle_upload("test.xlsx", buf.getvalue())
-    norm_svc = NormalizationService(svc)
+    norm_svc = standardizationService(svc)
     norm_svc.normalize(resp.session_id)
 
     record = svc.get(resp.session_id)
@@ -152,7 +152,7 @@ def test_entry_before_birth_not_flagged_in_web_path(tmp_path):
 
 #### T-05 · DDMM hardcoded — US-format date silently wrong
 
-**File to add to:** `tests/test_normalization_pipeline.py`
+**File to add to:** `tests/test_standardization_pipeline.py`
 
 ```python
 def test_us_format_date_fails_silently_with_hardcoded_ddmm():
@@ -160,7 +160,7 @@ def test_us_format_date_fails_silently_with_hardcoded_ddmm():
     parsed as day=01, month=15 → invalid month, not as month=01, day=15."""
     pipeline = make_pipeline()
     row = {"birth_year": "01/15/1990", "birth_month": None, "birth_day": None}
-    pipeline.apply_date_normalization(row)
+    pipeline.apply_date_standardization(row)
     # With DDMM: day=01, month=15 → invalid
     assert row["birth_date_status"] != ""  # some error status
     # The correct parse (MMDD) would give month=1, day=15 — not achieved
@@ -171,7 +171,7 @@ def test_us_format_date_fails_silently_with_hardcoded_ddmm():
 
 #### T-06 · Whitespace-only gender inconsistency
 
-**File to add to:** `tests/test_normalization_pipeline.py`
+**File to add to:** `tests/test_standardization_pipeline.py`
 
 ```python
 def test_whitespace_gender_reaches_engine_unlike_empty_string():
@@ -179,11 +179,11 @@ def test_whitespace_gender_reaches_engine_unlike_empty_string():
     pipeline = make_pipeline()
 
     row_empty = {"gender": ""}
-    pipeline.apply_gender_normalization(row_empty)
+    pipeline.apply_gender_standardization(row_empty)
     assert row_empty["gender_corrected"] == ""  # preserved
 
     row_whitespace = {"gender": "   "}
-    pipeline.apply_gender_normalization(row_whitespace)
+    pipeline.apply_gender_standardization(row_whitespace)
     # Inconsistency: whitespace reaches engine, engine strips → returns 1 (male)
     assert row_whitespace["gender_corrected"] == 1  # not preserved as "   "
 ```
@@ -229,28 +229,28 @@ The 101 missing statements are concentrated in `validate_entry_before_birth` and
 ```python
 class TestValidateEntryBeforeBirth:
     def test_entry_before_birth_returns_false(self):
-        from src.excel_normalization.data_types import DateParseResult
+        from src.excel_standardization.data_types import DateParseResult
         engine = DateEngine()
         birth = DateParseResult(year=2000, month=1, day=1, is_valid=True, status_text="")
         entry = DateParseResult(year=1990, month=1, day=1, is_valid=True, status_text="")
         assert engine.validate_entry_before_birth(birth, entry) is False
 
     def test_entry_after_birth_returns_true(self):
-        from src.excel_normalization.data_types import DateParseResult
+        from src.excel_standardization.data_types import DateParseResult
         engine = DateEngine()
         birth = DateParseResult(year=1990, month=1, day=1, is_valid=True, status_text="")
         entry = DateParseResult(year=2010, month=6, day=15, is_valid=True, status_text="")
         assert engine.validate_entry_before_birth(birth, entry) is True
 
     def test_invalid_birth_skips_check(self):
-        from src.excel_normalization.data_types import DateParseResult
+        from src.excel_standardization.data_types import DateParseResult
         engine = DateEngine()
         birth = DateParseResult(year=None, month=None, day=None, is_valid=False, status_text="error")
         entry = DateParseResult(year=1990, month=1, day=1, is_valid=True, status_text="")
         assert engine.validate_entry_before_birth(birth, entry) is True  # skipped
 
     def test_year_only_birth_skips_check(self):
-        from src.excel_normalization.data_types import DateParseResult
+        from src.excel_standardization.data_types import DateParseResult
         engine = DateEngine()
         birth = DateParseResult(year=1990, month=0, day=0, is_valid=False, status_text="חסר חודש ויום")
         entry = DateParseResult(year=1985, month=1, day=1, is_valid=True, status_text="")
@@ -259,7 +259,7 @@ class TestValidateEntryBeforeBirth:
 class TestExcelSerialDate:
     def test_serial_36526_is_year_2000(self):
         engine = DateEngine()
-        from src.excel_normalization.data_types import DateFormatPattern, DateFieldType
+        from src.excel_standardization.data_types import DateFormatPattern, DateFieldType
         result = engine.parse_date(None, None, None, 36526, DateFormatPattern.DDMM, DateFieldType.BIRTH_DATE)
         assert result.year == 2000
         assert result.month == 1
@@ -267,7 +267,7 @@ class TestExcelSerialDate:
 
     def test_serial_zero_is_invalid(self):
         engine = DateEngine()
-        from src.excel_normalization.data_types import DateFormatPattern, DateFieldType
+        from src.excel_standardization.data_types import DateFormatPattern, DateFieldType
         result = engine.parse_date(None, None, None, 0, DateFormatPattern.DDMM, DateFieldType.BIRTH_DATE)
         assert result.is_valid is False
 ```
@@ -281,40 +281,40 @@ class TestExcelSerialDate:
 ```python
 class TestDetectFirstNamePattern:
     def test_returns_none_with_fewer_than_3_matches(self):
-        from src.excel_normalization.engines.text_processor import TextProcessor
+        from src.excel_standardization.engines.text_processor import TextProcessor
         engine = NameEngine(TextProcessor())
         # Only 2 rows where last name appears in first name
         first = [["כהן יוסי"], ["כהן שרה"], ["דוד"]]
         last  = [["כהן"],      ["כהן"],      ["לוי"]]
         result = engine.detect_first_name_pattern(first, last)
-        from src.excel_normalization.data_types import FatherNamePattern
+        from src.excel_standardization.data_types import FatherNamePattern
         assert result == FatherNamePattern.NONE
 
     def test_returns_remove_first_with_3_matches_at_start(self):
-        from src.excel_normalization.engines.text_processor import TextProcessor
+        from src.excel_standardization.engines.text_processor import TextProcessor
         engine = NameEngine(TextProcessor())
         first = [["כהן יוסי"], ["כהן שרה"], ["כהן דוד"]]
         last  = [["כהן"],      ["כהן"],      ["כהן"]]
         result = engine.detect_first_name_pattern(first, last)
-        from src.excel_normalization.data_types import FatherNamePattern
+        from src.excel_standardization.data_types import FatherNamePattern
         assert result == FatherNamePattern.REMOVE_FIRST
 
 class TestRemoveLastNameFromFirstName:
     def test_single_token_never_modified(self):
-        from src.excel_normalization.engines.text_processor import TextProcessor
+        from src.excel_standardization.engines.text_processor import TextProcessor
         engine = NameEngine(TextProcessor())
         result = engine.remove_last_name_from_first_name("כהן", "כהן")
         assert result == "כהן"
 
     def test_stage_a_removes_embedded_last_name(self):
-        from src.excel_normalization.engines.text_processor import TextProcessor
+        from src.excel_standardization.engines.text_processor import TextProcessor
         engine = NameEngine(TextProcessor())
         result = engine.remove_last_name_from_first_name("כהן יוסי", "כהן")
         assert result == "יוסי"
 
     def test_stage_b_positional_remove_first(self):
-        from src.excel_normalization.engines.text_processor import TextProcessor
-        from src.excel_normalization.data_types import FatherNamePattern
+        from src.excel_standardization.engines.text_processor import TextProcessor
+        from src.excel_standardization.data_types import FatherNamePattern
         engine = NameEngine(TextProcessor())
         # Last name not a substring — Stage B fires
         result = engine.remove_last_name_from_first_name(
@@ -356,7 +356,7 @@ def test_leading_numeric_helper_row_hidden(session_with_workbook):
     assert response.rows[0]["first_name"] != 1
 
 def test_corrected_field_placed_after_original(session_with_workbook):
-    """After normalization, first_name_corrected appears immediately after first_name."""
+    """After standardization, first_name_corrected appears immediately after first_name."""
     svc, wb_svc = session_with_workbook
     record = svc.get("wb-session")
     for row in record.workbook_dataset.sheets[0].rows:
@@ -369,7 +369,7 @@ def test_corrected_field_placed_after_original(session_with_workbook):
 
 def test_row_with_only_corrected_values_is_filtered_out():
     """Row where source columns are all empty but corrected fields exist is hidden."""
-    from src.excel_normalization.data_types import SheetDataset, WorkbookDataset
+    from src.excel_standardization.data_types import SheetDataset, WorkbookDataset
     from webapp.models.session import SessionRecord
     from webapp.services.session_service import SessionService
     from webapp.services.workbook_service import WorkbookService
@@ -437,9 +437,9 @@ These are concrete, targeted fixes — not rewrites.
 
 ### F-01 · Replay edits after re-normalize
 
-**Problem:** `record.edits` is populated on every `PATCH /cell` but `NormalizationService.normalize` re-extracts from disk and discards all in-memory changes.
+**Problem:** `record.edits` is populated on every `PATCH /cell` but `standardizationService.normalize` re-extracts from disk and discards all in-memory changes.
 
-**Where:** `webapp/services/normalization_service.py`, end of `normalize()`, after the merge loop.
+**Where:** `webapp/services/standardization_service.py`, end of `normalize()`, after the merge loop.
 
 **Exact fix — add ~8 lines:**
 
@@ -460,9 +460,9 @@ if record.edits:
 
 ### F-02 · Entry-before-birth cross-validation
 
-**Problem:** `DateEngine.validate_entry_before_birth` is fully implemented but never called by `NormalizationPipeline`.
+**Problem:** `DateEngine.validate_entry_before_birth` is fully implemented but never called by `standardizationPipeline`.
 
-**Where:** `src/excel_normalization/processing/normalization_pipeline.py`, `apply_date_normalization()`.
+**Where:** `src/excel_standardization/processing/standardization_pipeline.py`, `apply_date_standardization()`.
 
 **Exact fix — add ~15 lines after both date fields are normalized:**
 
@@ -493,15 +493,15 @@ elif prefix == "entry":
 
 ### F-03 · Date format auto-detection (DDMM vs MMDD)
 
-**Problem:** `NormalizationPipeline._normalize_date_field` always passes `DateFormatPattern.DDMM`. A sheet with US-format dates (`01/15/1990`) will silently produce wrong results.
+**Problem:** `standardizationPipeline._normalize_date_field` always passes `DateFormatPattern.DDMM`. A sheet with US-format dates (`01/15/1990`) will silently produce wrong results.
 
-**Where:** `src/excel_normalization/processing/normalization_pipeline.py`, `normalize_dataset()`.
+**Where:** `src/excel_standardization/processing/standardization_pipeline.py`, `normalize_dataset()`.
 
 **Exact fix — detect pattern once per dataset, cache on pipeline:**
 
 ```python
 # In normalize_dataset(), after pattern detection for names, add:
-if self.apply_date_normalization_enabled and self.date_engine:
+if self.apply_date_standardization_enabled and self.date_engine:
     # Sample first 10 non-null separated date values to detect format
     date_samples = []
     for row in corrected_dataset.rows[:20]:
@@ -516,7 +516,7 @@ if self.apply_date_normalization_enabled and self.date_engine:
 Add helper function (can be a module-level function):
 ```python
 def _detect_date_format(samples):
-    from src.excel_normalization.data_types import DateFormatPattern
+    from src.excel_standardization.data_types import DateFormatPattern
     ddmm = mmdd = 0
     for s in samples:
         parts = s.replace(".", "/").split("/")
@@ -541,9 +541,9 @@ pattern = getattr(self, "_date_format_pattern", DateFormatPattern.DDMM)
 
 ### F-04 · Whitespace-only gender preservation
 
-**Problem:** `apply_gender_normalization` has an early-return for `None` and `""` but not for whitespace-only strings. `"   "` reaches the engine, which strips it and returns `1` (male default), inconsistent with how `None` and `""` are handled.
+**Problem:** `apply_gender_standardization` has an early-return for `None` and `""` but not for whitespace-only strings. `"   "` reaches the engine, which strips it and returns `1` (male default), inconsistent with how `None` and `""` are handled.
 
-**Where:** `src/excel_normalization/processing/normalization_pipeline.py`, `apply_gender_normalization()`.
+**Where:** `src/excel_standardization/processing/standardization_pipeline.py`, `apply_gender_standardization()`.
 
 **Exact fix — one line change:**
 
@@ -668,16 +668,16 @@ Based on reading `webapp/static/app.js`, `webapp/templates/index.html`, and the 
 
 ---
 
-### U-01 · Warn user before re-normalizing when edits exist
+### U-01 · Warn user before re-standardizing when edits exist
 
-**Problem:** The user edits cells, then clicks "Run Normalization" — all edits are silently lost. There is no warning.
+**Problem:** The user edits cells, then clicks "Run standardization" — all edits are silently lost. There is no warning.
 
-**Current code:** `runNormalization()` in `app.js` calls `POST /normalize` immediately with no confirmation.
+**Current code:** `runstandardization()` in `app.js` calls `POST /normalize` immediately with no confirmation.
 
-**Fix — add a guard in `runNormalization()`:**
+**Fix — add a guard in `runstandardization()`:**
 
 ```javascript
-async function runNormalization() {
+async function runstandardization() {
     if (!state.sessionId) return;
     dismissError();
 
@@ -685,7 +685,7 @@ async function runNormalization() {
     const session = sessions.get(state.sessionId);
     if (session && session.hasEdits) {
         const confirmed = confirm(
-            'Running normalization will discard your manual edits.\n\nContinue?'
+            'Running standardization will discard your manual edits.\n\nContinue?'
         );
         if (!confirmed) return;
     }
@@ -693,15 +693,15 @@ async function runNormalization() {
 }
 ```
 
-Also set `session.hasEdits = true` in `commitEdit()` after a successful PATCH, and reset it after normalization.
+Also set `session.hasEdits = true` in `commitEdit()` after a successful PATCH, and reset it after standardization.
 
 **Impact:** Prevents the most common data-loss scenario with zero backend changes.
 
 ---
 
-### U-02 · Show normalization status per-row in the grid
+### U-02 · Show standardization status per-row in the grid
 
-**Problem:** After normalization, the grid shows `birth_date_status` and `identifier_status` columns but they contain Hebrew text that is not visually distinguished from data. A row with `"חודש לא תקין"` looks the same as a row with `""`.
+**Problem:** After standardization, the grid shows `birth_date_status` and `identifier_status` columns but they contain Hebrew text that is not visually distinguished from data. A row with `"חודש לא תקין"` looks the same as a row with `""`.
 
 **Current code:** `renderGrid()` applies class `status-cell` to status columns but the CSS does not visually differentiate error vs. empty status.
 
@@ -724,7 +724,7 @@ Add to `style.css`:
 .status-ok    { background-color: transparent; }
 ```
 
-**Impact:** Users can immediately see which rows have normalization problems without reading every status cell.
+**Impact:** Users can immediately see which rows have standardization problems without reading every status cell.
 
 ---
 
@@ -753,7 +753,7 @@ td.className = (corrStr !== origStr && corrStr !== '')
 
 ### U-04 · Normalize single sheet, not all sheets
 
-**Problem:** `runNormalization()` always calls `POST /normalize` (all sheets). If the user is working on one sheet of a 3-sheet workbook, they wait for all three to normalize.
+**Problem:** `runstandardization()` always calls `POST /normalize` (all sheets). If the user is working on one sheet of a 3-sheet workbook, they wait for all three to normalize.
 
 **Current code:**
 ```javascript
@@ -772,24 +772,24 @@ const result = await apiCall('POST',
     `/api/workbook/${state.sessionId}/normalize${sheetParam}`);
 ```
 
-**Impact:** Normalization of a single sheet is significantly faster. No backend changes needed.
+**Impact:** standardization of a single sheet is significantly faster. No backend changes needed.
 
 ---
 
-### U-05 · Show row count and normalization success rate in the grid header
+### U-05 · Show row count and standardization success rate in the grid header
 
-**Problem:** After normalization, the API returns `per_sheet_stats` with `rows` and `success_rate`. This data is currently shown only in `grid-stats` as a one-line text and is overwritten on the next sheet load.
+**Problem:** After standardization, the API returns `per_sheet_stats` with `rows` and `success_rate`. This data is currently shown only in `grid-stats` as a one-line text and is overwritten on the next sheet load.
 
-**Current code in `runNormalization()`:**
+**Current code in `runstandardization()`:**
 ```javascript
 document.getElementById('grid-stats').textContent =
-    `Normalization complete (${result.sheets_processed} sheet(s)) — ${stats}`;
+    `standardization complete (${result.sheets_processed} sheet(s)) — ${stats}`;
 ```
 
 **Fix — persist stats on the session object and show them in the sheet tab:**
 
 ```javascript
-// In runNormalization(), after success:
+// In runstandardization(), after success:
 result.per_sheet_stats.forEach(s => {
     const session = sessions.get(state.sessionId);
     if (session) {
@@ -810,7 +810,7 @@ if (stat && stat.success_rate < 1.0) {
 }
 ```
 
-**Impact:** Users immediately see which sheets have normalization problems without clicking each one.
+**Impact:** Users immediately see which sheets have standardization problems without clicking each one.
 
 ---
 
@@ -833,7 +833,7 @@ async function deleteSelectedRows() {
     if (state.selectedRows.size === 0) return;
     const n = state.selectedRows.size;
     if (n > 1) {
-        const confirmed = confirm(`Delete ${n} rows? This cannot be undone without re-normalizing.`);
+        const confirmed = confirm(`Delete ${n} rows? This cannot be undone without re-standardizing.`);
         if (!confirmed) return;
     }
     await _deleteRows([...state.selectedRows]);
@@ -846,7 +846,7 @@ async function deleteSelectedRows() {
 
 ### U-07 · Show which fields were changed per row (summary badge)
 
-**Problem:** After normalization, a row with 8 corrected fields looks identical to a row with 0 corrections. The user has to scan every corrected column to find changed rows.
+**Problem:** After standardization, a row with 8 corrected fields looks identical to a row with 0 corrections. The user has to scan every corrected column to find changed rows.
 
 **Fix — add a "changes" badge column in `renderGrid()`:**
 
@@ -877,11 +877,11 @@ Add to CSS:
                 padding: 1px 6px; font-size: 11px; margin-left: 4px; }
 ```
 
-**Impact:** Users can immediately identify which rows were modified by normalization.
+**Impact:** Users can immediately identify which rows were modified by standardization.
 
 ---
 
-### U-08 · Keyboard shortcut for normalization
+### U-08 · Keyboard shortcut for standardization
 
 **Problem:** The workflow is: upload → view → normalize → export. The normalize button requires a mouse click. Power users processing many files benefit from keyboard access.
 
@@ -892,7 +892,7 @@ document.addEventListener('keydown', e => {
     // Ctrl+Enter or Cmd+Enter = normalize
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
         e.preventDefault();
-        if (state.sessionId) runNormalization();
+        if (state.sessionId) runstandardization();
     }
     // Ctrl+S or Cmd+S = export
     if ((e.ctrlKey || e.metaKey) && e.key === 's') {
@@ -904,7 +904,7 @@ document.addEventListener('keydown', e => {
 
 Update the button labels to show the shortcut:
 ```html
-<button id="normalize-btn" ...>▶ Run Normalization <kbd>Ctrl+↵</kbd></button>
+<button id="normalize-btn" ...>▶ Run standardization <kbd>Ctrl+↵</kbd></button>
 <button id="export-btn" ...>⬇ Export / Download <kbd>Ctrl+S</kbd></button>
 ```
 

@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 from io import StringIO
 
-from src.excel_normalization.cli import (
+from src.excel_standardization.cli import (
     parse_arguments,
     validate_file_path,
     setup_logging,
@@ -85,7 +85,7 @@ class TestSetupLogging:
 class TestMain:
     """Tests for main function."""
     
-    @patch('src.excel_normalization.cli.NormalizationOrchestrator')
+    @patch('src.excel_standardization.cli.standardizationOrchestrator')
     def test_main_success(self, mock_orchestrator, tmp_path):
         """Test successful execution of main."""
         # Create a test Excel file
@@ -126,7 +126,7 @@ class TestMain:
         # Check exit code
         assert exit_code == 1
     
-    @patch('src.excel_normalization.cli.NormalizationOrchestrator')
+    @patch('src.excel_standardization.cli.standardizationOrchestrator')
     def test_main_unexpected_error(self, mock_orchestrator, tmp_path):
         """Test main with unexpected error during processing."""
         # Create a test Excel file

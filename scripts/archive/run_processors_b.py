@@ -2,7 +2,7 @@ from pathlib import Path
 
 from openpyxl import load_workbook
 
-from src.excel_normalization.orchestrator import NormalizationOrchestrator
+from src.excel_standardization.orchestrator import standardizationOrchestrator
 
 
 def main() -> None:
@@ -12,7 +12,7 @@ def main() -> None:
 
     out_path = Path("python_auto.xlsx").resolve()
 
-    orch = NormalizationOrchestrator()
+    orch = standardizationOrchestrator()
 
     # Load workbook in the same way as export_vba_parity_workbook_from_processors.
     src = base

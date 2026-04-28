@@ -1,10 +1,10 @@
 # Field Naming Convention
 
-This document describes the field naming convention used throughout the Excel normalization system for JSON data structures.
+This document describes the field naming convention used throughout the Excel standardization system for JSON data structures.
 
 ## Overview
 
-The system uses a consistent naming pattern to distinguish between original values extracted from Excel and corrected values produced by normalization engines.
+The system uses a consistent naming pattern to distinguish between original values extracted from Excel and corrected values produced by standardization engines.
 
 ## Convention Rules
 
@@ -29,7 +29,7 @@ Original fields contain values extracted directly from Excel without any modific
 
 ### 2. Corrected Fields
 
-Corrected fields contain normalized values after applying normalization engines.
+Corrected fields contain normalized values after applying standardization engines.
 
 **Format**: `field_name_corrected` (snake_case with `_corrected` suffix)
 
@@ -43,7 +43,7 @@ Corrected fields contain normalized values after applying normalization engines.
 **Characteristics**:
 - Always paired with an original field
 - Use same base name as original field plus `_corrected` suffix
-- May contain normalized value or original value if normalization failed
+- May contain normalized value or original value if standardization failed
 - Never exist without corresponding original field
 
 ### 3. Pairing Requirement
@@ -162,14 +162,14 @@ When a date is split across multiple Excel columns:
 # Always create both original and corrected fields
 json_row = {
     "first_name": original_value,
-    "first_name_corrected": None  # Will be filled by normalization
+    "first_name_corrected": None  # Will be filled by standardization
 }
 ```
 
-### When Normalizing
+### When standardizing
 
 ```python
-# Apply normalization and update corrected field
+# Apply standardization and update corrected field
 if "first_name" in json_row:
     original = json_row["first_name"]
     corrected = name_engine.normalize_name(original)
@@ -179,7 +179,7 @@ if "first_name" in json_row:
 ### When Handling Errors
 
 ```python
-# If normalization fails, use original value
+# If standardization fails, use original value
 try:
     corrected = engine.normalize(original)
     json_row["field_name_corrected"] = corrected
@@ -192,7 +192,7 @@ except Exception:
 Use the validation utilities to ensure compliance:
 
 ```python
-from src.excel_normalization.schema_validation import (
+from src.excel_standardization.schema_validation import (
     validate_field_naming_convention,
     get_corrected_field_name,
     is_corrected_field

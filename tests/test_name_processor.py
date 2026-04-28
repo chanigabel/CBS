@@ -1,17 +1,17 @@
 """Unit tests for NameFieldProcessor.
 
 Tests the name field processing logic including header detection,
-column preparation, and name normalization.
+column preparation, and name standardization.
 """
 
 import pytest
 from openpyxl import Workbook
-from src.excel_normalization.processing.name_processor import NameFieldProcessor
-from src.excel_normalization.io_layer.excel_reader import ExcelReader
-from src.excel_normalization.io_layer.excel_writer import ExcelWriter
-from src.excel_normalization.engines.name_engine import NameEngine
-from src.excel_normalization.engines.text_processor import TextProcessor
-from src.excel_normalization.data_types import FatherNamePattern
+from src.excel_standardization.processing.name_processor import NameFieldProcessor
+from src.excel_standardization.io_layer.excel_reader import ExcelReader
+from src.excel_standardization.io_layer.excel_writer import ExcelWriter
+from src.excel_standardization.engines.name_engine import NameEngine
+from src.excel_standardization.engines.text_processor import TextProcessor
+from src.excel_standardization.data_types import FatherNamePattern
 
 
 class TestNameFieldProcessor:

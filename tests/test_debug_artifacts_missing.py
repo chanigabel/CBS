@@ -13,7 +13,7 @@ import pytest
 from hypothesis import given, strategies as st, settings
 from openpyxl import Workbook
 
-from src.excel_normalization.orchestrator import NormalizationOrchestrator
+from src.excel_standardization.orchestrator import standardizationOrchestrator
 
 
 class TestDebugArtifactsMissing:
@@ -57,7 +57,7 @@ class TestDebugArtifactsMissing:
             try:
                 os.chdir(tmpdir)
                 
-                orchestrator = NormalizationOrchestrator()
+                orchestrator = standardizationOrchestrator()
                 orchestrator.process_workbook_json(input_path, output_path)
                 
                 # Requirement 1.1: raw_dataset.json should exist after extraction
@@ -102,7 +102,7 @@ class TestDebugArtifactsMissing:
             try:
                 os.chdir(tmpdir)
                 
-                orchestrator = NormalizationOrchestrator()
+                orchestrator = standardizationOrchestrator()
                 orchestrator.process_workbook_json(input_path, output_path)
                 
                 assert os.path.exists(raw_json_path), (

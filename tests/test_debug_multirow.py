@@ -1,7 +1,7 @@
 """Debug script to understand multi-row header detection."""
 
 from openpyxl import Workbook
-from src.excel_normalization.io_layer.excel_reader import ExcelReader
+from src.excel_standardization.io_layer.excel_reader import ExcelReader
 
 
 def create_complex_multirow_workbook():
@@ -66,7 +66,7 @@ def debug_complex_multirow():
         cell_value = ws.cell(row=2, column=col).value
         print(f"  Column {col}: {cell_value}")
     
-    # Test normalization
+    # Test standardization
     print("\nNormalized text:")
     for col in range(1, 10):
         cell_value = ws.cell(row=1, column=col).value

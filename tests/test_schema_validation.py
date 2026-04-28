@@ -7,7 +7,7 @@ Requirements:
 """
 
 import pytest
-from src.excel_normalization.schema_validation import (
+from src.excel_standardization.schema_validation import (
     validate_json_row,
     validate_sheet_dataset_schema,
     validate_workbook_dataset_schema,
@@ -19,7 +19,7 @@ from src.excel_normalization.schema_validation import (
     is_jsonschema_available,
     load_schema
 )
-from src.excel_normalization.data_types import SheetDataset, WorkbookDataset, JsonRow
+from src.excel_standardization.data_types import SheetDataset, WorkbookDataset, JsonRow
 
 
 # ============================================================================

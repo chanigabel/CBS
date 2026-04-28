@@ -141,7 +141,7 @@ def _build_export_filename(record) -> str:
     # Fallback: original filename stem + timestamp
     original_stem = Path(record.original_filename).stem
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    return f"{original_stem}_normalized_{timestamp}.xlsx"
+    return f"{original_stem}_standardized_{timestamp}.xlsx"
 
 
 def _is_numeric_like(value: Any) -> bool:
@@ -161,7 +161,7 @@ def visible_rows(sheet_dataset) -> Tuple[List[Dict[str, Any]], List[str]]:
     Applies the same filters and derived-column logic that
     WorkbookService.get_sheet_data uses:
 
-    1. Strip internal metadata keys (``_normalization*``).
+    1. Strip internal metadata keys (``_standardization*``).
     2. Drop completely empty rows (checked against original source columns).
     3. Drop the leading numbers-only helper row if present.
     4. Inject serial number and MosadID derived columns via apply_derived_columns.
@@ -173,7 +173,7 @@ def visible_rows(sheet_dataset) -> Tuple[List[Dict[str, Any]], List[str]]:
 
     # Strip internal metadata keys.
     rows = [
-        {k: v for k, v in row.items() if not k.startswith("_normalization")}
+        {k: v for k, v in row.items() if not k.startswith("_standardization")}
         for row in sheet_dataset.rows
     ]
 
@@ -242,8 +242,8 @@ class ExportService:
         # Auto-load all sheets from disk if not yet extracted
         if record.workbook_dataset is None:
             try:
-                from src.excel_normalization.io_layer.excel_to_json_extractor import ExcelToJsonExtractor
-                from src.excel_normalization.io_layer.excel_reader import ExcelReader
+                from src.excel_standardization.io_layer.excel_to_json_extractor import ExcelToJsonExtractor
+                from src.excel_standardization.io_layer.excel_reader import ExcelReader
                 extractor = ExcelToJsonExtractor(
                     ExcelReader(), skip_empty_rows=False,
                     handle_formulas=True, preserve_types=True,
@@ -266,7 +266,7 @@ class ExportService:
         # the output directory does not grow unboundedly.  Only files matching
         # the exact stem pattern are removed; other files are left untouched.
         original_stem = Path(record.original_filename).stem
-        for old_file in self.output_dir.glob(f"{original_stem}_normalized_*.xlsx"):
+        for old_file in self.output_dir.glob(f"{original_stem}_standardized_*.xlsx"):
             try:
                 old_file.unlink()
                 logger.debug(f"Removed previous export: {old_file.name}")

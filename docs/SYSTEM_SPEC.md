@@ -1,4 +1,4 @@
-﻿# Excel Normalization System — Current-State Specification
+﻿# Excel standardization System — Current-State Specification
 
 > **Document type:** Current-state analysis and behavioral specification.
 > Based entirely on the real codebase as it exists today.
@@ -13,10 +13,10 @@
 2. [Architecture Overview](#2-architecture-overview)
 3. [Implemented vs Partial vs Missing — by Area](#3-implemented-vs-partial-vs-missing)
 4. [Sheet Loading — Detailed Behavior](#4-sheet-loading--detailed-behavior)
-5. [Name and Text Normalization — Detailed Rules](#5-name-and-text-normalization--detailed-rules)
+5. [Name and Text standardization — Detailed Rules](#5-name-and-text-standardization--detailed-rules)
 6. [Last-Name Removal from First Name and Father Name](#6-last-name-removal-from-first-name-and-father-name)
-7. [Date Normalization — Detailed Rules](#7-date-normalization--detailed-rules)
-8. [Identifier Normalization — Detailed Rules](#8-identifier-normalization--detailed-rules)
+7. [Date standardization — Detailed Rules](#7-date-standardization--detailed-rules)
+8. [Identifier standardization — Detailed Rules](#8-identifier-standardization--detailed-rules)
 9. [UI Behavior](#9-ui-behavior)
 10. [Export Behavior](#10-export-behavior)
 11. [Installer and Launcher Behavior](#11-installer-and-launcher-behavior)
@@ -31,7 +31,7 @@
 
 The system takes Excel workbooks (`.xlsx` / `.xlsm`) containing person records — residents, staff, and family members of Israeli institutions — and normalizes inconsistent data into a standardized format. It is a Python reimplementation of a legacy VBA macro system, designed to produce identical output.
 
-The four normalization domains are:
+The four standardization domains are:
 
 | Domain | What it does |
 |---|---|
@@ -46,12 +46,12 @@ The four normalization domains are:
 1. User opens the app in a browser (launched via `launcher.py` or `uvicorn`)
 2. Uploads one or more `.xlsx` / `.xlsm` files
 3. Browses sheet data in a grid view
-4. Clicks "Run Normalization" — all sheets are processed
+4. Clicks "Run standardization" — all sheets are processed
 5. Reviews corrected values inline; edits cells if needed; deletes rows if needed
 6. Clicks "Export / Download" — receives a normalized `.xlsx` file
 
 **CLI flow (secondary, developer-facing):**
-- `python -m excel_normalization.cli path/to/file.xlsx` — runs the legacy direct-Excel processor path, modifying the workbook in-place
+- `python -m excel_standardization.cli path/to/file.xlsx` — runs the legacy direct-Excel processor path, modifying the workbook in-place
 
 ### Main technical layers
 
@@ -62,9 +62,9 @@ FastAPI web app  (webapp/)
         ↕
 Session registry (in-memory dict, process lifetime)
         ↕
-NormalizationService / WorkbookService / ExportService / EditService
+standardizationService / WorkbookService / ExportService / EditService
         ↕
-ExcelToJsonExtractor  →  NormalizationPipeline  →  ExportService
+ExcelToJsonExtractor  →  standardizationPipeline  →  ExportService
         ↕                        ↕
     ExcelReader            NameEngine / GenderEngine
                            DateEngine / IdentifierEngine
@@ -102,11 +102,11 @@ The web app exclusively uses the JSON pipeline. The CLI uses the direct-Excel pa
 **Workbook dataset** (`WorkbookDataset` / `SheetDataset`):
 - Lazy loading: a sheet is only extracted from disk when first requested via `GET /api/workbook/{id}/sheet/{name}`
 - After extraction, the `SheetDataset` is stored in `record.workbook_dataset.sheets`
-- Normalization re-extracts from disk (fresh read), then replaces the in-memory sheet
+- standardization re-extracts from disk (fresh read), then replaces the in-memory sheet
 - Manual edits are applied directly to the in-memory `SheetDataset.rows`
 - Edits are recorded in `record.edits` dict but this dict is never used for anything (not replayed on export)
 
-### Normalization layer
+### standardization layer
 
 **`ExcelToJsonExtractor`**:
 - Opens workbook with `data_only=True` (formula results, not formula strings)
@@ -117,12 +117,12 @@ The web app exclusively uses the JSON pipeline. The CLI uses the direct-Excel pa
 - Formula cells that return the formula string (unevaluated, starts with `=`) → stored as `None`
 - Merged cells: openpyxl returns the top-left cell value automatically
 
-**`NormalizationPipeline`**:
+**`standardizationPipeline`**:
 - Operates on `SheetDataset` (list of `JsonRow` dicts)
 - Non-destructive: original fields are never modified; corrected values go into `field_corrected` keys
 - Processing order per row: names → gender → dates → identifiers
 - Pattern detection (last-name removal) runs once per dataset on the first 10 rows, then is cached on the pipeline instance for all rows
-- Failed normalizations are recorded in `_normalization_failures` key on the row (stripped before display)
+- Failed standardizations are recorded in `_standardization_failures` key on the row (stripped before display)
 
 **`ExcelReader` — table detection**:
 - Scans up to 30 rows to find the header row by scoring each row (keyword matches, text density)
@@ -155,17 +155,17 @@ Single-page application in vanilla JavaScript (`webapp/static/app.js`). No frame
 
 Key UI components:
 - File upload form (supports multiple files)
-- Session switcher (tab per uploaded file, shows `✓` badge after normalization)
+- Session switcher (tab per uploaded file, shows `✓` badge after standardization)
 - Sheet selector (tab per sheet)
 - Data grid (HTML table with inline editing)
-- Action bar: "Run Normalization", "Export / Download", "Delete rows"
+- Action bar: "Run standardization", "Export / Download", "Delete rows"
 
 ### Installer / Launcher
 
 - `launcher.py`: PyInstaller entry point; starts Uvicorn on a free port (preferred: 8765), opens Chrome in app mode (`--app=URL --new-window`), falls back to system default browser
-- `installer/ExcelNormalization.iss`: Inno Setup script; produces `ExcelNormalization_Setup_1.0.1.exe`
-- Runtime data directories: `%LOCALAPPDATA%\ExcelNormalization\{uploads,work,output}`
-- Log file: `%LOCALAPPDATA%\ExcelNormalization\app.log`
+- `installer/Excelstandardization.iss`: Inno Setup script; produces `Excelstandardization_Setup_1.0.1.exe`
+- Runtime data directories: `%LOCALAPPDATA%\Excelstandardization\{uploads,work,output}`
+- Log file: `%LOCALAPPDATA%\Excelstandardization\app.log`
 - Windows 10+ x64 only; requires admin for installation
 
 ---
@@ -185,14 +185,14 @@ Key UI components:
 | Multi-user / concurrent access | **NOT IMPLEMENTED** | No locking; single-threaded assumption |
 | Edit replay on export | **NOT IMPLEMENTED** | `record.edits` dict is populated but never read back |
 
-### Normalization
+### standardization
 
 | Feature | Status | Notes |
 |---|---|---|
-| Name normalization (clean) | **IMPLEMENTED** | Full pipeline: diacritics, language detection, char filtering, token removal |
+| Name standardization (clean) | **IMPLEMENTED** | Full pipeline: diacritics, language detection, char filtering, token removal |
 | Last-name removal from first name | **IMPLEMENTED** | Two-stage: substring + positional fallback |
 | Last-name removal from father name | **IMPLEMENTED** | Same two-stage logic |
-| Gender normalization | **IMPLEMENTED** | Maps to 1/2; Hebrew, English, numeric inputs |
+| Gender standardization | **IMPLEMENTED** | Maps to 1/2; Hebrew, English, numeric inputs |
 | Date parsing — split columns | **IMPLEMENTED** | Year/month/day columns |
 | Date parsing — single string | **IMPLEMENTED** | ISO, DD/MM/YYYY, DDMMYYYY, month names |
 | Date business rules | **IMPLEMENTED** | Future date, pre-1900, age > 100 |
@@ -216,7 +216,7 @@ Key UI components:
 | Inline cell editing | **IMPLEMENTED** | Click any non-status cell |
 | Single-row delete | **IMPLEMENTED** | ✕ button per row |
 | Multi-row delete (checkbox) | **IMPLEMENTED** | Select-all + bulk delete |
-| Normalization badge (`✓`) on file tab | **IMPLEMENTED** | |
+| standardization badge (`✓`) on file tab | **IMPLEMENTED** | |
 | Bulk ZIP export (multi-file) | **PARTIAL** | Code exists but UI buttons are commented out |
 | Undo / redo | **NOT IMPLEMENTED** | |
 | Confirmation dialog before delete | **NOT IMPLEMENTED** | Deletes immediately |
@@ -237,7 +237,7 @@ Key UI components:
 | `SugMosad` in export | **NOT IMPLEMENTED** | Always blank |
 | `MisparDiraBeMosad` in export | **PARTIAL** | In schema for MeshkeyBayt/AnasheyTzevet; only populated if present in source rows |
 | Bulk ZIP export | **PARTIAL** | API endpoint exists; UI disabled |
-| Export without prior normalization | **IMPLEMENTED** | Auto-extracts from disk; writes uncorrected values (corrected fields absent → blank) |
+| Export without prior standardization | **IMPLEMENTED** | Auto-extracts from disk; writes uncorrected values (corrected fields absent → blank) |
 
 ---
 
@@ -319,24 +319,24 @@ When the user switches between uploaded files (sessions):
 - Each uploaded file gets its own independent session
 - Sessions share no state
 - The session switcher shows one tab per file
-- Normalization, editing, and export are all per-session
+- standardization, editing, and export are all per-session
 - Bulk ZIP export is implemented in the API but the UI buttons are commented out
 
 ---
 
-## 5. Name and Text Normalization — Detailed Rules
+## 5. Name and Text standardization — Detailed Rules
 
-All name normalization goes through `TextProcessor.clean_name()`. The pipeline is strictly ordered and cannot be reordered.
+All name standardization goes through `TextProcessor.clean_name()`. The pipeline is strictly ordered and cannot be reordered.
 
 ### Order of operations
 
 ```
 1. SafeToString + strip zero-width characters
 2. Diacritic removal
-3. Arabic-Indic digit normalization (٠١٢٣٤٥٦٧٨٩ → 0-9)
+3. Arabic-Indic digit standardization (٠١٢٣٤٥٦٧٨٩ → 0-9)
 4. Language detection (Hebrew vs English vs Mixed)
 5. Character filtering
-6. Space normalization (trim + collapse)
+6. Space standardization (trim + collapse)
 7. Unwanted token removal
 ```
 
@@ -387,7 +387,7 @@ Rules applied per character:
 - Hyphens of all kinds become spaces
 - In Hebrew mode, English letters are dropped; in English mode, Hebrew letters are dropped
 
-### Step 6 — Space normalization
+### Step 6 — Space standardization
 
 `" ".join(text.split())` — trims leading/trailing whitespace and collapses multiple internal spaces to one.
 
@@ -542,7 +542,7 @@ If either the first/father name or the last name is empty/None after cleaning, n
 
 ---
 
-## 7. Date Normalization — Detailed Rules
+## 7. Date standardization — Detailed Rules
 
 ### Date field types
 
@@ -553,7 +553,7 @@ The system handles two date fields: **birth date** and **entry date**. Each can 
 
 ### Split vs single detection
 
-In the JSON pipeline (`NormalizationPipeline`):
+In the JSON pipeline (`standardizationPipeline`):
 - If any of `birth_year`, `birth_month`, `birth_day` keys exist in the row → split path
 - If `birth_date` key exists → single path
 - Same logic for `entry_*`
@@ -651,7 +651,7 @@ Applied after parsing, in `validate_business_rules()`:
 
 In the **direct-Excel processor path**: after both date groups are written, the orchestrator scans each row and appends `"תאריך כניסה לפני תאריך לידה"` to the entry status cell if entry < birth. Cell is formatted pink+bold.
 
-In the **JSON pipeline**: `DateEngine.validate_entry_before_birth()` exists but is NOT called by `NormalizationPipeline`. The cross-validation is absent from the web app flow.
+In the **JSON pipeline**: `DateEngine.validate_entry_before_birth()` exists but is NOT called by `standardizationPipeline`. The cross-validation is absent from the web app flow.
 
 ### Corrected field writing
 
@@ -710,7 +710,7 @@ In the **JSON pipeline**: `DateEngine.validate_entry_before_birth()` exists but 
 
 ---
 
-## 8. Identifier Normalization — Detailed Rules
+## 8. Identifier standardization — Detailed Rules
 
 ### Overview
 
@@ -814,9 +814,9 @@ After padding to 9 digits, if all 9 digits are the same (e.g., `"111111111"`, `"
 The UI is a single HTML page with these sections:
 
 1. **Upload area**: file input (multi-select), upload button, status text
-2. **Session switcher**: one tab per uploaded file; shows `✓` after normalization; hidden when no files uploaded
+2. **Session switcher**: one tab per uploaded file; shows `✓` after standardization; hidden when no files uploaded
 3. **Sheet selector**: one tab per sheet in the active file
-4. **Action bar**: "Run Normalization" button, "Export / Download" button, "Delete rows" button (disabled until rows selected)
+4. **Action bar**: "Run standardization" button, "Export / Download" button, "Delete rows" button (disabled until rows selected)
 5. **Grid section**: sheet name title, data grid, row/column count stats, error banner
 
 ### Data grid
@@ -839,8 +839,8 @@ The UI is a single HTML page with these sections:
 
 ### What is hidden from the user
 
-- `_normalization_failures` key (stripped before display)
-- `_normalization_statistics` metadata (not shown in UI)
+- `_standardization_failures` key (stripped before display)
+- `_standardization_statistics` metadata (not shown in UI)
 - Completely empty rows (filtered server-side)
 - The numeric helper row (filtered server-side)
 - Internal `_serial` key name is shown as-is in the column header (not prettified)
@@ -854,9 +854,9 @@ The UI is a single HTML page with these sections:
 - The stats line shows "Deleted N row(s). M rows remaining."
 - No confirmation dialog
 
-### Normalization flow
+### standardization flow
 
-Clicking "Run Normalization":
+Clicking "Run standardization":
 1. Sends `POST /api/workbook/{id}/normalize` (no `?sheet=` parameter → all sheets)
 2. Button shows spinner while waiting
 3. On success: session tab gets `✓` badge; current sheet reloads; stats line shows per-sheet results
@@ -881,8 +881,8 @@ Clicking a different file tab:
 ### Awkward / incomplete parts
 
 - **Bulk export buttons are commented out.** The code for `exportBulk()` and `exportSelected()` exists in `app.js` but the buttons that call them are wrapped in a `/* ... */` comment block. Users cannot export multiple files as ZIP from the UI.
-- **No undo.** Deleted rows are gone for the session. Edits cannot be reverted except by re-normalizing (which re-extracts from disk, discarding manual edits).
-- **Re-normalizing discards manual edits.** Normalization re-extracts from the working copy on disk and replaces the in-memory dataset. Any manual cell edits made before normalization are lost.
+- **No undo.** Deleted rows are gone for the session. Edits cannot be reverted except by re-standardizing (which re-extracts from disk, discarding manual edits).
+- **Re-standardizing discards manual edits.** standardization re-extracts from the working copy on disk and replaces the in-memory dataset. Any manual cell edits made before standardization are lost.
 - **No pagination.** Large sheets (thousands of rows) render all rows at once, which can be slow.
 - **Status columns not editable.** This is intentional but there is no visual indicator explaining why clicking a status cell does nothing.
 - **`_serial` column header.** The synthetic serial number column shows `_serial` as its header text, which is an internal key name, not a user-friendly label.
@@ -916,7 +916,7 @@ ShnatKnisa, HodeshKnisa, YomKnisa
 
 ### Sheet name canonicalization
 
-Source sheet names are matched against keyword patterns (after NFC normalization + whitespace collapse):
+Source sheet names are matched against keyword patterns (after NFC standardization + whitespace collapse):
 
 | Source contains | Canonical name |
 |---|---|
@@ -945,7 +945,7 @@ Source sheet names are matched against keyword patterns (after NFC normalization
 | `HodeshKnisa` | `entry_month_corrected` |
 | `YomKnisa` | `entry_day_corrected` |
 
-**Corrected-only rule:** There is no fallback to original values. If `first_name_corrected` is absent or empty, `ShemPrati` is blank in the export. This means exporting before normalization produces a mostly-blank file.
+**Corrected-only rule:** There is no fallback to original values. If `first_name_corrected` is absent or empty, `ShemPrati` is blank in the export. This means exporting before standardization produces a mostly-blank file.
 
 ### Row filtering in export
 
@@ -964,14 +964,14 @@ Row validity for export: a row is included if it passes the above filters. There
 
 ### Output file location and naming
 
-- Saved to `output/` directory (or `%LOCALAPPDATA%\ExcelNormalization\output\` in packaged mode)
+- Saved to `output/` directory (or `%LOCALAPPDATA%\Excelstandardization\output\` in packaged mode)
 - Filename: `{original_stem}_normalized_{YYYYMMDD_HHMMSS}.xlsx`
 - Always `.xlsx` regardless of source format
 - No collision handling (timestamp makes each export unique)
 
-### Export without prior normalization
+### Export without prior standardization
 
-If the user clicks Export without first running normalization:
+If the user clicks Export without first running standardization:
 - `ExportService` auto-extracts the workbook from disk
 - No `_corrected` fields exist in the rows
 - All personal data columns (`ShemPrati`, etc.) will be blank in the export
@@ -1015,10 +1015,10 @@ If Chrome is not found: falls back to `webbrowser.open(url)` (system default bro
 ### Local data directories
 
 In packaged mode (`sys.frozen = True`):
-- `%LOCALAPPDATA%\ExcelNormalization\uploads\`
-- `%LOCALAPPDATA%\ExcelNormalization\work\`
-- `%LOCALAPPDATA%\ExcelNormalization\output\`
-- `%LOCALAPPDATA%\ExcelNormalization\app.log`
+- `%LOCALAPPDATA%\Excelstandardization\uploads\`
+- `%LOCALAPPDATA%\Excelstandardization\work\`
+- `%LOCALAPPDATA%\Excelstandardization\output\`
+- `%LOCALAPPDATA%\Excelstandardization\app.log`
 
 In development mode: `uploads/`, `work/`, `output/` relative to the working directory.
 
@@ -1036,7 +1036,7 @@ The log file is not rotated and grows indefinitely.
 
 ### Packaging
 
-Built with PyInstaller (`ExcelNormalization.spec`). One-folder bundle (not one-file). The `dist/ExcelNormalization/` folder contains the executable and all dependencies.
+Built with PyInstaller (`Excelstandardization.spec`). One-folder bundle (not one-file). The `dist/Excelstandardization/` folder contains the executable and all dependencies.
 
 Asset path resolution: in the bundle, `sys._MEIPASS` points to the extraction directory. `webapp/app.py` uses `Path(sys._MEIPASS) / "webapp"` to find static files and templates.
 
@@ -1047,7 +1047,7 @@ Asset path resolution: in the bundle, `sys._MEIPASS` points to the extraction di
 - x64 Windows 10+ only
 - Creates Start Menu and optional desktop shortcut
 - Offers to launch after installation
-- Uninstall removes the app directory but leaves user data in `%LOCALAPPDATA%\ExcelNormalization`
+- Uninstall removes the app directory but leaves user data in `%LOCALAPPDATA%\Excelstandardization`
 
 ### Packaging limitations
 
@@ -1074,10 +1074,10 @@ Asset path resolution: in the bundle, `sys._MEIPASS` points to the extraction di
 | Sheet where the column-index row has gaps (e.g., 1, 2, 4) | NOT detected as column-index row (consecutive check fails); treated as data |
 | Sheet with headers in row 25+ | Not detected (max_scan_rows=30 default; would be found if within 30 rows) |
 | Sheet with two date groups of the same type (two birth date columns) | Both groups detected and processed in the direct-Excel path; JSON pipeline only uses the first group |
-| Workbook with no valid sheets | `WorkbookDataset.sheets = []`; normalization raises HTTP 500 |
+| Workbook with no valid sheets | `WorkbookDataset.sheets = []`; standardization raises HTTP 500 |
 | `.xlsm` file | Accepted; VBA macros are not executed; `keep_vba=True` only in direct-Excel path |
 
-### Name normalization edge cases
+### Name standardization edge cases
 
 | Case | Current behavior |
 |---|---|
@@ -1149,10 +1149,10 @@ Asset path resolution: in the bundle, `sys._MEIPASS` points to the extraction di
 | Case | Current behavior |
 |---|---|
 | Clicking "Export" before "Normalize" | Export runs; corrected fields absent → mostly blank output |
-| Clicking "Normalize" twice | Second normalization re-extracts from disk; manual edits from first session are lost |
+| Clicking "Normalize" twice | Second standardization re-extracts from disk; manual edits from first session are lost |
 | Deleting all rows | Sheet shows "No data rows found" message |
 | Editing a `_corrected` field | Allowed; cell class updates to reflect new vs original comparison |
-| Editing an original field | Allowed; does NOT re-run normalization; corrected field retains old value |
+| Editing an original field | Allowed; does NOT re-run standardization; corrected field retains old value |
 | Uploading the same file twice | Two separate sessions created; independent state |
 | Uploading a file with no recognizable sheets | Upload succeeds (sheet names returned); loading any sheet shows "No data rows found" |
 | Very large file (many rows) | No pagination; browser may be slow rendering the grid |
@@ -1163,11 +1163,11 @@ Asset path resolution: in the bundle, `sys._MEIPASS` points to the extraction di
 
 ### Critical gaps
 
-**1. Manual edits are discarded on re-normalization**
-`NormalizationService.normalize()` re-extracts from disk and replaces the in-memory dataset. Any manual cell edits made before normalization are silently lost. The `record.edits` dict is populated but never replayed. This is a significant usability problem: the intended workflow is "normalize → review → edit → export", but re-normalizing after editing destroys the edits.
+**1. Manual edits are discarded on re-standardization**
+`standardizationService.normalize()` re-extracts from disk and replaces the in-memory dataset. Any manual cell edits made before standardization are silently lost. The `record.edits` dict is populated but never replayed. This is a significant usability problem: the intended workflow is "normalize → review → edit → export", but re-standardizing after editing destroys the edits.
 
 **2. Entry-before-birth cross-validation missing from JSON pipeline**
-`DateEngine.validate_entry_before_birth()` exists but is not called by `NormalizationPipeline`. The cross-validation only runs in the legacy direct-Excel processor path. The web app never flags entry dates that precede birth dates.
+`DateEngine.validate_entry_before_birth()` exists but is not called by `standardizationPipeline`. The cross-validation only runs in the legacy direct-Excel processor path. The web app never flags entry dates that precede birth dates.
 
 **3. `SugMosad` always blank**
 The export schema includes `SugMosad` but there is no source for this value. It is always empty in the output. The business meaning and source of this field are unclear.
@@ -1176,7 +1176,7 @@ The export schema includes `SugMosad` but there is no source for this value. It 
 The field is in the export schema for MeshkeyBayt and AnasheyTzevet sheets, but the extraction pipeline does not look for it in the source workbook. It will only appear in the export if it was already present as a key in the source rows (which it won't be from a fresh extraction).
 
 **5. Session data lost on restart**
-All sessions, uploaded files, and normalization results are in-memory only. A server restart (or crash) loses everything. Users must re-upload and re-normalize.
+All sessions, uploaded files, and standardization results are in-memory only. A server restart (or crash) loses everything. Users must re-upload and re-normalize.
 
 ### Behavioral inconsistencies
 
@@ -1190,7 +1190,7 @@ The last-name removal pattern is detected from the first 10 rows that have both 
 The synthetic serial number column uses `_serial` as its key and header. This is an internal name, not a user-friendly label. It should be displayed as something like `"#"` or `"מספר שורה"`.
 
 **9. Highlight comparison in direct-Excel path**
-`ExcelWriter.highlight_changed_cells()` normalizes numeric representations (`"1.0"` == `"1"`) before comparing. The JSON pipeline does not apply this normalization when deciding whether to show a cell as `corrected-changed` in the UI — it uses a simple `value !== origVal` JavaScript comparison.
+`ExcelWriter.highlight_changed_cells()` normalizes numeric representations (`"1.0"` == `"1"`) before comparing. The JSON pipeline does not apply this standardization when deciding whether to show a cell as `corrected-changed` in the UI — it uses a simple `value !== origVal` JavaScript comparison.
 
 **10. Two-row header detection is heuristic**
 The scoring system for detecting whether a sheet has a two-row header can misfire on unusual layouts. There is no fallback or user override.
@@ -1210,7 +1210,7 @@ The `exportBulk()` and `exportSelected()` functions exist in `app.js` but the bu
 There is no way to resume a session after closing the browser or restarting the server.
 
 **15. No progress indicator for large files**
-Normalization of large workbooks can take several seconds. The button shows a spinner but there is no per-sheet progress.
+standardization of large workbooks can take several seconds. The button shows a spinner but there is no per-sheet progress.
 
 **16. No validation of edited values**
 The edit API accepts any string. Editing a date field to `"abc"` is accepted without error. The corrected value will be wrong but no warning is shown.
@@ -1235,8 +1235,8 @@ The last-name removal pattern requires at least 3 out of 5 sample rows to match.
 **22. `MosadID` scanning scope**
 The MosadID scanner looks for a label/value pair anywhere in the worksheet, including outside the main data table. If a sheet has multiple label/value pairs matching the pattern, only the first one found (top-to-bottom, left-to-right) is used. This may not always be the correct one.
 
-**23. Export without normalization**
-Exporting before normalization produces a file with blank personal data columns. Should the system warn the user, or refuse to export, or fall back to original values?
+**23. Export without standardization**
+Exporting before standardization produces a file with blank personal data columns. Should the system warn the user, or refuse to export, or fall back to original values?
 
 ---
 

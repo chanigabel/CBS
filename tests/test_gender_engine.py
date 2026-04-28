@@ -1,7 +1,7 @@
 """Tests for GenderEngine.normalize_gender — valid mappings and invalid fallback."""
 
 import pytest
-from src.excel_normalization.engines.gender_engine import GenderEngine
+from src.excel_standardization.engines.gender_engine import GenderEngine
 
 
 @pytest.fixture
@@ -150,18 +150,18 @@ class TestInvalidValues:
 
 
 # ---------------------------------------------------------------------------
-# Pipeline integration: apply_gender_normalization with invalid values
+# Pipeline integration: apply_gender_standardization with invalid values
 # ---------------------------------------------------------------------------
 
 class TestPipelineInvalidGender:
     def _make_pipeline(self):
-        from src.excel_normalization.processing.normalization_pipeline import NormalizationPipeline
-        return NormalizationPipeline(gender_engine=GenderEngine())
+        from src.excel_standardization.processing.standardization_pipeline import standardizationPipeline
+        return standardizationPipeline(gender_engine=GenderEngine())
 
     def test_invalid_numeric_8_corrected_empty(self):
         pipeline = self._make_pipeline()
         row = {"gender": "8"}
-        pipeline.apply_gender_normalization(row)
+        pipeline.apply_gender_standardization(row)
         assert row["gender_corrected"] == "", (
             f"Expected empty corrected for '8', got {row['gender_corrected']!r}"
         )
@@ -169,49 +169,49 @@ class TestPipelineInvalidGender:
     def test_invalid_text_corrected_empty(self):
         pipeline = self._make_pipeline()
         row = {"gender": "xyz"}
-        pipeline.apply_gender_normalization(row)
+        pipeline.apply_gender_standardization(row)
         assert row["gender_corrected"] == ""
 
     def test_valid_1_still_maps_to_1(self):
         pipeline = self._make_pipeline()
         row = {"gender": "1"}
-        pipeline.apply_gender_normalization(row)
+        pipeline.apply_gender_standardization(row)
         assert row["gender_corrected"] == 1
 
     def test_valid_2_still_maps_to_2(self):
         pipeline = self._make_pipeline()
         row = {"gender": "2"}
-        pipeline.apply_gender_normalization(row)
+        pipeline.apply_gender_standardization(row)
         assert row["gender_corrected"] == 2
 
     def test_none_preserved_by_pipeline(self):
         pipeline = self._make_pipeline()
         row = {"gender": None}
-        pipeline.apply_gender_normalization(row)
+        pipeline.apply_gender_standardization(row)
         assert row["gender_corrected"] is None
 
     def test_empty_string_preserved_by_pipeline(self):
         pipeline = self._make_pipeline()
         row = {"gender": ""}
-        pipeline.apply_gender_normalization(row)
+        pipeline.apply_gender_standardization(row)
         assert row["gender_corrected"] == ""
 
     def test_whitespace_only_preserved_by_pipeline(self):
         """Whitespace-only is caught by the pipeline short-circuit, not the engine."""
         pipeline = self._make_pipeline()
         row = {"gender": "   "}
-        pipeline.apply_gender_normalization(row)
+        pipeline.apply_gender_standardization(row)
         # Pipeline preserves the original whitespace-only value (F-04 behavior)
         assert row["gender_corrected"] == "   "
 
     def test_hebrew_female_still_maps_to_2(self):
         pipeline = self._make_pipeline()
         row = {"gender": "נ"}
-        pipeline.apply_gender_normalization(row)
+        pipeline.apply_gender_standardization(row)
         assert row["gender_corrected"] == 2
 
     def test_hebrew_male_still_maps_to_1(self):
         pipeline = self._make_pipeline()
         row = {"gender": "ז"}
-        pipeline.apply_gender_normalization(row)
+        pipeline.apply_gender_standardization(row)
         assert row["gender_corrected"] == 1

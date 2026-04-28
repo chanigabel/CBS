@@ -70,31 +70,31 @@ ROWS = [
  "_is_merged_cell → קריאת ערך מהתא הימני-עליון",
  "ExcelReader._is_merged_cell",
  "_unmerge_header_area מבטל מיזוגים לפני הכנסת עמודות",
- "NormalizationOrchestrator._unmerge_header_area","—"),
+ "standardizationOrchestrator._unmerge_header_area","—"),
 
 ("SH-05","SHEET","שורת עזר מספרית זוהתה","שורה: 1,2,3,4,5 (רצופים, <100)",
  "_is_column_index_row=True → data_start_row+1",
  "ExcelReader._is_column_index_row",
  "_remove_numeric_helper_row מוחק שורה מהגיליון",
- "NormalizationOrchestrator._remove_numeric_helper_row","—"),
+ "standardizationOrchestrator._remove_numeric_helper_row","—"),
 
 ("SH-06","SHEET","שורת עזר — לא רצופה","שורה: 1,3,5 (פערים)",
  "_is_column_index_row=False → שורה נשמרת",
  "ExcelReader._is_column_index_row",
  "לא מוחק — אותה בדיקה",
- "NormalizationOrchestrator._remove_numeric_helper_row","—"),
+ "standardizationOrchestrator._remove_numeric_helper_row","—"),
 
 ("SH-07","SHEET","שורת עזר — פחות מ-3 ערכים","שורה: 1,2 (רק 2 תאים)",
  "len(values)<3 → False → שורה נשמרת",
  "ExcelReader._is_column_index_row",
  "לא מוחק",
- "NormalizationOrchestrator._remove_numeric_helper_row","—"),
+ "standardizationOrchestrator._remove_numeric_helper_row","—"),
 
 ("SH-08","SHEET","קובץ xlsm","העלאת file.xlsm",
  "נשמר כ-.xlsm; ייצוא תמיד כ-.xlsx",
  "UploadService.handle_upload / ExportService.export",
  "keep_vba=True; פלט נשמר כ-.xlsm",
- "NormalizationOrchestrator.process_workbook_json","—"),
+ "standardizationOrchestrator.process_workbook_json","—"),
 
 # ROWS / DISPLAY
 ("RD-01","ROWS","שורה ריקה לחלוטין","כל תאי המקור None",
@@ -119,7 +119,7 @@ ROWS = [
  "_is_numeric_like כל ערך → clean_rows[1:]",
  "WorkbookService.get_sheet_data",
  "_remove_numeric_helper_row מוחק מהגיליון",
- "NormalizationOrchestrator._remove_numeric_helper_row","—"),
+ "standardizationOrchestrator._remove_numeric_helper_row","—"),
 
 ("RD-05","ROWS","שורה שנייה מספרית לא מוסרת","שורה 2: 1,2,3",
  "בדיקה רק על clean_rows[0] → שורה 2 נשמרת",
@@ -300,13 +300,13 @@ ROWS += [
 
 ("NM-24","NAMES","pattern נלמד מ-N שורות","5 שורות ראשונות עם שם משפחה בתחילת שם האב",
  "Web: 10 שורות; pattern מוחל על כל השורות",
- "NormalizationPipeline.normalize_dataset",
+ "standardizationPipeline.normalize_dataset",
  "5 שורות; pattern מוחל על כל השורות",
  "NameFieldProcessor.detect_father_name_pattern","NameEngine"),
 
 ("NM-25","NAMES","NONE בשם פרטי, REMOVE_FIRST בשם אב","<3 התאמות בשם פרטי, >=3 בשם אב",
  "שם פרטי: Stage B מדולג; שם אב: Stage B פועל",
- "NormalizationPipeline / NameEngine",
+ "standardizationPipeline / NameEngine",
  "אותה לוגיקה",
  "NameFieldProcessor","NameEngine"),
 ]
@@ -381,7 +381,7 @@ ROWS += [
 
 ("GN-12","GENDER","ריק — pipeline","gender=None או ''",
  "pipeline: original is None/'' → gender_corrected=original (לא מפעיל engine)",
- "NormalizationPipeline.apply_gender_normalization",
+ "standardizationPipeline.apply_gender_standardization",
  "engine תמיד נקרא",
  "GenderFieldProcessor.process_data","—"),
 
@@ -564,13 +564,13 @@ ROWS += [
 
 ("DT-29","DATES","רכיבים לא תקינים נכתבים","birth_month=13",
  "_validate_date שומר year/month/day גם כשלא תקין; pipeline כותב ל-_corrected",
- "NormalizationPipeline._normalize_date_field",
+ "standardizationPipeline._normalize_date_field",
  "אותה לוגיקה",
  "DateFieldProcessor._process_date_field","DateEngine"),
 
 ("DT-30","DATES","DDMM hardcoded — web","כל תאריך מפוצל",
  "תמיד DateFormatPattern.DDMM",
- "NormalizationPipeline._normalize_date_field",
+ "standardizationPipeline._normalize_date_field",
  "מזהה אוטומטית DDMM/MMDD מהנתונים",
  "DateFieldProcessor.detect_date_format_pattern","—"),
 
@@ -584,7 +584,7 @@ ROWS += [
  "לא קיים",
  "—",
  "_validate_entry_vs_birth מוסיף אזהרה + ורוד",
- "NormalizationOrchestrator._validate_entry_vs_birth","DateEngine"),
+ "standardizationOrchestrator._validate_entry_vs_birth","DateEngine"),
 
 ("DT-33","DATES","כניסה לפני לידה — web (לא מיושם)","entry=01/01/1990, birth=01/01/2000",
  "validate_entry_before_birth קיים ב-DateEngine אך לא נקרא מ-pipeline",
@@ -594,7 +594,7 @@ ROWS += [
 
 ("DT-34","DATES","datetime object בעמודת שנה","year_col=datetime(1990,5,15)",
  "isinstance(year_val, datetime) → main_val_for_engine=year_val",
- "NormalizationPipeline._normalize_date_field",
+ "standardizationPipeline._normalize_date_field",
  "לא מטופל במפורש",
  "DateFieldProcessor._normalize_split_value","—"),
 ]
@@ -603,7 +603,7 @@ ROWS += [
 # IDENTIFIERS
 ("ID-01","IDENTIFIERS","שניהם חסרים","id_number=None, passport=None",
  "early return לפני engine; id_number_corrected=None, passport_corrected=None",
- "NormalizationPipeline.apply_identifier_normalization",
+ "standardizationPipeline.apply_identifier_standardization",
  "find_headers מחזיר False → processor מדלג",
  "IdentifierFieldProcessor.find_headers","—"),
 
@@ -741,13 +741,13 @@ ROWS += [
 
 ("ID-24","IDENTIFIERS","דרישת שתי כותרות — Excel","רק עמודת ת.ז., ללא דרכון",
  "לא רלוונטי — web מעבד גם אם רק אחד קיים",
- "NormalizationPipeline.apply_identifier_normalization",
+ "standardizationPipeline.apply_identifier_standardization",
  "find_headers מחזיר False → processor מדלג לחלוטין",
  "IdentifierFieldProcessor.find_headers","—"),
 
 ("ID-25","IDENTIFIERS","שורה ללא שדות מזהה","אין id_number ואין passport",
  "early return ללא שינוי",
- "NormalizationPipeline.apply_identifier_normalization",
+ "standardizationPipeline.apply_identifier_standardization",
  "לא רלוונטי",
  "—","—"),
 ]
@@ -798,31 +798,31 @@ ROWS += [
 
 ("ED-08","EDIT","מחיקה ואז re-normalize","מחיקת שורות → POST /normalize",
  "normalize מחלץ מחדש מהקובץ → שורות שנמחקו חוזרות",
- "NormalizationService.normalize",
+ "standardizationService.normalize",
  "לא רלוונטי",
  "—","—"),
 
 ("ED-09","EDIT","re-normalize מבטל עריכות","עריכת תא → POST /normalize",
  "normalize מחלץ מחדש; record.edits לא מוחל מחדש → עריכות אובדות",
- "NormalizationService.normalize",
+ "standardizationService.normalize",
  "לא רלוונטי",
  "—","—"),
 
 ("ED-10","EDIT","edits dict לא מוחל מחדש","record.edits מכיל עריכות",
  "edits נשמר ב-SessionRecord אך אין קוד שמחיל אותו לאחר normalize",
- "SessionRecord.edits / NormalizationService.normalize",
+ "SessionRecord.edits / standardizationService.normalize",
  "לא רלוונטי",
  "—","—"),
 
 ("ED-11","EDIT","normalize כל הגיליונות","POST /normalize ללא ?sheet=",
  "sheet_name=None → כל הגיליונות מחולצים ומנורמלים",
- "NormalizationService.normalize",
+ "standardizationService.normalize",
  "לא רלוונטי",
  "—","—"),
 
 ("ED-12","EDIT","normalize גיליון אחד","POST /normalize?sheet=שם",
  "רק הגיליון המבוקש מחולץ ומנורמל; שאר לא נגעים",
- "NormalizationService.normalize",
+ "standardizationService.normalize",
  "לא רלוונטי",
  "—","—"),
 ]
@@ -845,7 +845,7 @@ ROWS += [
  "ExportService יוצר Workbook() חדש; שומר כ-.xlsx",
  "ExportService.export",
  "שומר .xlsm לקבצי מאקרו",
- "NormalizationOrchestrator.process_workbook_json","—"),
+ "standardizationOrchestrator.process_workbook_json","—"),
 
 ("EX-04","EXPORT","אין הדגשה בייצוא","ייצוא web path",
  "Workbook() חדש; אין העתקת עיצוב; אין צביעה ורודה",
@@ -885,7 +885,7 @@ ROWS += [
 
 ("EX-10","EXPORT","שורה שנמחקה חוזרת לאחר re-normalize","מחיקה → normalize → export",
  "normalize מחלץ מחדש מהקובץ; שורה חוזרת; ייצוא כולל אותה",
- "NormalizationService.normalize / ExportService.export",
+ "standardizationService.normalize / ExportService.export",
  "לא רלוונטי",
  "—","—"),
 

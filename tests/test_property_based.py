@@ -10,14 +10,14 @@ Validates: Requirements 2.1-2.6, 3.1-3.10, 4.1-4.2, 5.1-5.5, 7.5
 import pytest
 from hypothesis import given, strategies as st, settings, HealthCheck
 from openpyxl import Workbook
-from src.excel_normalization.io_layer.excel_reader import ExcelReader
+from src.excel_standardization.io_layer.excel_reader import ExcelReader
 
 
-class TestTextNormalizationIdempotence:
-    """Property: Text normalization idempotence.
+class TestTextstandardizationIdempotence:
+    """Property: Text standardization idempotence.
     
-    For any text value, normalizing twice should equal normalizing once.
-    This ensures the normalization function is idempotent.
+    For any text value, standardizing twice should equal standardizing once.
+    This ensures the standardization function is idempotent.
     
     Validates: Requirements 2.1-2.6
     """
@@ -25,7 +25,7 @@ class TestTextNormalizationIdempotence:
     @given(st.text())
     @settings(max_examples=20, suppress_health_check=[HealthCheck.too_slow])
     def test_normalize_idempotent(self, text):
-        """Normalizing twice should equal normalizing once."""
+        """standardizing twice should equal standardizing once."""
         reader = ExcelReader()
         once = reader._normalize_text(text)
         twice = reader._normalize_text(once)

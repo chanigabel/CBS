@@ -4,8 +4,8 @@ import logging
 import uuid
 from fastapi import HTTPException
 
-from src.excel_normalization.io_layer.excel_to_json_extractor import ExcelToJsonExtractor
-from src.excel_normalization.io_layer.excel_reader import ExcelReader
+from src.excel_standardization.io_layer.excel_to_json_extractor import ExcelToJsonExtractor
+from src.excel_standardization.io_layer.excel_reader import ExcelReader
 from webapp.models.responses import SheetDataResponse, SheetSummary, WorkbookSummary
 from webapp.services.session_service import SessionService
 from webapp.services.mosad_id_scanner import scan_mosad_id
@@ -37,7 +37,7 @@ class WorkbookService:
 
     def _ensure_sheet_loaded(self, record, sheet_name: str) -> None:
         """Lazily extract a single sheet from disk if not yet in the dataset."""
-        from src.excel_normalization.data_types import WorkbookDataset
+        from src.excel_standardization.data_types import WorkbookDataset
         from openpyxl import load_workbook as _lw
 
         # If the sheet is already in memory, nothing to do.
@@ -191,7 +191,7 @@ class WorkbookService:
 
         # Collect all non-metadata keys that actually appear in the rows.
         # Exclude ALL underscore-prefixed internal keys (e.g. _birth_year_auto_completed,
-        # _entry_year_auto_completed, _normalization_failures) — these are pipeline
+        # _entry_year_auto_completed, _standardization_failures) — these are pipeline
         # implementation details and must never appear in the UI payload.
         seen: set = set()
         all_row_keys: list = []
@@ -342,7 +342,7 @@ class WorkbookService:
         # None, empty string, or whitespace-only.  Checked against original
         # source columns only (same rule as the numeric helper-row check below)
         # so that generated _corrected / _status columns don't keep a blank row
-        # visible after normalization.
+        # visible after standardization.
         clean_rows = [
             row for row in clean_rows
             if any(
@@ -356,8 +356,8 @@ class WorkbookService:
         # column-index row like 1, 2, 3 … that some Excel forms include), hide
         # it from the UI.  The check is value-based and looks only at the
         # original source columns (not at _corrected or _status columns added
-        # by the normalization pipeline, which would corrupt the check after
-        # normalization runs).  Every non-empty original-column cell must be
+        # by the standardization pipeline, which would corrupt the check after
+        # standardization runs).  Every non-empty original-column cell must be
         # numeric-like, and at least one must be non-empty.
         if clean_rows:
             first = clean_rows[0]

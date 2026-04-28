@@ -3,7 +3,7 @@
 This is a critical test that ensures the pipeline follows the correct behavior:
 - Excel file is read in read-only mode
 - Data is extracted to JSON
-- Normalization is applied to JSON
+- standardization is applied to JSON
 - Output is written to JSON files
 - Original Excel file remains completely unchanged
 
@@ -17,10 +17,10 @@ import os
 import hashlib
 from openpyxl import Workbook
 
-from src.excel_normalization.io_layer import ExcelReader, ExcelToJsonExtractor
-from src.excel_normalization.processing import NormalizationPipeline
-from src.excel_normalization.json_exporter import JsonExporter, generate_output_filenames
-from src.excel_normalization.engines import (
+from src.excel_standardization.io_layer import ExcelReader, ExcelToJsonExtractor
+from src.excel_standardization.processing import standardizationPipeline
+from src.excel_standardization.json_exporter import JsonExporter, generate_output_filenames
+from src.excel_standardization.engines import (
     NameEngine, GenderEngine, DateEngine, IdentifierEngine, TextProcessor
 )
 
@@ -93,10 +93,10 @@ class TestExcelNeverModified:
         assert hash_before == hash_after, "Excel file was modified during extraction!"
         assert len(workbook_dataset.sheets) > 0, "Should have extracted data"
     
-    def test_excel_file_hash_unchanged_after_normalization(self, temp_excel_file):
-        """Test that Excel file hash is unchanged after normalization.
+    def test_excel_file_hash_unchanged_after_standardization(self, temp_excel_file):
+        """Test that Excel file hash is unchanged after standardization.
         
-        This verifies that the normalization process does not modify the file.
+        This verifies that the standardization process does not modify the file.
         """
         # Calculate hash before processing
         hash_before = calculate_file_hash(temp_excel_file)
@@ -107,7 +107,7 @@ class TestExcelNeverModified:
         workbook_dataset = extractor.extract_workbook_to_json(temp_excel_file)
         
         # Normalize data
-        pipeline = NormalizationPipeline(
+        pipeline = standardizationPipeline(
             name_engine=NameEngine(TextProcessor()),
             gender_engine=GenderEngine(),
             date_engine=DateEngine(),
@@ -117,11 +117,11 @@ class TestExcelNeverModified:
         for sheet in workbook_dataset.sheets:
             normalized_sheet = pipeline.normalize_dataset(sheet)
         
-        # Calculate hash after normalization
+        # Calculate hash after standardization
         hash_after = calculate_file_hash(temp_excel_file)
         
         # Verify file is unchanged
-        assert hash_before == hash_after, "Excel file was modified during normalization!"
+        assert hash_before == hash_after, "Excel file was modified during standardization!"
     
     def test_excel_file_hash_unchanged_after_json_export(self, temp_excel_file):
         """Test that Excel file hash is unchanged after JSON export.
@@ -145,7 +145,7 @@ class TestExcelNeverModified:
             exporter.export_workbook_to_json(workbook_dataset, raw_json_path)
             
             # Normalize data
-            pipeline = NormalizationPipeline(
+            pipeline = standardizationPipeline(
                 name_engine=NameEngine(TextProcessor()),
                 gender_engine=GenderEngine(),
                 date_engine=DateEngine(),
@@ -245,7 +245,7 @@ class TestExcelNeverModified:
             exporter = JsonExporter()
             exporter.export_workbook_to_json(workbook_dataset, raw_json_path)
             
-            pipeline = NormalizationPipeline(
+            pipeline = standardizationPipeline(
                 name_engine=NameEngine(TextProcessor()),
                 gender_engine=GenderEngine(),
                 date_engine=DateEngine(),

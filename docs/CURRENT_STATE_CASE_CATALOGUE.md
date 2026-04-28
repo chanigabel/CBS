@@ -12,27 +12,27 @@
 
 | File | Role |
 |---|---|
-| `src/excel_normalization/engines/text_processor.py` | `clean_name` pipeline, language detection, char filtering, token removal |
-| `src/excel_normalization/engines/name_engine.py` | `normalize_name`, `remove_last_name_from_first_name`, `remove_last_name_from_father`, pattern detection |
-| `src/excel_normalization/engines/gender_engine.py` | `normalize_gender` |
-| `src/excel_normalization/engines/date_engine.py` | `parse_date`, all sub-parsers, `validate_business_rules` |
-| `src/excel_normalization/engines/identifier_engine.py` | `normalize_identifiers`, `_process_id_value`, `validate_israeli_id`, `clean_passport` |
-| `src/excel_normalization/io_layer/excel_reader.py` | `detect_table_region`, `detect_columns`, `find_header`, `_is_column_index_row` |
-| `src/excel_normalization/io_layer/excel_to_json_extractor.py` | `extract_sheet_to_json`, `extract_row_to_json` |
-| `src/excel_normalization/processing/normalization_pipeline.py` | `normalize_dataset`, `normalize_row`, all `apply_*` methods |
-| `src/excel_normalization/processing/name_processor.py` | Direct-Excel name processing |
-| `src/excel_normalization/processing/date_processor.py` | Direct-Excel date processing |
-| `src/excel_normalization/orchestrator.py` | `process_worksheet`, `_validate_entry_vs_birth` |
-| `src/excel_normalization/export/export_engine.py` | VBA-parity export, `detect_header_row`, `is_valid_data_row` |
+| `src/excel_standardization/engines/text_processor.py` | `clean_name` pipeline, language detection, char filtering, token removal |
+| `src/excel_standardization/engines/name_engine.py` | `normalize_name`, `remove_last_name_from_first_name`, `remove_last_name_from_father`, pattern detection |
+| `src/excel_standardization/engines/gender_engine.py` | `normalize_gender` |
+| `src/excel_standardization/engines/date_engine.py` | `parse_date`, all sub-parsers, `validate_business_rules` |
+| `src/excel_standardization/engines/identifier_engine.py` | `normalize_identifiers`, `_process_id_value`, `validate_israeli_id`, `clean_passport` |
+| `src/excel_standardization/io_layer/excel_reader.py` | `detect_table_region`, `detect_columns`, `find_header`, `_is_column_index_row` |
+| `src/excel_standardization/io_layer/excel_to_json_extractor.py` | `extract_sheet_to_json`, `extract_row_to_json` |
+| `src/excel_standardization/processing/standardization_pipeline.py` | `normalize_dataset`, `normalize_row`, all `apply_*` methods |
+| `src/excel_standardization/processing/name_processor.py` | Direct-Excel name processing |
+| `src/excel_standardization/processing/date_processor.py` | Direct-Excel date processing |
+| `src/excel_standardization/orchestrator.py` | `process_worksheet`, `_validate_entry_vs_birth` |
+| `src/excel_standardization/export/export_engine.py` | VBA-parity export, `detect_header_row`, `is_valid_data_row` |
 | `webapp/services/workbook_service.py` | `get_sheet_data`, display_columns ordering, row filtering |
 | `webapp/services/export_service.py` | `ExportService.export`, `visible_rows`, `canonical_sheet_name` |
 | `webapp/services/edit_service.py` | `edit_cell`, `delete_rows` |
-| `webapp/services/normalization_service.py` | `normalize`, re-extract on normalize |
+| `webapp/services/standardization_service.py` | `normalize`, re-extract on normalize |
 | `webapp/services/derived_columns.py` | `apply_derived_columns`, `detect_serial_field` |
 | `webapp/services/mosad_id_scanner.py` | `scan_mosad_id` |
 | `webapp/services/upload_service.py` | `handle_upload` |
 | `webapp/services/session_service.py` | Session registry |
-| `webapp/static/app.js` | UI rendering, edit commit, delete, normalization trigger |
+| `webapp/static/app.js` | UI rendering, edit commit, delete, standardization trigger |
 
 ---
 
@@ -63,11 +63,11 @@ User clicks sheet tab
           → apply_derived_columns()                  [serial + MosadID injection]
       → SheetDataResponse returned to browser
 
-User clicks "Run Normalization"
+User clicks "Run standardization"
   → POST /api/workbook/{id}/normalize
-      → NormalizationService.normalize()
+      → standardizationService.normalize()
           → Re-extracts ALL sheets fresh from disk (discards prior in-memory state)
-          → NormalizationPipeline.normalize_dataset() per sheet
+          → standardizationPipeline.normalize_dataset() per sheet
               → detect patterns (first 10 rows)
               → normalize_row() per row:
                   names → gender → dates → identifiers
@@ -87,8 +87,8 @@ User clicks "Export / Download"
 ### Direct-Excel / CLI path
 
 ```
-CLI: python -m excel_normalization.cli file.xlsx
-  → NormalizationOrchestrator.normalize_workbook()
+CLI: python -m excel_standardization.cli file.xlsx
+  → standardizationOrchestrator.normalize_workbook()
       → load_workbook(data_only=False, keep_vba=is_macro)
       → process_worksheet() per sheet:
           → NameFieldProcessor.process_field()
@@ -184,10 +184,10 @@ CLI: python -m excel_normalization.cli file.xlsx
 | RF-06 | First row is all-numeric (e.g., 1, 2, 3, 4…) | Numeric helper-row filter | `all(_is_numeric_like(v))` → True | First row dropped | No | No |
 | RF-07 | First row has mix of numeric and text | Numeric helper-row filter | `all(...)` → False | Row kept | Yes | Yes |
 | RF-08 | First row is all-numeric but second row is also all-numeric | Numeric helper-row filter | Only first row checked | Only first row dropped; second kept | Second: Yes | Second: Yes |
-| RF-09 | `_normalization_failures` key in row | Metadata strip | `k.startswith("_normalization")` → stripped | Key removed from display | Not shown | Not in export |
-| RF-10 | `_normalization_statistics` key in metadata | Not in rows | N/A | Not visible | No | No |
+| RF-09 | `_standardization_failures` key in row | Metadata strip | `k.startswith("_standardization")` → stripped | Key removed from display | Not shown | Not in export |
+| RF-10 | `_standardization_statistics` key in metadata | Not in rows | N/A | Not visible | No | No |
 | RF-11 | Row deleted via `EditService.delete_rows` | In-memory `sheet.rows.pop(idx)` | Removed from list | Gone from session | No | No |
-| RF-12 | Row deleted, then re-normalize called | `NormalizationService.normalize` re-extracts from disk | Deleted row reappears | Row is back | Yes | Yes |
+| RF-12 | Row deleted, then re-normalize called | `standardizationService.normalize` re-extracts from disk | Deleted row reappears | Row is back | Yes | Yes |
 
 ---
 
@@ -202,8 +202,8 @@ CLI: python -m excel_normalization.cli file.xlsx
 
 | Case ID | Input / Condition | Decision | Output Column Order | Status |
 |---|---|---|---|---|
-| CO-01 | Sheet with `first_name`, `last_name` only, no normalization | No `_corrected` in rows | `[_serial, first_name, last_name]` | IMPLEMENTED |
-| CO-02 | Sheet after normalization, all fields present | `_corrected` keys in rows | `[_serial, MosadID, first_name, first_name_corrected, last_name, last_name_corrected, ...]` | IMPLEMENTED |
+| CO-01 | Sheet with `first_name`, `last_name` only, no standardization | No `_corrected` in rows | `[_serial, first_name, last_name]` | IMPLEMENTED |
+| CO-02 | Sheet after standardization, all fields present | `_corrected` keys in rows | `[_serial, MosadID, first_name, first_name_corrected, last_name, last_name_corrected, ...]` | IMPLEMENTED |
 | CO-03 | Sheet with split birth date (year, month, day) | `birth_date_status` anchors to rightmost of group | `[..., birth_year, birth_year_corrected, birth_month, birth_month_corrected, birth_day, birth_day_corrected, birth_date_status]` | IMPLEMENTED |
 | CO-04 | Sheet with `id_number` and `passport` | `identifier_status` anchors to rightmost of `{id_number, passport}` | `[..., id_number, id_number_corrected, passport, passport_corrected, identifier_status]` | IMPLEMENTED |
 | CO-05 | Sheet with `passport` only (no `id_number`) | `identifier_status` anchors to `passport` | `[..., passport, passport_corrected, identifier_status]` | IMPLEMENTED |
@@ -219,7 +219,7 @@ CLI: python -m excel_normalization.cli file.xlsx
 
 ---
 
-### 3.5 Name Normalization
+### 3.5 Name standardization
 
 **Code:** `TextProcessor.clean_name()` — `text_processor.py`
 
@@ -333,7 +333,7 @@ CLI: python -m excel_normalization.cli file.xlsx
 ### 3.6 Last-Name Removal — First Name
 
 **Code:** `NameEngine.remove_last_name_from_first_name()`, `detect_first_name_pattern()` — `name_engine.py`
-**Pipeline:** `NormalizationPipeline.apply_name_normalization()` — `normalization_pipeline.py`
+**Pipeline:** `standardizationPipeline.apply_name_standardization()` — `standardization_pipeline.py`
 
 **Pattern detection:** Samples first 10 rows with both `first_name` and `last_name` non-empty. Uses first 5 of those. Requires `contain >= 3` to activate. Uses **raw** (pre-clean) values from rows, then calls `normalize_name` on each sample value.
 
@@ -383,10 +383,10 @@ Identical two-stage logic to first name, with one difference: **NONE pattern →
 
 ---
 
-### 3.8 Gender Normalization
+### 3.8 Gender standardization
 
 **Code:** `GenderEngine.normalize_gender()` — `gender_engine.py`
-**Pipeline:** `NormalizationPipeline.apply_gender_normalization()` — `normalization_pipeline.py`
+**Pipeline:** `standardizationPipeline.apply_gender_standardization()` — `standardization_pipeline.py`
 
 **Algorithm:** `str(value).strip().lower()` → check if any female pattern is a substring → return 2 if yes, 1 if no.
 
@@ -418,7 +418,7 @@ Identical two-stage logic to first name, with one difference: **NONE pattern →
 | GN-22 | `"unknown"` | `"unknown"` | no match | `1` | Yes | Yes | IMPLEMENTED |
 | GN-23 | `"נ/א"` | `"נ/א"` | `"נ"` is substring → matches | `2` | Yes | Yes | IMPLEMENTED |
 | GN-24 | `"זכר/נקבה"` | `"זכר/נקבה"` | `"נ"` is substring of `"נקבה"` → matches | `2` | Yes | Yes | IMPLEMENTED |
-| GN-25 | `None` or `""` in pipeline | `apply_gender_normalization` | `original is None or == ""` → `gender_corrected = original` | `None` or `""` | Yes | Yes | IMPLEMENTED |
+| GN-25 | `None` or `""` in pipeline | `apply_gender_standardization` | `original is None or == ""` → `gender_corrected = original` | `None` or `""` | Yes | Yes | IMPLEMENTED |
 
 **Note on GN-23/GN-24:** The female pattern check is a substring match. `"נ"` will match any string containing the Hebrew letter Nun, including `"נ/א"` or `"זכר/נקבה"`. This is a known behavior.
 
@@ -429,12 +429,12 @@ Identical two-stage logic to first name, with one difference: **NONE pattern →
 ### 3.9 Date Parsing and Statuses
 
 **Code:** `DateEngine` — `date_engine.py`
-**Pipeline (JSON path):** `NormalizationPipeline._normalize_date_field()` — always uses `DateFormatPattern.DDMM`
+**Pipeline (JSON path):** `standardizationPipeline._normalize_date_field()` — always uses `DateFormatPattern.DDMM`
 **Pipeline (direct-Excel path):** `DateFieldProcessor._process_date_field()` — detects DDMM vs MMDD from data
 
 #### 3.9.1 Split vs Single Detection (JSON path)
 
-**Code:** `NormalizationPipeline._normalize_date_field()`
+**Code:** `standardizationPipeline._normalize_date_field()`
 
 | Case ID | Row Keys Present | year_val | month_val | day_val | Path Taken | Status |
 |---|---|---|---|---|---|---|
@@ -540,7 +540,7 @@ Identical two-stage logic to first name, with one difference: **NONE pattern →
 
 #### 3.9.7 Corrected Field Writing (JSON path)
 
-**Code:** `NormalizationPipeline._normalize_date_field()`
+**Code:** `standardizationPipeline._normalize_date_field()`
 
 | Case ID | Scenario | `birth_year_corrected` | `birth_month_corrected` | `birth_day_corrected` | `birth_date_status` | Status |
 |---|---|---|---|---|---|---|
@@ -559,7 +559,7 @@ Identical two-stage logic to first name, with one difference: **NONE pattern →
 | Case ID | Path | Behavior | Status |
 |---|---|---|---|
 | EB-01 | Direct-Excel path | `_validate_entry_vs_birth()` called after both date groups processed; appends `"תאריך כניסה לפני תאריך לידה"` to entry status cell; formats pink+bold | IMPLEMENTED |
-| EB-02 | JSON / web path | `validate_entry_before_birth()` exists in `DateEngine` but is NOT called by `NormalizationPipeline` | NOT IMPLEMENTED |
+| EB-02 | JSON / web path | `validate_entry_before_birth()` exists in `DateEngine` but is NOT called by `standardizationPipeline` | NOT IMPLEMENTED |
 | EB-03 | Direct-Excel: birth or entry not valid | `not birth.is_valid or not entry.is_valid` → returns True (no warning) | IMPLEMENTED |
 | EB-04 | Direct-Excel: entry == birth date | `entry_date < birth_date` → False → no warning | IMPLEMENTED |
 
@@ -570,7 +570,7 @@ Identical two-stage logic to first name, with one difference: **NONE pattern →
 ### 3.10 Identifier / ID / Passport Logic
 
 **Code:** `IdentifierEngine.normalize_identifiers()`, `_process_id_value()`, `validate_israeli_id()`, `clean_passport()` — `identifier_engine.py`
-**Pipeline:** `NormalizationPipeline.apply_identifier_normalization()` — `normalization_pipeline.py`
+**Pipeline:** `standardizationPipeline.apply_identifier_standardization()` — `standardization_pipeline.py`
 
 #### 3.10.1 Pre-processing and Entry Conditions
 
@@ -656,7 +656,7 @@ Identical two-stage logic to first name, with one difference: **NONE pattern →
 
 #### 3.10.8 Pipeline-Level Behavior
 
-**Code:** `NormalizationPipeline.apply_identifier_normalization()`
+**Code:** `standardizationPipeline.apply_identifier_standardization()`
 
 | Case ID | id_number in row | passport in row | id_value | passport_value | Behavior | Status |
 |---|---|---|---|---|---|---|
@@ -694,7 +694,7 @@ Identical two-stage logic to first name, with one difference: **NONE pattern →
 
 ### 3.12 Session Edit / Delete / Re-normalize Behavior
 
-**Code:** `EditService`, `NormalizationService`, `SessionService`
+**Code:** `EditService`, `standardizationService`, `SessionService`
 
 #### 3.12.1 Cell Edit
 
@@ -704,10 +704,10 @@ Identical two-stage logic to first name, with one difference: **NONE pattern →
 | SE-02 | `row_index < 0` | HTTP 400 | No change | IMPLEMENTED |
 | SE-03 | `row_index >= len(rows)` | HTTP 400 | No change | IMPLEMENTED |
 | SE-04 | `field_name` not in row dict | HTTP 400 | No change | IMPLEMENTED |
-| SE-05 | Edit a `_corrected` field | Allowed; no re-normalization | `_corrected` value updated in memory | IMPLEMENTED |
-| SE-06 | Edit an original field | Allowed; no re-normalization | Original updated; `_corrected` retains old value | IMPLEMENTED |
+| SE-05 | Edit a `_corrected` field | Allowed; no re-standardization | `_corrected` value updated in memory | IMPLEMENTED |
+| SE-06 | Edit an original field | Allowed; no re-standardization | Original updated; `_corrected` retains old value | IMPLEMENTED |
 | SE-07 | `workbook_dataset is None` | HTTP 500 | No change | IMPLEMENTED |
-| SE-08 | `_normalization_failures` key in row | Stripped from `updated_row` response | Not visible in response | IMPLEMENTED |
+| SE-08 | `_standardization_failures` key in row | Stripped from `updated_row` response | Not visible in response | IMPLEMENTED |
 
 #### 3.12.2 Row Deletion
 
@@ -729,7 +729,7 @@ Identical two-stage logic to first name, with one difference: **NONE pattern →
 | RN-02 | Normalize called with `?sheet=SheetName` | Only that sheet re-extracted and normalized; others unchanged | IMPLEMENTED |
 | RN-03 | Manual edits exist before normalize | Re-extraction from disk discards all in-memory edits | IMPLEMENTED |
 | RN-04 | `record.edits` dict | Populated on edit; never read back; never replayed | IMPLEMENTED |
-| RN-05 | Normalize called twice | Second call re-extracts fresh; first normalization results discarded | IMPLEMENTED |
+| RN-05 | Normalize called twice | Second call re-extracts fresh; first standardization results discarded | IMPLEMENTED |
 | RN-06 | `workbook_dataset is None` when normalize called | Auto-loads all sheets from disk first | IMPLEMENTED |
 | RN-07 | Sheet not found on disk during normalize | HTTP 404 | IMPLEMENTED |
 
@@ -759,7 +759,7 @@ Identical two-stage logic to first name, with one difference: **NONE pattern →
 | Case ID | Condition | Export Cell Value | Status |
 |---|---|---|---|
 | FM-01 | `first_name_corrected` present and non-empty | Value of `first_name_corrected` | IMPLEMENTED |
-| FM-02 | `first_name_corrected` absent (no normalization) | `None` → blank cell | IMPLEMENTED |
+| FM-02 | `first_name_corrected` absent (no standardization) | `None` → blank cell | IMPLEMENTED |
 | FM-03 | `first_name_corrected` is `""` | `None` → blank cell | IMPLEMENTED |
 | FM-04 | `first_name` present but `first_name_corrected` absent | No fallback; blank cell | IMPLEMENTED |
 | FM-05 | `MosadID` present in row | Value written | IMPLEMENTED |
@@ -784,7 +784,7 @@ Same logic as UI (`visible_rows()` mirrors `WorkbookService.get_sheet_data()`):
 | EF-05 | Row deleted via UI before export | No (gone from memory) | IMPLEMENTED |
 | EF-06 | Row deleted, then re-normalized before export | Yes (reappears from disk) | IMPLEMENTED |
 
-#### 3.13.4 Export Without Prior Normalization
+#### 3.13.4 Export Without Prior standardization
 
 | Case ID | Condition | Behavior | Status |
 |---|---|---|---|
@@ -833,7 +833,7 @@ Same logic as UI (`visible_rows()` mirrors `WorkbookService.get_sheet_data()`):
 
 ## 5. Observed Risky Current Behaviors
 
-1. **Manual edits are silently discarded on re-normalize.** `NormalizationService.normalize()` re-extracts from disk, replacing the in-memory dataset. `record.edits` is populated but never replayed. A user who edits cells and then re-normalizes loses all edits with no warning.
+1. **Manual edits are silently discarded on re-normalize.** `standardizationService.normalize()` re-extracts from disk, replacing the in-memory dataset. `record.edits` is populated but never replayed. A user who edits cells and then re-normalizes loses all edits with no warning.
 
 2. **`gender_corrected` is an `int` (1 or 2), not a string.** The export writes it as an integer. The UI displays it as `"1"` or `"2"`. If downstream systems expect `"ז"` or `"נ"`, they will receive a number.
 
@@ -851,13 +851,13 @@ Same logic as UI (`visible_rows()` mirrors `WorkbookService.get_sheet_data()`):
 
 9. **`_serial` column header is an internal key name.** The synthetic serial column appears in the UI with the header `_serial`, which is not user-friendly.
 
-10. **Export without normalization produces a mostly-blank file.** There is no warning or guard. The user receives a valid `.xlsx` with correct structure but blank personal data columns.
+10. **Export without standardization produces a mostly-blank file.** There is no warning or guard. The user receives a valid `.xlsx` with correct structure but blank personal data columns.
 
 11. **`record.edits` dict grows unboundedly.** Every cell edit appends to `record.edits`. There is no size limit or cleanup. For large datasets with many edits, this dict can grow large, but since it is never read back, it is pure memory waste.
 
 12. **Two-digit year expansion is date-of-run dependent.** The cutoff year changes each year. A year value of `"26"` means 2026 in 2026 but will mean 1926 in 2027. Archived data processed in different years will produce different results.
 
-13. **`validate_entry_before_birth` in `DateEngine` is dead code in the web path.** The method exists and is correct, but `NormalizationPipeline` never calls it. The cross-validation only runs in the direct-Excel CLI path.
+13. **`validate_entry_before_birth` in `DateEngine` is dead code in the web path.** The method exists and is correct, but `standardizationPipeline` never calls it. The cross-validation only runs in the direct-Excel CLI path.
 
 14. **`SugMosad` is always blank in all export paths.** The column exists in the schema but no code populates it. Any downstream system expecting this field will always receive an empty value.
 

@@ -12,8 +12,8 @@ Requirements: 1.1-1.4, 5.1-5.5, 9.1-9.4, 10.1-10.6
 import pytest
 from openpyxl import Workbook
 from openpyxl.worksheet.worksheet import Worksheet
-from src.excel_normalization.io_layer.excel_reader import ExcelReader
-from src.excel_normalization.data_types import ColumnHeaderInfo
+from src.excel_standardization.io_layer.excel_reader import ExcelReader
+from src.excel_standardization.data_types import ColumnHeaderInfo
 
 
 class TestSingleRowHeadersHebrew:

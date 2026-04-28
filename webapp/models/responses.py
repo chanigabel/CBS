@@ -35,21 +35,25 @@ class SheetDataResponse(BaseModel):
 
 
 class PerSheetStat(BaseModel):
-    """Per-sheet normalization statistics."""
+    """Per-sheet standardization statistics."""
 
     sheet_name: str
     rows: int
     success_rate: float
 
 
-class NormalizeResponse(BaseModel):
-    """Response from POST /api/workbook/{session_id}/normalize."""
+class StandardizeResponse(BaseModel):
+    """Response from POST /api/workbook/{session_id}/standardize."""
 
     session_id: str
     status: str
     sheets_processed: int
     total_rows: int
     per_sheet_stats: List[PerSheetStat]
+
+
+# Backward-compatible alias
+NormalizeResponse = StandardizeResponse
 
 
 class CellEditResponse(BaseModel):

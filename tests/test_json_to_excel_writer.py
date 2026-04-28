@@ -8,8 +8,8 @@ import os
 import tempfile
 from openpyxl import load_workbook
 
-from src.excel_normalization.data_types import SheetDataset, WorkbookDataset, JsonRow
-from src.excel_normalization.io_layer import JsonToExcelWriter
+from src.excel_standardization.data_types import SheetDataset, WorkbookDataset, JsonRow
+from src.excel_standardization.io_layer import JsonToExcelWriter
 
 
 def test_write_dataset_to_excel_basic():

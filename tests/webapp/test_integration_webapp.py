@@ -41,21 +41,21 @@ def client(tmp_path, monkeypatch):
     import webapp.dependencies as deps
     from webapp.services.upload_service import UploadService
     from webapp.services.workbook_service import WorkbookService
-    from webapp.services.normalization_service import NormalizationService
+    from webapp.services.standardization_service import standardizationService
     from webapp.services.edit_service import EditService
     from webapp.services.export_service import ExportService
 
     svc = SessionService()
     upload_svc = UploadService(svc, tmp_path / "uploads", tmp_path / "work")
     workbook_svc = WorkbookService(svc)
-    norm_svc = NormalizationService(svc)
+    norm_svc = standardizationService(svc)
     edit_svc = EditService(svc)
     export_svc = ExportService(svc, tmp_path / "output")
 
     monkeypatch.setattr(deps, "_session_service", svc)
     monkeypatch.setattr(deps, "_upload_service", upload_svc)
     monkeypatch.setattr(deps, "_workbook_service", workbook_svc)
-    monkeypatch.setattr(deps, "_normalization_service", norm_svc)
+    monkeypatch.setattr(deps, "_standardization_service", norm_svc)
     monkeypatch.setattr(deps, "_edit_service", edit_svc)
     monkeypatch.setattr(deps, "_export_service", export_svc)
 
@@ -97,7 +97,7 @@ def test_full_workflow_upload_normalize_export(client):
     normalize_response = test_client.post(f"/api/workbook/{session_id}/normalize")
     assert normalize_response.status_code == 200
     norm_data = normalize_response.json()
-    assert norm_data["status"] == "normalized"
+    assert norm_data["status"] == "standardized"
     assert norm_data["sheets_processed"] >= 1
     assert norm_data["total_rows"] >= 0
 

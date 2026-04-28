@@ -2,7 +2,7 @@ from pathlib import Path
 
 from openpyxl import Workbook, load_workbook
 
-from src.excel_normalization.orchestrator import NormalizationOrchestrator
+from src.excel_standardization.orchestrator import standardizationOrchestrator
 
 
 def _make_source_workbook() -> Workbook:
@@ -96,7 +96,7 @@ def test_export_processor_vs_json_parity(tmp_path: Path):
     input_path = tmp_path / "input.xlsx"
     src_wb.save(input_path)
 
-    orch = NormalizationOrchestrator()
+    orch = standardizationOrchestrator()
 
     # Export via worksheet-based processors path.
     out_proc = tmp_path / "out_proc.xlsx"

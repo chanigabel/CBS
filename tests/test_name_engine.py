@@ -1,14 +1,14 @@
-"""Tests for NameEngine and TextProcessor normalization behavior.
+"""Tests for NameEngine and TextProcessor standardization behavior.
 
-Validates real normalization results: trimming, diacritic removal,
+Validates real standardization results: trimming, diacritic removal,
 language filtering, Hebrew final letter spacing, and father name
 last-name removal patterns.
 """
 
 import pytest
-from src.excel_normalization.engines.name_engine import NameEngine
-from src.excel_normalization.engines.text_processor import TextProcessor
-from src.excel_normalization.data_types import Language, FatherNamePattern
+from src.excel_standardization.engines.name_engine import NameEngine
+from src.excel_standardization.engines.text_processor import TextProcessor
+from src.excel_standardization.data_types import Language, FatherNamePattern
 
 
 # ---------------------------------------------------------------------------

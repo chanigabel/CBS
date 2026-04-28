@@ -18,7 +18,7 @@ def test_normalize_returns_200_with_stats(client):
     response = client.post(f"/api/workbook/{session_id}/normalize")
     assert response.status_code == 200
     data = response.json()
-    assert data["status"] == "normalized"
+    assert data["status"] == "standardized"
     assert data["session_id"] == session_id
     assert "sheets_processed" in data
     assert "total_rows" in data

@@ -1,20 +1,20 @@
 ; ============================================================
-; Inno Setup script for Excel Normalization Web App
+; Inno Setup script for Excel standardization Web App
 ;
 ; Prerequisites:
 ;   1. Build the exe first:  build_exe.bat
 ;   2. Install Inno Setup 6: https://jrsoftware.org/isinfo.php
 ;   3. Compile:              build_installer.bat
-;                        or: iscc installer\ExcelNormalization.iss
+;                        or: iscc installer\Excelstandardization.iss
 ;
-; Output: installer\Output\ExcelNormalization_Setup_1.0.2.exe
+; Output: installer\Output\Excelstandardization_Setup_1.0.2.exe
 ; ============================================================
 
-#define AppName      "Excel Normalization"
+#define AppName      "Excel standardization"
 #define AppVersion   "1.0.2"
-#define AppPublisher "Excel Normalization Team"
-#define AppExeName   "ExcelNormalization.exe"
-#define DistDir      "..\dist\ExcelNormalization"
+#define AppPublisher "Excel standardization Team"
+#define AppExeName   "Excelstandardization.exe"
+#define DistDir      "..\dist\Excelstandardization"
 
 [Setup]
 AppId={{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}
@@ -26,7 +26,7 @@ DefaultDirName={autopf}\{#AppName}
 DefaultGroupName={#AppName}
 AllowNoIcons=yes
 OutputDir=Output
-OutputBaseFilename=ExcelNormalization_Setup_{#AppVersion}
+OutputBaseFilename=Excelstandardization_Setup_{#AppVersion}
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
@@ -52,12 +52,12 @@ Name: "startmenuicon"; Description: "Create a &Start Menu shortcut"; GroupDescri
 Source: "{#DistDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Dirs]
-; Pre-create the writable runtime directories under %LOCALAPPDATA%\ExcelNormalization
+; Pre-create the writable runtime directories under %LOCALAPPDATA%\Excelstandardization
 ; so the app can write uploads/work/output files without needing admin rights at runtime.
-Name: "{localappdata}\ExcelNormalization";          Permissions: users-full
-Name: "{localappdata}\ExcelNormalization\uploads";  Permissions: users-full
-Name: "{localappdata}\ExcelNormalization\work";     Permissions: users-full
-Name: "{localappdata}\ExcelNormalization\output";   Permissions: users-full
+Name: "{localappdata}\Excelstandardization";          Permissions: users-full
+Name: "{localappdata}\Excelstandardization\uploads";  Permissions: users-full
+Name: "{localappdata}\Excelstandardization\work";     Permissions: users-full
+Name: "{localappdata}\Excelstandardization\output";   Permissions: users-full
 
 [Icons]
 ; Start Menu shortcuts
@@ -75,7 +75,7 @@ Filename: "{app}\{#AppExeName}"; \
 [UninstallDelete]
 ; Remove the app installation directory on uninstall
 Type: filesandordirs; Name: "{app}"
-; Leave user data in %LOCALAPPDATA%\ExcelNormalization intact on uninstall
+; Leave user data in %LOCALAPPDATA%\Excelstandardization intact on uninstall
 ; (uploads and exports belong to the user — do not delete them silently)
 
 [Code]

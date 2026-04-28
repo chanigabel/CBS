@@ -4,7 +4,7 @@ Tests the initialization and basic structure of the ExcelToJsonExtractor class.
 """
 
 import pytest
-from src.excel_normalization.io_layer import ExcelReader, ExcelToJsonExtractor
+from src.excel_standardization.io_layer import ExcelReader, ExcelToJsonExtractor
 
 
 def test_extractor_initialization_default():

@@ -1,4 +1,4 @@
-"""Property-based tests for the Excel Normalization Web App.
+"""Property-based tests for the Excel standardization Web App.
 
 Uses Hypothesis to verify universal properties across many inputs.
 """
@@ -18,7 +18,7 @@ from webapp.services.upload_service import UploadService
 from webapp.services.workbook_service import WorkbookService
 from webapp.services.edit_service import EditService
 from webapp.models.requests import CellEditRequest
-from src.excel_normalization.data_types import SheetDataset, WorkbookDataset
+from src.excel_standardization.data_types import SheetDataset, WorkbookDataset
 
 
 # ---------------------------------------------------------------------------
@@ -279,18 +279,18 @@ def test_cell_edit_round_trip(sheet_dataset, new_value):
 
 
 # ---------------------------------------------------------------------------
-# Property 6: Normalization updates session status and dataset
+# Property 6: standardization updates session status and dataset
 # Validates: Requirements 5.4
 # ---------------------------------------------------------------------------
 
 @given(workbook_strategy())
 @settings(max_examples=10, suppress_health_check=[HealthCheck.function_scoped_fixture])
-def test_normalization_updates_session_status_and_dataset(workbook_data):
-    """Property 6: Normalization updates session status and dataset.
+def test_standardization_updates_session_status_and_dataset(workbook_data):
+    """Property 6: standardization updates session status and dataset.
 
     Validates: Requirements 5.4
     """
-    from webapp.services.normalization_service import NormalizationService
+    from webapp.services.standardization_service import standardizationService
 
     file_bytes, _ = workbook_data
     with tempfile.TemporaryDirectory() as tmp:
@@ -298,13 +298,13 @@ def test_normalization_updates_session_status_and_dataset(workbook_data):
         upload_svc, session_svc = _make_upload_service(tmp_path)
         response = upload_svc.handle_upload("test.xlsx", file_bytes)
 
-        norm_svc = NormalizationService(session_svc)
+        norm_svc = standardizationService(session_svc)
         norm_response = norm_svc.normalize(response.session_id)
 
         record = session_svc.get(response.session_id)
-        assert record.status == "normalized"
+        assert record.status == "standardized"
         assert record.workbook_dataset is not None
-        assert norm_response.status == "normalized"
+        assert norm_response.status == "standardized"
 
 
 # ---------------------------------------------------------------------------
@@ -320,7 +320,7 @@ def test_source_file_never_modified(workbook_data):
     Validates: Requirements 5.8, 7.5, 9.2
     """
     import hashlib
-    from webapp.services.normalization_service import NormalizationService
+    from webapp.services.standardization_service import standardizationService
     from webapp.services.export_service import ExportService
 
     file_bytes, _ = workbook_data
@@ -335,8 +335,8 @@ def test_source_file_never_modified(workbook_data):
         assert len(source_files) == 1
         original_hash = hashlib.sha256(source_files[0].read_bytes()).hexdigest()
 
-        # Run normalization
-        norm_svc = NormalizationService(session_svc)
+        # Run standardization
+        norm_svc = standardizationService(session_svc)
         norm_svc.normalize(response.session_id)
 
         # Source file must still be identical
@@ -355,26 +355,26 @@ def test_source_file_never_modified(workbook_data):
 
 
 # ---------------------------------------------------------------------------
-# Property 9: Web app normalization equivalence
+# Property 9: Web app standardization equivalence
 # Validates: Requirements 12.5
 # ---------------------------------------------------------------------------
 
 @given(workbook_strategy())
 @settings(max_examples=5, suppress_health_check=[HealthCheck.function_scoped_fixture])
-def test_normalization_equivalence(workbook_data):
-    """Property 9: Web app normalization equivalence.
+def test_standardization_equivalence(workbook_data):
+    """Property 9: Web app standardization equivalence.
 
     Validates: Requirements 12.5
     """
-    from webapp.services.normalization_service import NormalizationService
-    from src.excel_normalization.io_layer.excel_to_json_extractor import ExcelToJsonExtractor
-    from src.excel_normalization.io_layer.excel_reader import ExcelReader
-    from src.excel_normalization.processing.normalization_pipeline import NormalizationPipeline
-    from src.excel_normalization.engines.name_engine import NameEngine
-    from src.excel_normalization.engines.gender_engine import GenderEngine
-    from src.excel_normalization.engines.date_engine import DateEngine
-    from src.excel_normalization.engines.identifier_engine import IdentifierEngine
-    from src.excel_normalization.engines.text_processor import TextProcessor
+    from webapp.services.standardization_service import standardizationService
+    from src.excel_standardization.io_layer.excel_to_json_extractor import ExcelToJsonExtractor
+    from src.excel_standardization.io_layer.excel_reader import ExcelReader
+    from src.excel_standardization.processing.standardization_pipeline import standardizationPipeline
+    from src.excel_standardization.engines.name_engine import NameEngine
+    from src.excel_standardization.engines.gender_engine import GenderEngine
+    from src.excel_standardization.engines.date_engine import DateEngine
+    from src.excel_standardization.engines.identifier_engine import IdentifierEngine
+    from src.excel_standardization.engines.text_processor import TextProcessor
 
     file_bytes, _ = workbook_data
     with tempfile.TemporaryDirectory() as tmp:
@@ -382,8 +382,8 @@ def test_normalization_equivalence(workbook_data):
         upload_svc, session_svc = _make_upload_service(tmp_path)
         response = upload_svc.handle_upload("test.xlsx", file_bytes)
 
-        # Run via NormalizationService
-        norm_svc = NormalizationService(session_svc)
+        # Run via standardizationService
+        norm_svc = standardizationService(session_svc)
         norm_svc.normalize(response.session_id)
         record = session_svc.get(response.session_id)
         webapp_sheets = {s.sheet_name: s.rows for s in record.workbook_dataset.sheets}
@@ -401,7 +401,7 @@ def test_normalization_equivalence(workbook_data):
         response2 = upload_svc2.handle_upload("test2.xlsx", file_bytes)
         record2 = session_svc2.get(response2.session_id)
 
-        pipeline = NormalizationPipeline(
+        pipeline = standardizationPipeline(
             name_engine=NameEngine(TextProcessor()),
             gender_engine=GenderEngine(),
             date_engine=DateEngine(),
@@ -417,7 +417,7 @@ def test_normalization_equivalence(workbook_data):
         for sheet_name in webapp_sheets:
             if sheet_name in direct_sheets:
                 assert webapp_sheets[sheet_name] == direct_sheets[sheet_name], (
-                    f"Normalization mismatch for sheet '{sheet_name}'"
+                    f"standardization mismatch for sheet '{sheet_name}'"
                 )
 
 
@@ -447,13 +447,13 @@ def test_nonexistent_session_returns_404(session_uuid):
 
         from webapp.services.upload_service import UploadService
         from webapp.services.workbook_service import WorkbookService
-        from webapp.services.normalization_service import NormalizationService
+        from webapp.services.standardization_service import standardizationService
         from webapp.services.edit_service import EditService
         from webapp.services.export_service import ExportService
 
         upload_svc = UploadService(session_svc, tmp_path / "uploads", tmp_path / "work")
         workbook_svc = WorkbookService(session_svc)
-        norm_svc = NormalizationService(session_svc)
+        norm_svc = standardizationService(session_svc)
         edit_svc = EditService(session_svc)
         export_svc = ExportService(session_svc, tmp_path / "output")
 
@@ -461,14 +461,14 @@ def test_nonexistent_session_returns_404(session_uuid):
         orig_session = deps._session_service
         orig_upload = deps._upload_service
         orig_workbook = deps._workbook_service
-        orig_norm = deps._normalization_service
+        orig_norm = deps._standardization_service
         orig_edit = deps._edit_service
         orig_export = deps._export_service
 
         deps._session_service = session_svc
         deps._upload_service = upload_svc
         deps._workbook_service = workbook_svc
-        deps._normalization_service = norm_svc
+        deps._standardization_service = norm_svc
         deps._edit_service = edit_svc
         deps._export_service = export_svc
 
@@ -493,6 +493,6 @@ def test_nonexistent_session_returns_404(session_uuid):
             deps._session_service = orig_session
             deps._upload_service = orig_upload
             deps._workbook_service = orig_workbook
-            deps._normalization_service = orig_norm
+            deps._standardization_service = orig_norm
             deps._edit_service = orig_edit
             deps._export_service = orig_export

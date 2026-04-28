@@ -7,7 +7,7 @@ according to Requirements 1.4 and 9.4:
 """
 
 from openpyxl import Workbook
-from src.excel_normalization.io_layer.excel_reader import ExcelReader
+from src.excel_standardization.io_layer.excel_reader import ExcelReader
 
 
 def test_requirement_1_4_no_exceptions():

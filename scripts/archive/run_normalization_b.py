@@ -2,7 +2,7 @@ from pathlib import Path
 
 from openpyxl import load_workbook
 
-from src.excel_normalization.orchestrator import NormalizationOrchestrator
+from src.excel_standardization.orchestrator import standardizationOrchestrator
 
 
 def main() -> None:
@@ -12,8 +12,8 @@ def main() -> None:
 
     out_path = Path("B_normalized.xlsx").resolve()
 
-    # Use the worksheet-based processors path to mirror VBA normalization.
-    orch = NormalizationOrchestrator()
+    # Use the worksheet-based processors path to mirror VBA standardization.
+    orch = standardizationOrchestrator()
     orch.export_vba_parity_workbook_from_processors(str(base), str(out_path))
     print(f"Wrote normalized workbook to {out_path}")
 

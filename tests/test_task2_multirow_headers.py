@@ -7,7 +7,7 @@ headers with merged cells.
 
 from openpyxl import Workbook
 from openpyxl.utils import get_column_letter
-from src.excel_normalization.io_layer.excel_reader import ExcelReader
+from src.excel_standardization.io_layer.excel_reader import ExcelReader
 
 
 def create_multirow_header_workbook():

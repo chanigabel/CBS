@@ -118,7 +118,7 @@ class EditService:
         _KEEP_INTERNAL = {"_row_uid"}
         updated_row = {
             k: v for k, v in sheet.rows[row_idx].items()
-            if not k.startswith("_normalization") and (not k.startswith("_") or k in _KEEP_INTERNAL)
+            if not k.startswith("_standardization") and (not k.startswith("_") or k in _KEEP_INTERNAL)
         }
         return CellEditResponse(row_uid=req.row_uid, updated_row=updated_row)
 

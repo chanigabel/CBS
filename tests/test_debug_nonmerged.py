@@ -1,7 +1,7 @@
 """Debug script for non-merged multi-row headers."""
 
 from openpyxl import Workbook
-from src.excel_normalization.io_layer.excel_reader import ExcelReader
+from src.excel_standardization.io_layer.excel_reader import ExcelReader
 
 
 def create_non_merged_multirow_workbook():

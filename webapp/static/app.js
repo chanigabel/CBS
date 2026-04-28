@@ -1,5 +1,5 @@
 /**
- * Excel Normalization Web App - Frontend JavaScript
+ * Excel standardization Web App - Frontend JavaScript
  * Vanilla JS, no external dependencies, fully offline-capable.
  */
 
@@ -10,7 +10,7 @@
 // sessions: Map<sessionId, SessionMeta>
 // SessionMeta: { sessionId, filename, sheetNames, lastSheet, isNormalized,
 //               hasEdits, sheetStats }
-// Each session keeps its own last-viewed sheet and normalization flag so
+// Each session keeps its own last-viewed sheet and standardization flag so
 // switching between files restores the correct view.
 const sessions = new Map();
 
@@ -754,7 +754,7 @@ async function deleteSelectedRows() {
     // U-06: Ask for confirmation when deleting more than one row
     if (n > 1) {
         const confirmed = confirm(
-            `Delete ${n} rows?\n\nThis cannot be undone without re-running normalization.`
+            `Delete ${n} rows?\n\nThis cannot be undone without re-running standardization.`
         );
         if (!confirmed) return;
     }
@@ -852,19 +852,19 @@ function makeEditable(td, rowUid, fieldName) {
 }
 
 // ---------------------------------------------------------------------------
-// Normalization — U-01, U-05
+// standardization — U-01, U-05
 // ---------------------------------------------------------------------------
 
-async function runNormalization() {
+async function runstandardization() {
     if (!state.sessionId) return;
     dismissError();
 
     // U-01: Warn the user if they have unsaved manual edits that will be
-    // overwritten by re-normalization.
+    // overwritten by re-standardization.
     const session = sessions.get(state.sessionId);
     if (session && session.hasEdits) {
         const confirmed = confirm(
-            'Running normalization will discard your manual cell edits.\n\n' +
+            'Running standardization will discard your manual cell edits.\n\n' +
             'Continue?'
         );
         if (!confirmed) return;
@@ -872,12 +872,12 @@ async function runNormalization() {
 
     const btn = document.getElementById('normalize-btn');
     btn.disabled = true;
-    btn.innerHTML = '⏳ Normalizing... <span class="loading"></span>';
+    btn.innerHTML = '⏳ standardizing... <span class="loading"></span>';
 
     try {
         // Normalize the entire workbook (all sheets) — this is the default and
         // correct behavior.  The backend supports ?sheet=<name> for single-sheet
-        // normalization but the UI button must always normalize all sheets so
+        // standardization but the UI button must always normalize all sheets so
         // that identifier_status, MosadID, and all corrected fields are
         // consistent across every sheet in the workbook.
         const result = await apiCall('POST',
@@ -905,12 +905,12 @@ async function runNormalization() {
             .map(s => `${s.sheet_name}: ${s.rows} rows (${(s.success_rate * 100).toFixed(1)}% success)`)
             .join(' | ');
         document.getElementById('grid-stats').textContent =
-            `Normalization complete (${result.sheets_processed} sheet${result.sheets_processed !== 1 ? 's' : ''}) — ${stats}`;
+            `standardization complete (${result.sheets_processed} sheet${result.sheets_processed !== 1 ? 's' : ''}) — ${stats}`;
     } catch (err) {
-        showError(`Normalization failed: ${err.message}`);
+        showError(`standardization failed: ${err.message}`);
     } finally {
         btn.disabled = false;
-        btn.innerHTML = '▶ Run Normalization';
+        btn.innerHTML = '▶ Run standardization';
     }
 }
 
@@ -1030,7 +1030,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // U-08: Keyboard shortcuts for power users.
-    // Ctrl+Enter (or Cmd+Enter on Mac) = Run Normalization
+    // Ctrl+Enter (or Cmd+Enter on Mac) = Run standardization
     // Ctrl+S (or Cmd+S on Mac) = Export / Download
     document.addEventListener('keydown', e => {
         const mod = e.ctrlKey || e.metaKey;
@@ -1038,7 +1038,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (e.key === 'Enter') {
             e.preventDefault();
-            if (state.sessionId) runNormalization();
+            if (state.sessionId) runstandardization();
         } else if (e.key === 's') {
             e.preventDefault();
             if (state.sessionId) exportWorkbook();

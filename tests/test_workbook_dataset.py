@@ -1,7 +1,7 @@
 """Unit tests for WorkbookDataset dataclass."""
 
 import pytest
-from src.excel_normalization.data_types import WorkbookDataset, SheetDataset, JsonRow
+from src.excel_standardization.data_types import WorkbookDataset, SheetDataset, JsonRow
 
 
 class TestWorkbookDataset:

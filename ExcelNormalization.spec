@@ -1,11 +1,11 @@
 # -*- mode: python ; coding: utf-8 -*-
 #
-# PyInstaller spec for Excel Normalization Web App
+# PyInstaller spec for Excel standardization Web App
 #
 # Build with:
-#   pyinstaller ExcelNormalization.spec
+#   pyinstaller Excelstandardization.spec
 #
-# Output: dist/ExcelNormalization/ExcelNormalization.exe
+# Output: dist/Excelstandardization/Excelstandardization.exe
 
 import sys
 from pathlib import Path
@@ -87,7 +87,7 @@ hidden_imports = [
     "webapp.services.session_service",
     "webapp.services.upload_service",
     "webapp.services.workbook_service",
-    "webapp.services.normalization_service",
+    "webapp.services.standardization_service",
     "webapp.services.edit_service",
     "webapp.services.export_service",
     "webapp.services.mosad_id_scanner",
@@ -96,28 +96,28 @@ hidden_imports = [
     "webapp.models.session",
     "webapp.models.requests",
     "webapp.models.responses",
-    "src.excel_normalization",
-    "src.excel_normalization.orchestrator",
-    "src.excel_normalization.data_types",
-    "src.excel_normalization.io_layer",
-    "src.excel_normalization.io_layer.excel_reader",
-    "src.excel_normalization.io_layer.excel_to_json_extractor",
-    "src.excel_normalization.io_layer.excel_writer",
-    "src.excel_normalization.processing",
-    "src.excel_normalization.processing.normalization_pipeline",
-    "src.excel_normalization.processing.name_processor",
-    "src.excel_normalization.processing.gender_processor",
-    "src.excel_normalization.processing.date_processor",
-    "src.excel_normalization.processing.identifier_processor",
-    "src.excel_normalization.processing.field_processor",
-    "src.excel_normalization.engines",
-    "src.excel_normalization.engines.name_engine",
-    "src.excel_normalization.engines.gender_engine",
-    "src.excel_normalization.engines.date_engine",
-    "src.excel_normalization.engines.identifier_engine",
-    "src.excel_normalization.engines.text_processor",
-    "src.excel_normalization.export",
-    "src.excel_normalization.export.export_engine",
+    "src.excel_standardization",
+    "src.excel_standardization.orchestrator",
+    "src.excel_standardization.data_types",
+    "src.excel_standardization.io_layer",
+    "src.excel_standardization.io_layer.excel_reader",
+    "src.excel_standardization.io_layer.excel_to_json_extractor",
+    "src.excel_standardization.io_layer.excel_writer",
+    "src.excel_standardization.processing",
+    "src.excel_standardization.processing.standardization_pipeline",
+    "src.excel_standardization.processing.name_processor",
+    "src.excel_standardization.processing.gender_processor",
+    "src.excel_standardization.processing.date_processor",
+    "src.excel_standardization.processing.identifier_processor",
+    "src.excel_standardization.processing.field_processor",
+    "src.excel_standardization.engines",
+    "src.excel_standardization.engines.name_engine",
+    "src.excel_standardization.engines.gender_engine",
+    "src.excel_standardization.engines.date_engine",
+    "src.excel_standardization.engines.identifier_engine",
+    "src.excel_standardization.engines.text_processor",
+    "src.excel_standardization.export",
+    "src.excel_standardization.export.export_engine",
 ]
 
 # ---------------------------------------------------------------------------
@@ -163,7 +163,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name="ExcelNormalization",
+    name="Excelstandardization",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -185,5 +185,5 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name="ExcelNormalization",
+    name="Excelstandardization",
 )

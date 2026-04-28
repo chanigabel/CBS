@@ -1,4 +1,4 @@
-"""Tests for NormalizationOrchestrator JSON pipeline paths.
+"""Tests for standardizationOrchestrator JSON pipeline paths.
 
 Validates process_workbook_json, export_normalized_json, and export_raw_json
 end-to-end using real temp Excel files. Confirms all engines are wired and
@@ -11,7 +11,7 @@ import tempfile
 import pytest
 from openpyxl import Workbook, load_workbook
 
-from src.excel_normalization.orchestrator import NormalizationOrchestrator
+from src.excel_standardization.orchestrator import standardizationOrchestrator
 
 
 # ---------------------------------------------------------------------------
@@ -49,7 +49,7 @@ class TestProcessWorkbookJson:
             out = os.path.join(tmpdir, "output.xlsx")
             make_excel(inp, SAMPLE_ROWS, HEBREW_HEADERS)
 
-            orch = NormalizationOrchestrator()
+            orch = standardizationOrchestrator()
             orch.process_workbook_json(inp, out)
 
             assert os.path.exists(out)
@@ -61,7 +61,7 @@ class TestProcessWorkbookJson:
             out = os.path.join(tmpdir, "output.xlsx")
             make_excel(inp, SAMPLE_ROWS, HEBREW_HEADERS)
 
-            NormalizationOrchestrator().process_workbook_json(inp, out)
+            standardizationOrchestrator().process_workbook_json(inp, out)
 
             wb = load_workbook(out)
             ws = wb.active
@@ -82,7 +82,7 @@ class TestProcessWorkbookJson:
             out = os.path.join(tmpdir, "output.xlsx")
             make_excel(inp, SAMPLE_ROWS, HEBREW_HEADERS)
 
-            NormalizationOrchestrator().process_workbook_json(inp, out)
+            standardizationOrchestrator().process_workbook_json(inp, out)
 
             wb = load_workbook(out)
             ws = wb.active
@@ -96,7 +96,7 @@ class TestProcessWorkbookJson:
             # Corrected value must be trimmed
             assert ws.cell(row=2, column=corr_col).value == "יוסי"
 
-    def test_gender_normalization_applied(self):
+    def test_gender_standardization_applied(self):
         """Corrected gender column must contain numeric codes; original column must be unchanged."""
         with tempfile.TemporaryDirectory() as tmpdir:
             inp = os.path.join(tmpdir, "input.xlsx")
@@ -105,7 +105,7 @@ class TestProcessWorkbookJson:
             headers = ["שם פרטי", "שם משפחה", "מין\n1=זכר\n2+נקבה", "מספר זהות", "דרכון"]
             make_excel(inp, SAMPLE_ROWS, headers)
 
-            NormalizationOrchestrator().process_workbook_json(inp, out)
+            standardizationOrchestrator().process_workbook_json(inp, out)
 
             wb = load_workbook(out)
             ws = wb.active
@@ -119,7 +119,7 @@ class TestProcessWorkbookJson:
             assert ws.cell(row=3, column=corr_col).value == 2   # female
 
     def test_file_not_found_raises(self):
-        orch = NormalizationOrchestrator()
+        orch = standardizationOrchestrator()
         with pytest.raises((FileNotFoundError, IOError)):
             orch.process_workbook_json("/nonexistent/path.xlsx", "/tmp/out.xlsx")
 
@@ -130,7 +130,7 @@ class TestProcessWorkbookJson:
             out = os.path.join(tmpdir, "output.xlsx")
             make_excel(inp, SAMPLE_ROWS, HEBREW_HEADERS)
 
-            NormalizationOrchestrator().process_workbook_json(inp, out)
+            standardizationOrchestrator().process_workbook_json(inp, out)
 
             assert os.path.exists(os.path.join(tmpdir, "raw_dataset.json"))
 
@@ -146,7 +146,7 @@ class TestExportNormalizedJson:
             out = os.path.join(tmpdir, "normalized.json")
             make_excel(inp, SAMPLE_ROWS, HEBREW_HEADERS)
 
-            NormalizationOrchestrator().export_normalized_json(inp, out)
+            standardizationOrchestrator().export_normalized_json(inp, out)
 
             assert os.path.exists(out)
 
@@ -156,7 +156,7 @@ class TestExportNormalizedJson:
             out = os.path.join(tmpdir, "normalized.json")
             make_excel(inp, SAMPLE_ROWS, HEBREW_HEADERS)
 
-            NormalizationOrchestrator().export_normalized_json(inp, out)
+            standardizationOrchestrator().export_normalized_json(inp, out)
 
             with open(out, encoding="utf-8") as f:
                 data = json.load(f)
@@ -180,7 +180,7 @@ class TestExportNormalizedJson:
             out = os.path.join(tmpdir, "normalized.json")
             make_excel(inp, SAMPLE_ROWS, HEBREW_HEADERS)
 
-            NormalizationOrchestrator().export_normalized_json(inp, out)
+            standardizationOrchestrator().export_normalized_json(inp, out)
 
             with open(out, encoding="utf-8") as f:
                 data = json.load(f)
@@ -192,7 +192,7 @@ class TestExportNormalizedJson:
             assert first_row["first_name_corrected"] == "יוסי"
 
     def test_file_not_found_raises(self):
-        orch = NormalizationOrchestrator()
+        orch = standardizationOrchestrator()
         with pytest.raises((FileNotFoundError, IOError)):
             orch.export_normalized_json("/nonexistent/path.xlsx", "/tmp/out.json")
 
@@ -208,7 +208,7 @@ class TestExportRawJson:
             out = os.path.join(tmpdir, "raw.json")
             make_excel(inp, SAMPLE_ROWS, HEBREW_HEADERS)
 
-            NormalizationOrchestrator().export_raw_json(inp, out)
+            standardizationOrchestrator().export_raw_json(inp, out)
 
             assert os.path.exists(out)
 
@@ -218,7 +218,7 @@ class TestExportRawJson:
             out = os.path.join(tmpdir, "raw.json")
             make_excel(inp, SAMPLE_ROWS, HEBREW_HEADERS)
 
-            NormalizationOrchestrator().export_raw_json(inp, out)
+            standardizationOrchestrator().export_raw_json(inp, out)
 
             with open(out, encoding="utf-8") as f:
                 data = json.load(f)
@@ -235,7 +235,7 @@ class TestExportRawJson:
             out = os.path.join(tmpdir, "raw.json")
             make_excel(inp, SAMPLE_ROWS, HEBREW_HEADERS)
 
-            NormalizationOrchestrator().export_raw_json(inp, out)
+            standardizationOrchestrator().export_raw_json(inp, out)
 
             with open(out, encoding="utf-8") as f:
                 data = json.load(f)
@@ -246,6 +246,6 @@ class TestExportRawJson:
             assert first_row["first_name"] == "  יוסי  "
 
     def test_file_not_found_raises(self):
-        orch = NormalizationOrchestrator()
+        orch = standardizationOrchestrator()
         with pytest.raises((FileNotFoundError, IOError)):
             orch.export_raw_json("/nonexistent/path.xlsx", "/tmp/out.json")

@@ -1,7 +1,7 @@
 """Comprehensive unit tests for ExcelReader class.
 
 Tests cover:
-- Text normalization (_normalize_text)
+- Text standardization (_normalize_text)
 - Keyword matching (_match_field, _contains_field_keyword)
 - Corrected column detection (_should_ignore_column)
 - Header row scoring (_score_header_row)
@@ -12,10 +12,10 @@ Tests cover:
 import pytest
 from openpyxl import Workbook
 from openpyxl.worksheet.worksheet import Worksheet
-from src.excel_normalization.io_layer.excel_reader import ExcelReader
+from src.excel_standardization.io_layer.excel_reader import ExcelReader
 
 
-class TestTextNormalization:
+class TestTextstandardization:
     """Tests for _normalize_text method.
     
     Validates: Requirements 2.1-2.6
@@ -109,8 +109,8 @@ class TestTextNormalization:
         assert not result.startswith(" ")
         assert not result.endswith(" ")
 
-    def test_combined_normalization(self):
-        """Test all normalization steps combined."""
+    def test_combined_standardization(self):
+        """Test all standardization steps combined."""
         reader = ExcelReader()
         text = "  שם\nפרטי (FIRST NAME)  "
         result = reader._normalize_text(text)
@@ -121,19 +121,19 @@ class TestTextNormalization:
         assert not result.endswith(" ")
 
     def test_empty_string(self):
-        """Test normalization of empty string."""
+        """Test standardization of empty string."""
         reader = ExcelReader()
         result = reader._normalize_text("")
         assert result == ""
 
     def test_only_whitespace(self):
-        """Test normalization of whitespace-only string."""
+        """Test standardization of whitespace-only string."""
         reader = ExcelReader()
         result = reader._normalize_text("   \n\t  ")
         assert result == ""
 
-    def test_normalization_idempotence(self):
-        """Test that normalizing twice equals normalizing once."""
+    def test_standardization_idempotence(self):
+        """Test that standardizing twice equals standardizing once."""
         reader = ExcelReader()
         text = "  שם\nפרטי (FIRST NAME)  "
         once = reader._normalize_text(text)

@@ -7,7 +7,7 @@ REM    pip install pyinstaller
 REM    pip install -r requirements.txt
 REM    Inno Setup 6 installed (https://jrsoftware.org/isinfo.php)
 REM
-REM  Output: installer\Output\ExcelNormalization_Setup_1.0.0.exe
+REM  Output: installer\Output\Excelstandardization_Setup_1.0.0.exe
 REM ============================================================
 
 setlocal
@@ -57,7 +57,7 @@ echo.
 echo ============================================================
 echo  Step 2 of 2: Compile Inno Setup installer
 echo ============================================================
-"%ISCC%" installer\ExcelNormalization.iss
+"%ISCC%" installer\Excelstandardization.iss
 if errorlevel 1 (
     echo ERROR: Inno Setup compilation failed.
     exit /b 1
@@ -66,7 +66,7 @@ if errorlevel 1 (
 echo.
 echo ============================================================
 echo  Installer ready:
-echo  installer\Output\ExcelNormalization_Setup_1.0.0.exe
+echo  installer\Output\Excelstandardization_Setup_1.0.0.exe
 echo ============================================================
 echo.
 endlocal

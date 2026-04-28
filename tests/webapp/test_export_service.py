@@ -5,7 +5,7 @@ from pathlib import Path
 from fastapi import HTTPException
 from unittest.mock import patch
 
-from src.excel_normalization.data_types import SheetDataset, WorkbookDataset
+from src.excel_standardization.data_types import SheetDataset, WorkbookDataset
 from webapp.models.session import SessionRecord
 from webapp.services.export_service import ExportService
 from webapp.services.session_service import SessionService
@@ -31,7 +31,7 @@ def make_session_with_workbook(session_id="export-session"):
         source_file_path="uploads/export-session.xlsx",
         working_copy_path="work/export-session.xlsx",
         original_filename="test.xlsx",
-        status="normalized",
+        status="standardized",
         workbook_dataset=wb,
     )
     svc.create(record)
@@ -50,7 +50,7 @@ def test_successful_export_returns_path_with_normalized_suffix(tmp_path):
     svc, _ = make_session_with_workbook()
     export_svc = ExportService(svc, tmp_path / "output")
     output_path = export_svc.export("export-session")
-    assert "_normalized_" in output_path.name
+    assert "_standardized_" in output_path.name
     assert output_path.suffix == ".xlsx"
     assert output_path.exists()
 

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from src.excel_normalization.orchestrator import NormalizationOrchestrator
+from src.excel_standardization.orchestrator import standardizationOrchestrator
 
 
 def main() -> None:
@@ -9,7 +9,7 @@ def main() -> None:
     if not src.exists():
         raise SystemExit(f"Missing source workbook: {src}")
 
-    NormalizationOrchestrator().process_workbook_json(str(src), str(out))
+    standardizationOrchestrator().process_workbook_json(str(src), str(out))
     print(f"Wrote: {out}")
 
 
