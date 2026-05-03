@@ -456,8 +456,8 @@ class TestValidateBusinessRules:
         assert validated.status_text == "חודש לא תקין: 13"
         assert validated.is_valid is False
     
-    def test_year_before_1900(self):
-        """Year before 1900 should be marked invalid."""
+    def test_year_before_1906(self):
+        """Year before 1906 should be marked invalid."""
         from src.excel_standardization.data_types import DateParseResult, DateFieldType
         
         engine = DateEngine()
@@ -470,7 +470,7 @@ class TestValidateBusinessRules:
         )
         
         validated = engine.validate_business_rules(result, DateFieldType.BIRTH_DATE)
-        assert validated.status_text == "שנה לפני 1900"
+        assert validated.status_text == "שנה לפני 1906"
         assert validated.is_valid is False
     
     def test_future_birth_date(self):

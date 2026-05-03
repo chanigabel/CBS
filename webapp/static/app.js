@@ -295,8 +295,14 @@ async function loadSheet(sheetName) {
     if (!state.sessionId) return;
     dismissError();
 
+    // Clear row selections only when navigating to a different sheet.
+    // Reloading the same sheet (e.g. after applying institution type) must
+    // preserve selections so the user can apply a second type to other rows.
+    if (sheetName !== state.currentSheet) {
+        state.selectedRows.clear();
+    }
+
     state.currentSheet = sheetName;
-    state.selectedRows.clear();
     state.columnFilters.clear();
     setActiveSheetTab(sheetName);
 
@@ -1054,11 +1060,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function saveInstitution() {
         if (!state.sessionId) return;
+        const rawId = instId ? instId.value.trim() : '';
+        // Validate mosad_id before saving — reject non-numeric or < 3 digits
+        if (rawId) {
+            const idErr = validateNumericMin3(rawId, 'מספר מוסד');
+            if (idErr) { showError(idErr); if (instId) instId.focus(); return; }
+        }
         const types = [instType1, instType2, instType3]
             .map(el => el ? el.value.trim() : '')
             .filter(v => v !== '');
+        // Validate each mosad_type before saving
+        for (const t of types) {
+            const tErr = validateNumericMin3(t, 'סוג מוסד');
+            if (tErr) { showError(tErr); return; }
+        }
         apiCall('PATCH', `/api/workbook/${state.sessionId}/institution`, {
-            mosad_id:    instId   ? instId.value   : undefined,
+            mosad_id:    rawId || undefined,
             mosad_name:  instName ? instName.value : undefined,
             mosad_types: types,
         }).catch(err => showError(`Failed to save institution: ${err.message}`));
@@ -1119,6 +1136,43 @@ function updateMosadTypeDropdown() {
     if (!restored) sel.options[0].selected = true;
 }
 
+/**
+ * Populate the sheet selector dropdown with the current session's sheet names.
+ * Called when a session is activated or sheets change.
+ */
+function updateInstSheetSelector() {
+    const sel = document.getElementById('inst-sheet-select');
+    if (!sel || !state.sessionId) return;
+    const session = sessions.get(state.sessionId);
+    if (!session) return;
+
+    const prev = sel.value;
+    sel.innerHTML = '';
+    (session.sheetNames || []).forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        if (name === prev) opt.selected = true;
+        sel.appendChild(opt);
+    });
+    // Default to current sheet if available
+    if (!prev && state.currentSheet) sel.value = state.currentSheet;
+}
+
+/**
+ * Show/hide the sheet selector and selected-rows hint based on selected scope.
+ */
+function onScopeChange() {
+    const scope = (document.getElementById('inst-scope-select') || {}).value || 'workbook';
+    const sheetSel = document.getElementById('inst-sheet-select');
+    const hint = document.getElementById('inst-selected-rows-hint');
+
+    if (sheetSel) sheetSel.classList.toggle('hidden', scope === 'workbook');
+    if (hint)     hint.classList.toggle('hidden', scope !== 'selected_rows');
+
+    if (scope !== 'workbook') updateInstSheetSelector();
+}
+
 async function loadInstitution() {
     if (!state.sessionId) return;
     try {
@@ -1136,9 +1190,13 @@ async function loadInstitution() {
         if (instType3) instType3.value = types[2] || '';
         // Rebuild dropdown with the loaded real values.
         updateMosadTypeDropdown();
+        // Populate sheet selector in case scope is already set to sheet/rows.
+        updateInstSheetSelector();
+        onScopeChange();
     } catch (_) { /* non-critical */ }
 }
 
+/** Legacy workbook-wide apply (kept for backward compatibility). */
 async function applyMosadType() {
     if (!state.sessionId) return;
 
@@ -1160,5 +1218,111 @@ async function applyMosadType() {
         if (state.currentSheet) await loadSheet(state.currentSheet);
     } catch (err) {
         showError(`Failed to apply MosadType: ${err.message}`);
+    }
+}
+
+/**
+ * Validate that a value is numeric-only and at least 3 digits.
+ * Returns an error message string, or null if valid.
+ */
+function validateNumericMin3(value, label) {
+    if (!value) return null; // empty is allowed (not required here)
+    if (!/^\d+$/.test(value)) return `${label} חייב להכיל ספרות בלבד`;
+    if (value.length < 3)     return `${label} חייב להכיל לפחות 3 ספרות`;
+    return null;
+}
+
+/**
+ * Scoped apply: workbook / sheet / selected_rows.
+ *
+ * For "selected_rows" scope the function reads state.selectedRows (the same
+ * set used by row deletion) and sends the selected _row_uid values to the
+ * backend.  The user selects rows in the grid first, then clicks "החל סוג".
+ *
+ * The function can be called multiple times with different row selections and
+ * different sug_mosad values to build up to 3 groups per sheet.  Each call
+ * replaces the previous selected_rows config for that sheet.
+ */
+async function applyMosadTypeScoped() {
+    if (!state.sessionId) return;
+    dismissError();
+
+    const scope       = (document.getElementById('inst-scope-select') || {}).value || 'workbook';
+    const applySelect = document.getElementById('inst-type-apply-select');
+    const sugMosad    = applySelect ? applySelect.value.trim() : '';
+    const mosadId     = (document.getElementById('inst-id') || {}).value?.trim() || '';
+    const sheetName   = (document.getElementById('inst-sheet-select') || {}).value || state.currentSheet || '';
+
+    // Validate MosadID if provided
+    const mosadIdErr = validateNumericMin3(mosadId, 'מספר מוסד');
+    if (mosadIdErr) { showError(mosadIdErr); return; }
+
+    // Validate sug_mosad for workbook/sheet scopes
+    if (scope !== 'selected_rows') {
+        if (!sugMosad) { showError('הזן ערך סוג מוסד לפני ההחלה.'); return; }
+        const sugErr = validateNumericMin3(sugMosad, 'סוג מוסד');
+        if (sugErr) { showError(sugErr); return; }
+    }
+
+    let body = { scope, mosad_id: mosadId || undefined };
+
+    if (scope === 'workbook') {
+        body.sug_mosad = sugMosad;
+
+    } else if (scope === 'sheet') {
+        if (!sheetName) { showError('בחר גיליון להחלה.'); return; }
+        body.sug_mosad  = sugMosad;
+        body.sheet_name = sheetName;
+
+    } else { // selected_rows
+        // For selected_rows, always use the sheet currently displayed in the
+        // grid — that is where the user selected the rows.  The inst-sheet-select
+        // dropdown is only relevant for the "sheet" scope.
+        const selectedRowsSheet = state.currentSheet || '';
+        if (!selectedRowsSheet) { showError('טען גיליון לפני ההחלה.'); return; }
+
+        // Validate sug_mosad for selected_rows too
+        if (!sugMosad) { showError('הזן ערך סוג מוסד לפני ההחלה.'); return; }
+        const sugErr = validateNumericMin3(sugMosad, 'סוג מוסד');
+        if (sugErr) { showError(sugErr); return; }
+
+        // Use the currently selected rows (same mechanism as row deletion)
+        const rowUids = [...state.selectedRows];
+        if (rowUids.length === 0) {
+            showError('סמן שורות בטבלה לפני ההחלה.');
+            return;
+        }
+
+        body.sheet_name    = selectedRowsSheet;
+        body.selected_rows = [{ sug_mosad: sugMosad, row_uids: rowUids }];
+    }
+
+    try {
+        const result = await apiCall('POST',
+            `/api/workbook/${state.sessionId}/mosad-type/apply-scoped`, body);
+        const scopeLabel = scope === 'workbook'       ? 'כל הגיליונות'
+                         : scope === 'sheet'          ? `גיליון "${result.sheet_name}"`
+                         :                              `${result.updated_rows} שורות נבחרות`;
+
+        // After a successful selected_rows apply, clear the selection so the
+        // user starts fresh for the next group.  Do this BEFORE reloading the
+        // sheet so the grid renders with no checkboxes ticked.
+        // For workbook/sheet scopes there is nothing to clear.
+        if (scope === 'selected_rows') {
+            state.selectedRows.clear();
+            // Uncheck any visible checkboxes immediately (the grid reload below
+            // will also render them unchecked, but this avoids a visual flash).
+            document.querySelectorAll('.data-grid tbody input[type=checkbox]')
+                .forEach(cb => { cb.checked = false; });
+            document.querySelectorAll('.data-grid tbody tr.row-selected')
+                .forEach(tr => tr.classList.remove('row-selected'));
+            updateDeleteButton();
+        }
+
+        document.getElementById('grid-stats').textContent =
+            `סוג מוסד "${sugMosad}" הוחל על ${result.updated_rows} שורות (${scopeLabel})`;
+        if (state.currentSheet) await loadSheet(state.currentSheet);
+    } catch (err) {
+        showError(`שגיאה בהחלת סוג מוסד: ${err.message}`);
     }
 }

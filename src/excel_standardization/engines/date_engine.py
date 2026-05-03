@@ -616,10 +616,14 @@ class DateEngine:
 
         today = date.today()
 
-        if result.year < 1900:
+        # Minimum birth year is 1906 per institution-report requirements.
+        # The status message says "שנה לפני 1906" for the validator-level check.
+        # The DateEngine itself enforces 1906 here so that ALL paths (Excel/CLI,
+        # web/JSON) produce the correct status without requiring the validator.
+        if result.year < 1906:
 
             result.is_valid = False
-            result.status_text = "שנה לפני 1900"
+            result.status_text = "שנה לפני 1906"
             return result
 
         try:

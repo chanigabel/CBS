@@ -902,6 +902,31 @@ class standardizationOrchestrator:
                 _exporter2.export_workbook_to_json(workbook_dataset, str(_output_dir2 / "normalized_dataset.json"))
                 self.logger.info("Normalized JSON exported")
 
+                # ----------------------------------------------------------
+                # Workbook-level institution-report validation (cross-sheet
+                # duplicate detection).  Runs after all sheets are normalized.
+                # ----------------------------------------------------------
+                try:
+                    from .validation.institution_report_validator import (
+                        InstitutionReportValidator,
+                        KNOWN_SHEETS,
+                    )
+                    from .services.sheet_name_resolver import resolve_canonical_sheet_name
+
+                    sheets_for_validation = {
+                        resolve_canonical_sheet_name(s.sheet_name): s.rows
+                        for s in workbook_dataset.sheets
+                        if resolve_canonical_sheet_name(s.sheet_name) in KNOWN_SHEETS
+                    }
+                    if sheets_for_validation:
+                        wv = InstitutionReportValidator()
+                        wv.validate_workbook(sheets_for_validation)
+                        self.logger.info("Workbook-level institution-report validation completed")
+                except Exception as _wv_exc:
+                    self.logger.warning(
+                        "Workbook-level institution-report validation skipped: %s", _wv_exc
+                    )
+
                 # Console summary
                 print("\n" + "=" * 60)
                 print("standardization Summary")

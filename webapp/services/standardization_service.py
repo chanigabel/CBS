@@ -158,6 +158,49 @@ class standardizationService:
         updated_sheets.extend(norm_by_name.values())
         record.workbook_dataset.sheets = updated_sheets
 
+        # ------------------------------------------------------------------
+        # Workbook-level institution-report validation (cross-sheet duplicate
+        # detection for MisparZehut).  Runs after all sheets are normalized.
+        # ------------------------------------------------------------------
+        try:
+            from src.excel_standardization.validation.institution_report_validator import (
+                InstitutionReportValidator,
+                KNOWN_SHEETS,
+            )
+            from src.excel_standardization.services.sheet_name_resolver import (
+                resolve_canonical_sheet_name,
+            )
+
+            sheets_for_validation = {
+                resolve_canonical_sheet_name(s.sheet_name): s.rows
+                for s in record.workbook_dataset.sheets
+                if resolve_canonical_sheet_name(s.sheet_name) in KNOWN_SHEETS
+            }
+            # Build per-sheet metadata so the validator can check MosadID/SugMosad
+            # even when they are not yet injected into individual row dicts.
+            sheet_meta_for_validation = {
+                resolve_canonical_sheet_name(s.sheet_name): {
+                    "MosadID": record.mosad_id or s.get_metadata("MosadID"),
+                    "SugMosad": record.mosad_types[0] if record.mosad_types else None,
+                }
+                for s in record.workbook_dataset.sheets
+                if resolve_canonical_sheet_name(s.sheet_name) in KNOWN_SHEETS
+            }
+            if sheets_for_validation:
+                wv = InstitutionReportValidator()
+                wv.validate_workbook(
+                    sheets_for_validation,
+                    sheet_metadata=sheet_meta_for_validation,
+                )
+                logger.debug(
+                    "Workbook-level institution-report validation completed for session %s",
+                    session_id,
+                )
+        except Exception as _wv_exc:
+            logger.warning(
+                "Workbook-level institution-report validation skipped: %s", _wv_exc
+            )
+
         # F-01: Replay manual edits that were recorded before this standardization.
         # record.edits stores {(sheet_name, row_uid, field_name): value} for every
         # PATCH /cell call.  Re-applying them here ensures that manual corrections

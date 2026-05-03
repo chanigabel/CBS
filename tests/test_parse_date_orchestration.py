@@ -117,7 +117,7 @@ class TestParseDateOrchestration:
         )
         
         assert result.is_valid is False
-        assert result.status_text == "שנה לפני 1900"
+        assert result.status_text == "שנה לפני 1906"
     
     def test_entry_date_empty_clears_status(self):
         """Entry date with empty main value should have cleared status."""

@@ -33,8 +33,19 @@ class ExcelReader:
         'day': ['יום', 'day'],
     }
 
-    # Words to ignore in headers
-    IGNORE_KEYWORDS = ['מתוקן', 'corrected', 'fixed', 'updated']
+    # Words to ignore in headers — columns whose headers contain these words
+    # are skipped during field detection.  This prevents corrected/status
+    # columns from a previous processing run from being re-imported as source
+    # fields when the output file is uploaded again.
+    IGNORE_KEYWORDS = [
+        'מתוקן', 'corrected', 'fixed', 'updated',
+        # Status column names written by the standardization pipeline.
+        # These are UI-only and must never be treated as source input fields.
+        'identifier_status', 'gender_status',
+        'birth_date_status', 'entry_date_status',
+        'validationstatus', 'validation_status',
+        'סטטוס מזהה', 'סטטוס תאריך',
+    ]
 
     def __init__(self) -> None:
         """Initialize the ExcelReader with caching for table detection."""

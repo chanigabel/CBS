@@ -204,7 +204,8 @@ class WorkbookService:
         # Status groups: map each status key to the set of original field names
         # that belong to its group.
         _STATUS_GROUPS: dict = {
-            "identifier_status": {"id_number", "passport"},
+            "gender_status":      {"gender"},
+            "identifier_status":  {"id_number", "passport"},
             "birth_date_status":  {"birth_year", "birth_month", "birth_day", "birth_date"},
             "entry_date_status":  {"entry_year", "entry_month", "entry_day", "entry_date"},
         }
@@ -327,9 +328,21 @@ class WorkbookService:
                 display_columns.append(k)
                 placed.add(k)
 
+        # Append _validation_status at the end of display_columns if it exists
+        # in any row (written by InstitutionReportValidator after standardization).
+        # It is kept in clean_rows via _KEEP_INTERNAL but must also appear in
+        # display_columns so the UI table renders it.
+        if "_validation_status" not in placed:
+            has_validation_status = any(
+                "_validation_status" in row for row in sheet.rows
+            )
+            if has_validation_status:
+                display_columns.append("_validation_status")
+                placed.add("_validation_status")
+
         # Build the clean row list, stripping ALL underscore-prefixed internal keys
-        # EXCEPT _row_uid which is the stable identifier for each row.
-        _KEEP_INTERNAL = {"_row_uid"}
+        # EXCEPT _row_uid (stable row identifier) and _validation_status (shown in UI).
+        _KEEP_INTERNAL = {"_row_uid", "_validation_status"}
         clean_rows = []
         for row in sheet.rows:
             clean_row = {k: v for k, v in row.items()
@@ -385,19 +398,26 @@ class WorkbookService:
         # Inject SugMosad (institution type) from session into every row so it
         # appears in the UI grid — mirroring what the export pipeline does.
         # Uses the first user-entered mosad_type value (active default).
+        # Also handles the case where SugMosad was already written into row dicts
+        # by the apply-scoped endpoint (which does not update mosad_types).
         active_mosad_type = record.mosad_types[0] if record.mosad_types else None
+        sug_mosad_in_rows = any(row.get("SugMosad") for row in clean_rows)
         if active_mosad_type:
             for row in clean_rows:
                 if not row.get("SugMosad"):
                     row["SugMosad"] = active_mosad_type
-            # Insert SugMosad into display_columns immediately after MosadID,
-            # or at position 1 if MosadID is not present.
-            if "SugMosad" not in display_columns:
-                try:
-                    insert_pos = display_columns.index("MosadID") + 1
-                except ValueError:
-                    insert_pos = 1
-                display_columns.insert(insert_pos, "SugMosad")
+            sug_mosad_in_rows = True
+        if sug_mosad_in_rows:
+            # Place SugMosad immediately after MosadID in display_columns.
+            # Remove it from wherever it currently sits (e.g. end of list from
+            # the "append remaining" block) and re-insert at the correct position.
+            if "SugMosad" in display_columns:
+                display_columns.remove("SugMosad")
+            try:
+                insert_pos = display_columns.index("MosadID") + 1
+            except ValueError:
+                insert_pos = 1
+            display_columns.insert(insert_pos, "SugMosad")
 
         return SheetDataResponse(
             sheet_name=sheet_name,

@@ -61,14 +61,32 @@
             <!-- Institution bar: workbook-level MosadID / MosadType / MosadName -->
             <div id="institution-bar" class="institution-bar">
                 <span class="institution-label">מוסד:</span>
-                <input id="inst-id"   class="inst-input" type="text" placeholder="MosadID"   title="מספר מוסד" />
+                <input id="inst-id"   class="inst-input" type="text" placeholder="MosadID"   title="מספר מוסד (ספרות בלבד, לפחות 3)" />
                 <span class="institution-label inst-type-label">סוג מוסד:</span>
                 <input id="inst-type-1" class="inst-input inst-type-input" type="text" placeholder="סוג 1" title="ערך סוג מוסד 1 (ברירת מחדל)" />
                 <input id="inst-type-2" class="inst-input inst-type-input" type="text" placeholder="סוג 2" title="ערך סוג מוסד 2" />
                 <input id="inst-type-3" class="inst-input inst-type-input" type="text" placeholder="סוג 3" title="ערך סוג מוסד 3" />
                 <select id="inst-type-apply-select" class="inst-select inst-type-apply-select" title="בחר ערך להחלה">
                 </select>
-                <button class="btn btn-sm btn-outline" onclick="applyMosadType()" title="החל את ערך הסוג הנבחר על כל השורות">החל סוג</button>
+
+                <!-- Scope selector -->
+                <span class="institution-label">החל על:</span>
+                <select id="inst-scope-select" class="inst-select" title="בחר היקף החלה" onchange="onScopeChange()">
+                    <option value="workbook">כל הגיליונות</option>
+                    <option value="sheet">גיליון נבחר</option>
+                    <option value="selected_rows">שורות נבחרות</option>
+                </select>
+
+                <!-- Sheet selector (shown for scope=sheet and scope=selected_rows) -->
+                <select id="inst-sheet-select" class="inst-select inst-sheet-select hidden" title="בחר גיליון">
+                </select>
+
+                <!-- Selected-rows hint (shown for scope=selected_rows) -->
+                <span id="inst-selected-rows-hint" class="inst-selected-rows-hint hidden">
+                    סמן שורות בטבלה ולחץ "החל סוג"
+                </span>
+
+                <button class="btn btn-sm btn-outline" onclick="applyMosadTypeScoped()" title="החל את ערך הסוג הנבחר לפי ההיקף שנבחר">החל סוג</button>
                 <input id="inst-name" class="inst-input inst-name" type="text" placeholder="שם מוסד (לשם הקובץ)" title="שם מוסד" />
             </div>
             <div class="action-buttons">

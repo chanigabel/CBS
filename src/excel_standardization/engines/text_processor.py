@@ -137,6 +137,12 @@ Known limitations:
 """
 
 from ..data_types import Language
+import re
+
+# Matches a parenthesized group whose content contains at least one Hebrew
+# quote/acronym character (" ״ ׳ ').  The entire group (including parens) is
+# removed by clean_name before character filtering runs.
+_RE_PAREN_ACRONYM = re.compile(r'\([^)]*["\u05f4\u05f3\'"][^)]*\)')
 
 
 class TextProcessor:
@@ -418,6 +424,13 @@ class TextProcessor:
 
         # 3. Language detection
         language = self.detect_language_dominance(text)
+
+        # 3b. Remove parenthesized acronym tokens BEFORE character filtering.
+        # If the content inside parentheses contains a Hebrew quote/acronym
+        # character (" ״ ׳ '), the entire parenthesized group is discarded.
+        # Normal words in parentheses (no quote chars) are kept — the parens
+        # themselves will be converted to spaces in step 4 as usual.
+        text = _RE_PAREN_ACRONYM.sub("", text)
 
         # 4. Character filtering
         filtered: list = []

@@ -144,6 +144,54 @@ def _build_export_filename(record) -> str:
     return f"{original_stem}_standardized_{timestamp}.xlsx"
 
 
+def _resolve_sug_mosad_for_sheet(configs, sheet_name: str, fallback: str):
+    """Return the SugMosad value (or callable) to apply for a given sheet during export.
+
+    Priority (most specific wins):
+        1. "selected_rows" scope matching this sheet
+           → returns a callable(_row_uid: str) → str|None
+        2. "sheet" scope matching this sheet → returns the fixed string
+        3. "workbook" scope → returns the fixed string
+        4. No matching config → returns the legacy fallback string
+
+    Args:
+        configs:    List[SugMosadConfig] from the session record.
+        sheet_name: The sheet name being processed.
+        fallback:   Legacy mosad_types[0] value (may be empty string).
+
+    Returns:
+        A string (fixed value for all rows) or a callable(_row_uid) → str|None.
+    """
+    if not configs:
+        return fallback
+
+    # Most specific: selected_rows scope
+    for cfg in configs:
+        if cfg.scope == "selected_rows" and cfg.sheet_name == sheet_name:
+            # Build uid → sug_mosad map from all groups
+            uid_map: dict = {}
+            for grp in cfg.selected_rows:
+                for uid in grp.row_uids:
+                    uid_map[uid] = grp.sug_mosad
+
+            def _uid_resolver(row_uid: str, _map=uid_map) -> Optional[str]:
+                return _map.get(row_uid)  # None = not selected, leave unchanged
+
+            return _uid_resolver
+
+    # Sheet scope
+    for cfg in configs:
+        if cfg.scope == "sheet" and cfg.sheet_name == sheet_name:
+            return cfg.sug_mosad
+
+    # Workbook scope
+    for cfg in configs:
+        if cfg.scope == "workbook":
+            return cfg.sug_mosad
+
+    return fallback
+
+
 def _is_numeric_like(value: Any) -> bool:
     """Return True if value is numeric or a string that parses as a number."""
     if isinstance(value, (int, float)):
@@ -300,15 +348,28 @@ class ExportService:
                 # visible_rows() applies all filters + serial/MosadID injection.
                 data_rows, _ui_cols = visible_rows(sheet_dataset)
 
-                # Inject session-level MosadID and SugMosad into every row
-                # (overriding any per-sheet metadata or row-level values).
-                # SugMosad uses the first user-entered mosad_type (active default).
+                # Inject session-level MosadID and SugMosad into every row.
+                # Priority: scoped SugMosadConfig > legacy mosad_types[0].
                 active_mosad_type = record.mosad_types[0] if record.mosad_types else ""
-                for row in data_rows:
+
+                # Resolve the scoped SugMosad config for this sheet (if any).
+                scoped_type = _resolve_sug_mosad_for_sheet(
+                    record.sug_mosad_configs,
+                    sheet_dataset.sheet_name,
+                    active_mosad_type,
+                )
+
+                for row_idx, row in enumerate(data_rows, start=1):
                     if record.mosad_id:
                         row["MosadID"] = record.mosad_id
-                    if active_mosad_type:
-                        row["SugMosad"] = active_mosad_type
+                    # Apply scoped SugMosad: may be a fixed string or a callable
+                    # that maps _row_uid → value (for selected_rows scope).
+                    if callable(scoped_type):
+                        v = scoped_type(row.get("_row_uid", ""))
+                        if v is not None:
+                            row["SugMosad"] = v
+                    elif scoped_type:
+                        row["SugMosad"] = scoped_type
 
                 # Resolve the serial-number source key for this sheet.
                 serial_field = detect_serial_field(sheet_dataset.field_names) or SYNTHETIC_SERIAL_KEY

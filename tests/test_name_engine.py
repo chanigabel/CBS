@@ -580,3 +580,72 @@ class TestBackslashSeparator:
         # Backslash with no surrounding name letters → empty
         result = self.tp.clean_name("\\")
         assert result == ""
+
+
+# ---------------------------------------------------------------------------
+# TextProcessor – parenthesized acronym removal (new rule 3b)
+# ---------------------------------------------------------------------------
+
+class TestParenAcronymRemoval:
+    """Parenthesized groups containing Hebrew quote/acronym chars are removed.
+
+    Normal words in parentheses (no quote chars) are kept — only the parens
+    themselves are stripped (existing step-4 behaviour).
+    """
+
+    def setup_method(self):
+        self.tp = TextProcessor()
+
+    # --- full removal cases (quote char inside parens) ---
+
+    def test_acronym_only_returns_empty(self):
+        # (ברב"ע) alone → empty
+        result = self.tp.clean_name('(ברב"ע)')
+        assert result == ""
+
+    def test_acronym_prefix(self):
+        # משה (ברב"ע) → משה
+        result = self.tp.clean_name('משה (ברב"ע)')
+        assert result == "משה"
+
+    def test_acronym_middle_double_quote(self):
+        # משה (ברב"ע) כהן → משה כהן
+        result = self.tp.clean_name('משה (ברב"ע) כהן')
+        assert result == "משה כהן"
+
+    def test_acronym_middle_gershayim(self):
+        # ״ (U+05F4) variant
+        result = self.tp.clean_name('משה (ברב\u05f4ע) כהן')
+        assert result == "משה כהן"
+
+    def test_acronym_middle_geresh(self):
+        # ׳ (U+05F3) variant
+        result = self.tp.clean_name("משה (ר\u05f3 שמעון) כהן")
+        assert result == "משה כהן"
+
+    def test_acronym_middle_single_quote(self):
+        # ASCII single-quote variant
+        result = self.tp.clean_name("אברהם (רשב'י) לוי")
+        assert result == "אברהם לוי"
+
+    def test_rashbi_example(self):
+        # Spec example: אברהם (רשב"י) לוי → אברהם לוי
+        result = self.tp.clean_name('אברהם (רשב"י) לוי')
+        assert result == "אברהם לוי"
+
+    # --- normal-word cases (no quote char → keep word, strip parens) ---
+
+    def test_normal_word_in_parens_kept(self):
+        # משה (אפרת) כהן → משה אפרת כהן
+        result = self.tp.clean_name("משה (אפרת) כהן")
+        assert result == "משה אפרת כהן"
+
+    def test_normal_word_only_in_parens(self):
+        # (אפרת) alone → אפרת
+        result = self.tp.clean_name("(אפרת)")
+        assert result == "אפרת"
+
+    def test_normal_word_prefix_parens(self):
+        # (אפרת) כהן → אפרת כהן
+        result = self.tp.clean_name("(אפרת) כהן")
+        assert result == "אפרת כהן"

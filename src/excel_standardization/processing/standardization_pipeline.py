@@ -335,6 +335,11 @@ class standardizationPipeline:
             try:
                 corrected = self.gender_engine.normalize_gender(original)
                 json_row["gender_corrected"] = corrected
+                # Write a status message when the value is unrecognized (engine returns "").
+                if corrected == "":
+                    json_row["gender_status"] = "קוד מין לא תקין - חייב להיות 1 (זכר) או 2 (נקבה)"
+                else:
+                    json_row.setdefault("gender_status", "")
             except Exception as e:
                 # If engine fails, store original value
                 json_row["gender_corrected"] = original
@@ -766,6 +771,41 @@ class standardizationPipeline:
 
         # Update the rows in the dataset
         corrected_dataset.rows = normalized_rows
+
+        # ------------------------------------------------------------------
+        # Institution-report validation (post-normalization).
+        # Runs after all corrected fields are written so validators can read
+        # *_corrected values.  Results are written into each row dict under
+        # _validation_status and _validation_ok.
+        # Only runs for the three known institution-report sheet types.
+        # ------------------------------------------------------------------
+        try:
+            from ..validation.institution_report_validator import (
+                InstitutionReportValidator,
+                KNOWN_SHEETS,
+            )
+            from ..services.sheet_name_resolver import resolve_canonical_sheet_name
+
+            canonical = resolve_canonical_sheet_name(corrected_dataset.sheet_name)
+            if canonical in KNOWN_SHEETS:
+                # Pass MosadID from sheet metadata if available (set by mosad_id_scanner).
+                sheet_mosad_id = corrected_dataset.get_metadata("MosadID")
+                validator = InstitutionReportValidator(sheet_name=canonical)
+                validator.validate_sheet(
+                    corrected_dataset.rows,
+                    sheet_mosad_id=sheet_mosad_id,
+                )
+                logger.debug(
+                    "Institution-report validation completed for sheet '%s' (canonical: '%s')",
+                    corrected_dataset.sheet_name,
+                    canonical,
+                )
+        except Exception as _val_exc:
+            logger.warning(
+                "Institution-report validation skipped for sheet '%s': %s",
+                corrected_dataset.sheet_name,
+                _val_exc,
+            )
 
         # Update metadata with standardization info
         if corrected_dataset.metadata is None:
