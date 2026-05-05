@@ -7,11 +7,11 @@
 ;   3. Compile:              build_installer.bat
 ;                        or: iscc installer\Excelstandardization.iss
 ;
-; Output: installer\Output\Excelstandardization_Setup_1.0.3.exe
+; Output: installer\Output\Excelstandardization_Setup_1.0.4.exe
 ; ============================================================
 
 #define AppName      "Excel standardization"
-#define AppVersion   "1.0.3"
+#define AppVersion   "1.0.4"
 #define AppPublisher "Excel standardization Team"
 #define AppExeName   "Excelstandardization.exe"
 #define DistDir      "..\dist\Excelstandardization"

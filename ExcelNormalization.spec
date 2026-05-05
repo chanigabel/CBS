@@ -67,6 +67,12 @@ hidden_imports = [
     "openpyxl.styles",
     "openpyxl.utils",
     "openpyxl.utils.exceptions",
+    # xlrd — legacy .xls support
+    "xlrd",
+    "xlrd.biffh",
+    "xlrd.book",
+    "xlrd.sheet",
+    "xlrd.xldate",
     # python-multipart
     "multipart",
     # anyio / h11
@@ -103,6 +109,7 @@ hidden_imports = [
     "src.excel_standardization.io_layer.excel_reader",
     "src.excel_standardization.io_layer.excel_to_json_extractor",
     "src.excel_standardization.io_layer.excel_writer",
+    "src.excel_standardization.io_layer.xls_reader",
     "src.excel_standardization.processing",
     "src.excel_standardization.processing.standardization_pipeline",
     "src.excel_standardization.processing.name_processor",

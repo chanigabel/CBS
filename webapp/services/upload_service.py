@@ -13,7 +13,7 @@ from webapp.services.session_service import SessionService
 
 logger = logging.getLogger(__name__)
 
-ALLOWED_EXTENSIONS = {".xlsx", ".xlsm"}
+ALLOWED_EXTENSIONS = {".xlsx", ".xlsm", ".xls"}
 
 
 class UploadService:
@@ -51,7 +51,7 @@ class UploadService:
                 status_code=400,
                 detail=(
                     f"File format not supported. "
-                    f"Please upload a .xlsx or .xlsm file. Got: '{suffix}'"
+                    f"Please upload a .xlsx, .xlsm, or .xls file. Got: '{suffix}'"
                 ),
             )
 
@@ -76,16 +76,30 @@ class UploadService:
                 detail="Failed to save the uploaded file. Please try again.",
             )
 
-        # 5. Validate workbook and get sheet names — open with openpyxl directly
-        # to avoid a full extraction on upload.  Full per-sheet extraction is
-        # deferred to the first sheet load request, keeping upload fast.
+        # 5. Validate workbook and get sheet names.
+        # For .xls files use xlrd; for .xlsx/.xlsm use openpyxl.
+        # Full per-sheet extraction is deferred to the first sheet load request.
         try:
-            from openpyxl import load_workbook as _load_wb
-            _wb = _load_wb(str(working_path), data_only=True, read_only=True)
-            sheet_names = _wb.sheetnames
-            _wb.close()
-            if not sheet_names:
-                raise ValueError("Workbook has no sheets")
+            if suffix == ".xls":
+                from src.excel_standardization.io_layer.xls_reader import (
+                    get_xls_sheet_names,
+                    XLS_ERROR_HE,
+                )
+                try:
+                    sheet_names = get_xls_sheet_names(str(working_path))
+                except ValueError:
+                    source_path.unlink(missing_ok=True)
+                    working_path.unlink(missing_ok=True)
+                    raise HTTPException(status_code=422, detail=XLS_ERROR_HE)
+            else:
+                from openpyxl import load_workbook as _load_wb
+                _wb = _load_wb(str(working_path), data_only=True, read_only=True)
+                sheet_names = _wb.sheetnames
+                _wb.close()
+                if not sheet_names:
+                    raise ValueError("Workbook has no sheets")
+        except HTTPException:
+            raise
         except Exception as exc:
             source_path.unlink(missing_ok=True)
             working_path.unlink(missing_ok=True)

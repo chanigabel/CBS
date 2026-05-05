@@ -38,25 +38,81 @@ class WorkbookService:
     def _ensure_sheet_loaded(self, record, sheet_name: str) -> None:
         """Lazily extract a single sheet from disk if not yet in the dataset."""
         from src.excel_standardization.data_types import WorkbookDataset
-        from openpyxl import load_workbook as _lw
+        from pathlib import Path as _Path
+
+        working_path = record.working_copy_path
+        suffix = _Path(working_path).suffix.lower()
+        is_xls = suffix == ".xls"
 
         # If the sheet is already in memory, nothing to do.
         if record.workbook_dataset is not None:
             if record.workbook_dataset.get_sheet_by_name(sheet_name) is not None:
                 return
-            # Dataset is loaded but sheet isn't in it — check if it exists on disk
-            # before attempting extraction; if not, raise 404 immediately.
-            try:
-                _wb_check = _lw(record.working_copy_path, data_only=True, read_only=True)
-                exists_on_disk = sheet_name in _wb_check.sheetnames
-                _wb_check.close()
-            except Exception:
-                exists_on_disk = False
+            # Dataset is loaded but sheet isn't in it — check if it exists on disk.
+            if is_xls:
+                from src.excel_standardization.io_layer.xls_reader import (
+                    get_xls_sheet_names, XLS_ERROR_HE,
+                )
+                try:
+                    all_names_check = get_xls_sheet_names(working_path)
+                    exists_on_disk = sheet_name in all_names_check
+                except ValueError:
+                    exists_on_disk = False
+            else:
+                from openpyxl import load_workbook as _lw
+                try:
+                    _wb_check = _lw(working_path, data_only=True, read_only=True)
+                    exists_on_disk = sheet_name in _wb_check.sheetnames
+                    _wb_check.close()
+                except Exception:
+                    exists_on_disk = False
             if not exists_on_disk:
                 raise HTTPException(
                     status_code=404,
                     detail=f"Sheet '{sheet_name}' not found in this workbook.",
                 )
+
+        # --- XLS path ---
+        if is_xls:
+            from src.excel_standardization.io_layer.xls_reader import (
+                extract_xls_sheet_to_dataset,
+                get_xls_sheet_names,
+                XLS_ERROR_HE,
+            )
+            try:
+                sheet_dataset = extract_xls_sheet_to_dataset(working_path, sheet_name)
+            except KeyError:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Sheet '{sheet_name}' not found in this workbook.",
+                )
+            except ValueError:
+                raise HTTPException(status_code=500, detail=XLS_ERROR_HE)
+            except Exception as exc:
+                logger.error(
+                    f"Failed to extract XLS sheet '{sheet_name}': {exc}", exc_info=True
+                )
+                raise HTTPException(
+                    status_code=500,
+                    detail=XLS_ERROR_HE,
+                )
+
+            if record.workbook_dataset is None:
+                try:
+                    all_names = get_xls_sheet_names(working_path)
+                except Exception:
+                    all_names = [sheet_name]
+                record.workbook_dataset = WorkbookDataset(
+                    source_file=working_path,
+                    sheets=[sheet_dataset],
+                    metadata={"sheet_names": list(all_names)},
+                )
+            else:
+                record.workbook_dataset.sheets.append(sheet_dataset)
+            return
+
+        # --- XLSX / XLSM path (unchanged) ---
+        from openpyxl import load_workbook as _lw
 
         extractor = ExcelToJsonExtractor(
             excel_reader=ExcelReader(),
@@ -66,7 +122,7 @@ class WorkbookService:
         )
 
         try:
-            wb = _lw(record.working_copy_path, data_only=True)
+            wb = _lw(working_path, data_only=True)
             if sheet_name not in wb.sheetnames:
                 wb.close()
                 raise HTTPException(
@@ -93,14 +149,14 @@ class WorkbookService:
             # First load — create the dataset with just this sheet.
             # Preserve sheet order by reading all sheet names from the file.
             try:
-                _wb2 = _lw(record.working_copy_path, data_only=True, read_only=True)
+                _wb2 = _lw(working_path, data_only=True, read_only=True)
                 all_names = _wb2.sheetnames
                 _wb2.close()
             except Exception:
                 all_names = [sheet_name]
 
             record.workbook_dataset = WorkbookDataset(
-                source_file=record.working_copy_path,
+                source_file=working_path,
                 sheets=[sheet_dataset],
                 metadata={"sheet_names": list(all_names)},
             )
@@ -115,11 +171,19 @@ class WorkbookService:
         # If no sheet has been loaded yet, read sheet names from the file
         # without doing a full extraction.
         if record.workbook_dataset is None:
+            from pathlib import Path as _Path
+            suffix = _Path(record.working_copy_path).suffix.lower()
             try:
-                from openpyxl import load_workbook as _lw
-                _wb = _lw(record.working_copy_path, data_only=True, read_only=True)
-                names = _wb.sheetnames
-                _wb.close()
+                if suffix == ".xls":
+                    from src.excel_standardization.io_layer.xls_reader import (
+                        get_xls_sheet_names,
+                    )
+                    names = get_xls_sheet_names(record.working_copy_path)
+                else:
+                    from openpyxl import load_workbook as _lw
+                    _wb = _lw(record.working_copy_path, data_only=True, read_only=True)
+                    names = _wb.sheetnames
+                    _wb.close()
             except Exception as exc:
                 raise HTTPException(
                     status_code=500,
