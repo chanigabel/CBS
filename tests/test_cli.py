@@ -98,11 +98,12 @@ class TestMain:
         with patch.object(sys, 'argv', ['cli.py', str(test_file)]):
             exit_code = main()
         
-        # Check that orchestrator was called with the JSON-based pipeline method
+        # Check that orchestrator was called with the dataset-based pipeline method.
         mock_orchestrator.assert_called_once()
-        mock_orchestrator.return_value.process_workbook_json.assert_called_once_with(
+        mock_orchestrator.return_value.export_vba_parity_workbook_from_json.assert_called_once_with(
             str(test_file), expected_output
         )
+        mock_orchestrator.return_value.process_workbook_json.assert_not_called()
         
         # Check exit code
         assert exit_code == 0
@@ -133,8 +134,8 @@ class TestMain:
         test_file = tmp_path / "test.xlsx"
         test_file.write_text("test")
         
-        # Make orchestrator raise an exception on the JSON-based pipeline method
-        mock_orchestrator.return_value.process_workbook_json.side_effect = Exception("Test error")
+        # Make orchestrator raise an exception on the dataset-based pipeline method
+        mock_orchestrator.return_value.export_vba_parity_workbook_from_json.side_effect = Exception("Test error")
         
         with patch.object(sys, 'argv', ['cli.py', str(test_file)]):
             exit_code = main()

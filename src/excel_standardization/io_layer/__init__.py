@@ -1,11 +1,10 @@
-"""I/O layer for Excel operations.
+"""Active I/O layer for workbook extraction.
 
-This package contains ExcelReader and ExcelWriter classes that encapsulate
-all openpyxl interactions, isolating Excel I/O from business logic.
+Legacy Excel writer helpers were moved to ``archive_legacy/``. Active export
+uses the Web/Dataset export service and ExportEngine.
 """
 
 from .excel_reader import ExcelReader
 from .excel_to_json_extractor import ExcelToJsonExtractor
-from .excel_writer import ExcelWriter, JsonToExcelWriter
 
-__all__ = ["ExcelReader", "ExcelToJsonExtractor", "ExcelWriter", "JsonToExcelWriter"]
+__all__ = ["ExcelReader", "ExcelToJsonExtractor"]

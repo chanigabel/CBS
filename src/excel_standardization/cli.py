@@ -121,9 +121,12 @@ def main() -> int:
 
         orchestrator = standardizationOrchestrator()
 
-        logger.info("Starting workbook standardization...")
+        logger.info("Starting workbook standardization via Web/Dataset pipeline...")
 
-        orchestrator.process_workbook_json(
+        # Legacy direct Excel processing is disabled. Keep CLI active by routing
+        # through the dataset pipeline:
+        # ExcelToJsonExtractor -> standardizationPipeline -> ExportEngine.
+        orchestrator.export_vba_parity_workbook_from_json(
             file_path,
             output_excel_path
         )

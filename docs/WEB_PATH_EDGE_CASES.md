@@ -434,9 +434,9 @@ def validate_entry_before_birth(self, birth: DateParseResult, entry: DateParseRe
 
 **Why it matters:** A date like `"01/15/1990"` is valid MMDD but will fail as DDMM (month=15 → invalid).
 
-**Where to add:** `standardizationPipeline._normalize_date_field` — sample the first few non-null date values and call `DateFieldProcessor.detect_date_format_pattern` logic (or equivalent) to determine the pattern before processing all rows.
+**Where to add:** `standardizationPipeline._normalize_date_field` — sample the first few non-null date values and use equivalent pattern-detection logic before processing all rows.
 
-**Underlying helper:** `DateFieldProcessor.detect_date_format_pattern` exists in the direct-Excel path and could be extracted to a shared utility.
+**Historical helper:** the old direct-Excel implementation is archived under `archive_legacy/`; if this behavior is needed, port the logic into the dataset pipeline instead of importing archived code.
 
 ---
 
