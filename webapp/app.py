@@ -144,6 +144,7 @@ def index(request: Request) -> HTMLResponse:
         "index.html",
         {
             "v_js":  _file_hash(_STATIC_DIR / "app.js"),
+            "v_report_js": _file_hash(_STATIC_DIR / "js" / "report.js"),
             "v_css": _file_hash(_STATIC_DIR / "style.css"),
         },
     )
