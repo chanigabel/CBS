@@ -17,56 +17,10 @@ from ..engines.gender_engine import GenderEngine
 from ..engines.date_engine import DateEngine
 from ..engines.identifier_engine import IdentifierEngine
 from ..engines.text_processor import TextProcessor
+from . import date_standardization
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
-
-
-def _detect_date_format_pattern(rows: List[JsonRow]) -> "DateFormatPattern":
-    """F-03: Detect whether date values in this dataset use DDMM or MMDD ordering.
-
-    Samples the first 20 rows looking for separated date strings (containing
-    "/" or ".") in any date-related field.  Counts how many values have a
-    first part > 12 (unambiguously DD) vs a second part > 12 (unambiguously MM).
-    Falls back to DDMM when the evidence is inconclusive.
-
-    Args:
-        rows: List of JSON row dicts from the dataset.
-
-    Returns:
-        DateFormatPattern.MMDD if MMDD evidence outweighs DDMM evidence,
-        DateFormatPattern.DDMM otherwise.
-    """
-    from ..data_types import DateFormatPattern
-
-    date_fields = (
-        "birth_date", "entry_date",
-        "birth_year", "entry_year",  # sometimes a full date string lands here
-    )
-    ddmm = 0
-    mmdd = 0
-
-    for row in rows[:20]:
-        for field in date_fields:
-            val = row.get(field)
-            if not val or not isinstance(val, str):
-                continue
-            s = val.replace(".", "/")
-            if "/" not in s:
-                continue
-            parts = s.split("/")
-            if len(parts) < 2:
-                continue
-            try:
-                a, b = int(parts[0]), int(parts[1])
-                if a > 12 and b <= 12:
-                    ddmm += 1
-                elif b > 12 and a <= 12:
-                    mmdd += 1
-            except (ValueError, TypeError):
-                pass
-
-    return DateFormatPattern.MMDD if mmdd > ddmm else DateFormatPattern.DDMM
 
 
 class StandardizationPipeline:
@@ -374,6 +328,8 @@ class StandardizationPipeline:
         Requirements:
             - Validates: Requirements 12.5, 12.8, 14.1-14.5, 18.1-18.4
         """
+        return date_standardization.apply_date_standardization(self, json_row, row_number)
+
         from ..data_types import DateFormatPattern, DateFieldType
         
         failed_fields: List[str] = []
@@ -428,6 +384,8 @@ class StandardizationPipeline:
             date_result is the parsed DateParseResult for cross-validation, or None if
             no date fields were present or parsing was skipped.
         """
+        return date_standardization.normalize_date_field(self, json_row, prefix, field_type, row_number)
+
         from ..data_types import DateFormatPattern
         
         failed_fields: List[str] = []
@@ -585,6 +543,8 @@ class StandardizationPipeline:
         fields. Component-level range errors blank only the failing component;
         non-numeric date content blanks any component that could not be parsed.
         """
+        return date_standardization.date_corrected_components(result)
+
         year = result.year
         month = result.month
         day = result.day
@@ -751,7 +711,7 @@ class StandardizationPipeline:
         # Previously the pipeline always used DDMM.  Now we sample the first 20
         # rows to detect whether the sheet uses US-style MM/DD dates.
         if self.apply_date_standardization_enabled and self.date_engine:
-            self._date_format_pattern = _detect_date_format_pattern(corrected_dataset.rows)
+            self._date_format_pattern = date_standardization.detect_date_format_pattern(corrected_dataset.rows)
             logger.debug(
                 f"Date format pattern detected for sheet '{raw_dataset.sheet_name}': "
                 f"{self._date_format_pattern}"
@@ -890,6 +850,8 @@ class StandardizationPipeline:
         - After flipping, re-run validate_business_rules so status is correct.
         - The internal tag key is stripped from the final rows.
         """
+        return date_standardization.apply_birth_year_majority_correction(self, rows)
+
         from ..data_types import DateFieldType, DateFormatPattern
 
         # Determine which year field to inspect: split (birth_year_corrected)
