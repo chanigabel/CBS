@@ -41,14 +41,14 @@ def client(tmp_path, monkeypatch):
     import webapp.dependencies as deps
     from webapp.services.upload_service import UploadService
     from webapp.services.workbook_service import WorkbookService
-    from webapp.services.standardization_service import standardizationService
+    from webapp.services.standardization_service import StandardizationService
     from webapp.services.edit_service import EditService
     from webapp.services.export_service import ExportService
 
     svc = SessionService()
     upload_svc = UploadService(svc, tmp_path / "uploads", tmp_path / "work")
     workbook_svc = WorkbookService(svc)
-    norm_svc = standardizationService(svc)
+    norm_svc = StandardizationService(svc)
     edit_svc = EditService(svc)
     export_svc = ExportService(svc, tmp_path / "output")
 

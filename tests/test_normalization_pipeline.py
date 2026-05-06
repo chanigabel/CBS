@@ -5,7 +5,7 @@ date parsing, identifier validation, failure fallback, and metadata statistics.
 """
 
 import pytest
-from src.excel_standardization.processing.standardization_pipeline import standardizationPipeline
+from src.excel_standardization.processing.standardization_pipeline import StandardizationPipeline
 from src.excel_standardization.engines.name_engine import NameEngine
 from src.excel_standardization.engines.gender_engine import GenderEngine
 from src.excel_standardization.engines.date_engine import DateEngine
@@ -18,7 +18,7 @@ from src.excel_standardization.data_types import SheetDataset
 # Helpers
 # ---------------------------------------------------------------------------
 
-def make_pipeline(**kwargs) -> standardizationPipeline:
+def make_pipeline(**kwargs) -> StandardizationPipeline:
     """Create a fully-wired pipeline unless overridden."""
     defaults = dict(
         name_engine=NameEngine(TextProcessor()),
@@ -27,7 +27,7 @@ def make_pipeline(**kwargs) -> standardizationPipeline:
         identifier_engine=IdentifierEngine(),
     )
     defaults.update(kwargs)
-    return standardizationPipeline(**defaults)
+    return StandardizationPipeline(**defaults)
 
 
 def make_dataset(rows, field_names=None, sheet_name="Sheet1") -> SheetDataset:
@@ -88,7 +88,7 @@ class TestApplyNamestandardization:
             def normalize_name(self, v):
                 raise RuntimeError("engine broken")
 
-        pipeline = standardizationPipeline(name_engine=BrokenNameEngine())
+        pipeline = StandardizationPipeline(name_engine=BrokenNameEngine())
         row = {"first_name": "יוסי"}
         failures = pipeline.apply_name_standardization(row)
         assert row["first_name_corrected"] == "יוסי"
@@ -153,7 +153,7 @@ class TestApplyGenderstandardization:
             def normalize_gender(self, v):
                 raise RuntimeError("broken")
 
-        pipeline = standardizationPipeline(gender_engine=BrokenGenderEngine())
+        pipeline = StandardizationPipeline(gender_engine=BrokenGenderEngine())
         row = {"gender": "נ"}
         failures = pipeline.apply_gender_standardization(row)
         assert row["gender_corrected"] == "נ"
@@ -335,7 +335,7 @@ class TestApplyIdentifierstandardization:
             def normalize_identifiers(self, id_val, passport_val):
                 raise RuntimeError("broken")
 
-        pipeline = standardizationPipeline(identifier_engine=BrokenIdentifierEngine())
+        pipeline = StandardizationPipeline(identifier_engine=BrokenIdentifierEngine())
         row = {"id_number": "123456782", "passport": ""}
         failures = pipeline.apply_identifier_standardization(row)
         assert row["id_number_corrected"] == "123456782"
@@ -365,7 +365,7 @@ class TestNormalizeDataset:
         assert engines["identifier"] is True
 
     def test_metadata_engine_flags_reflect_missing_engine(self):
-        pipeline = standardizationPipeline(name_engine=None)
+        pipeline = StandardizationPipeline(name_engine=None)
         ds = make_dataset([{"first_name": "יוסי"}])
         result = pipeline.normalize_dataset(ds)
         assert result.metadata["standardization_engines"]["name"] is False
@@ -390,7 +390,7 @@ class TestNormalizeDataset:
             def normalize_name(self, v):
                 raise RuntimeError("broken")
 
-        pipeline = standardizationPipeline(name_engine=BrokenNameEngine())
+        pipeline = StandardizationPipeline(name_engine=BrokenNameEngine())
         rows = [{"first_name": "יוסי"}, {"first_name": "שרה"}]
         ds = make_dataset(rows)
         result = pipeline.normalize_dataset(ds)
@@ -423,7 +423,7 @@ class TestNormalizeDataset:
         assert result.metadata["standardization_statistics"]["success_rate"] == 1.0
 
     def test_no_engines_pipeline_still_runs(self):
-        pipeline = standardizationPipeline()  # all engines None
+        pipeline = StandardizationPipeline()  # all engines None
         rows = [{"first_name": "יוסי", "gender": "ז"}]
         ds = make_dataset(rows)
         result = pipeline.normalize_dataset(ds)
@@ -441,10 +441,10 @@ class TestPlainBirthDatestandardization:
     """Verify that plain single-column birth_date values are fully normalized."""
 
     def _make_pipeline(self):
-        from src.excel_standardization.processing.standardization_pipeline import standardizationPipeline
+        from src.excel_standardization.processing.standardization_pipeline import StandardizationPipeline
         from src.excel_standardization.engines.date_engine import DateEngine
         from src.excel_standardization.data_types import DateFormatPattern
-        p = standardizationPipeline(date_engine=DateEngine())
+        p = StandardizationPipeline(date_engine=DateEngine())
         p._date_format_pattern = DateFormatPattern.DDMM
         return p
 
@@ -511,10 +511,10 @@ class TestPlainBirthDatestandardization:
         # the tag may be present — the important guarantee is that it is absent
         # after a full normalize_dataset call.
         from src.excel_standardization.data_types import SheetDataset
-        from src.excel_standardization.processing.standardization_pipeline import standardizationPipeline
+        from src.excel_standardization.processing.standardization_pipeline import StandardizationPipeline
         from src.excel_standardization.engines.date_engine import DateEngine
         from src.excel_standardization.data_types import DateFormatPattern
-        p = standardizationPipeline(date_engine=DateEngine())
+        p = StandardizationPipeline(date_engine=DateEngine())
         p._date_format_pattern = DateFormatPattern.DDMM
         dataset = SheetDataset(
             sheet_name="test", header_row=1, header_rows_count=1,
@@ -531,21 +531,21 @@ class TestPlainBirthDateMajorityCorrection:
     """Verify list-level majority correction works for plain single-column birth_date."""
 
     def _make_pipeline(self):
-        from src.excel_standardization.processing.standardization_pipeline import standardizationPipeline
+        from src.excel_standardization.processing.standardization_pipeline import StandardizationPipeline
         from src.excel_standardization.engines.date_engine import DateEngine
         from src.excel_standardization.data_types import DateFormatPattern, SheetDataset
-        p = standardizationPipeline(date_engine=DateEngine())
+        p = StandardizationPipeline(date_engine=DateEngine())
         p._date_format_pattern = DateFormatPattern.DDMM
         return p
 
     def test_majority_1900s_flips_2000s_outlier_single_column(self):
         """30, 28, 31, 26 as plain birth_date → outlier 2026 corrected to 1926."""
         from src.excel_standardization.data_types import SheetDataset
-        from src.excel_standardization.processing.standardization_pipeline import standardizationPipeline
+        from src.excel_standardization.processing.standardization_pipeline import StandardizationPipeline
         from src.excel_standardization.engines.date_engine import DateEngine
         from src.excel_standardization.data_types import DateFormatPattern
 
-        pipeline = standardizationPipeline(date_engine=DateEngine())
+        pipeline = StandardizationPipeline(date_engine=DateEngine())
         pipeline._date_format_pattern = DateFormatPattern.DDMM
 
         # Use split path (birth_year) since plain single-column uses birth_date
@@ -572,10 +572,10 @@ class TestPlainBirthDateMajorityCorrection:
     def test_internal_tag_stripped_after_dataset_standardization(self):
         """_birth_year_auto_completed must not appear in any output row."""
         from src.excel_standardization.data_types import SheetDataset
-        from src.excel_standardization.processing.standardization_pipeline import standardizationPipeline
+        from src.excel_standardization.processing.standardization_pipeline import StandardizationPipeline
         from src.excel_standardization.engines.date_engine import DateEngine
 
-        pipeline = standardizationPipeline(date_engine=DateEngine())
+        pipeline = StandardizationPipeline(date_engine=DateEngine())
         dataset = SheetDataset(
             sheet_name="test",
             header_row=1,

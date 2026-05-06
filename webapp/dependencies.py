@@ -12,7 +12,7 @@ from pathlib import Path
 from webapp.services.session_service import SessionService
 from webapp.services.upload_service import UploadService
 from webapp.services.workbook_service import WorkbookService
-from webapp.services.standardization_service import standardizationService
+from webapp.services.standardization_service import StandardizationService
 from webapp.services.edit_service import EditService
 from webapp.services.export_service import ExportService
 from webapp.services.processing_report_service import ProcessingReportService
@@ -53,7 +53,7 @@ _upload_service = UploadService(
     _processing_report_service,
 )
 _workbook_service = WorkbookService(_session_service)
-_standardization_service = standardizationService(
+_standardization_service = StandardizationService(
     _session_service,
     _processing_report_service,
 )
@@ -73,7 +73,7 @@ def get_workbook_service() -> WorkbookService:
     return _workbook_service
 
 
-def get_standardization_service() -> standardizationService:
+def get_standardization_service() -> StandardizationService:
     return _standardization_service
 
 

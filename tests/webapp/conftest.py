@@ -47,7 +47,7 @@ def client(tmp_path, monkeypatch):
     svc = SessionService()
     from webapp.services.upload_service import UploadService
     from webapp.services.workbook_service import WorkbookService
-    from webapp.services.standardization_service import standardizationService
+    from webapp.services.standardization_service import StandardizationService
     from webapp.services.edit_service import EditService
     from webapp.services.export_service import ExportService
     from webapp.services.processing_report_service import ProcessingReportService
@@ -55,7 +55,7 @@ def client(tmp_path, monkeypatch):
     report_svc = ProcessingReportService(svc)
     upload_svc = UploadService(svc, tmp_path / "uploads", tmp_path / "work", report_svc)
     workbook_svc = WorkbookService(svc)
-    norm_svc = standardizationService(svc, report_svc)
+    norm_svc = StandardizationService(svc, report_svc)
     edit_svc = EditService(svc)
     export_svc = ExportService(svc, tmp_path / "output", report_svc)
 

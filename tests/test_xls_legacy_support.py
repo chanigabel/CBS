@@ -174,7 +174,7 @@ class TestXlsPipeline:
         """SheetDataset from .xls goes through the standardization pipeline."""
         from src.excel_standardization.io_layer.xls_reader import extract_xls_to_workbook_dataset
         from src.excel_standardization.processing.standardization_pipeline import (
-            standardizationPipeline,
+            StandardizationPipeline,
         )
         from src.excel_standardization.engines.name_engine import NameEngine
         from src.excel_standardization.engines.gender_engine import GenderEngine
@@ -185,7 +185,7 @@ class TestXlsPipeline:
         wbd = extract_xls_to_workbook_dataset(str(FIXTURE_XLS))
         assert wbd.sheets, "No sheets extracted from .xls fixture"
 
-        pipeline = standardizationPipeline(
+        pipeline = StandardizationPipeline(
             name_engine=NameEngine(TextProcessor()),
             gender_engine=GenderEngine(),
             date_engine=DateEngine(),
@@ -204,7 +204,7 @@ class TestXlsPipeline:
         """Export from .xls-sourced dataset writes a valid .xlsx file."""
         from src.excel_standardization.io_layer.xls_reader import extract_xls_to_workbook_dataset
         from src.excel_standardization.processing.standardization_pipeline import (
-            standardizationPipeline,
+            StandardizationPipeline,
         )
         from src.excel_standardization.engines.name_engine import NameEngine
         from src.excel_standardization.engines.gender_engine import GenderEngine
@@ -214,7 +214,7 @@ class TestXlsPipeline:
         from src.excel_standardization.export.export_engine import ExportEngine
 
         wbd = extract_xls_to_workbook_dataset(str(FIXTURE_XLS))
-        pipeline = standardizationPipeline(
+        pipeline = StandardizationPipeline(
             name_engine=NameEngine(TextProcessor()),
             gender_engine=GenderEngine(),
             date_engine=DateEngine(),

@@ -12,7 +12,7 @@ from pathlib import Path
 from datetime import datetime
 from typing import NoReturn
 
-from .orchestrator import standardizationOrchestrator
+from .orchestrator import StandardizationOrchestrator
 
 
 def setup_logging(file_path: str) -> None:
@@ -119,13 +119,13 @@ def main() -> int:
 
         logger.info(f"Output file will be written to: {output_excel_path}")
 
-        orchestrator = standardizationOrchestrator()
+        orchestrator = StandardizationOrchestrator()
 
         logger.info("Starting workbook standardization via Web/Dataset pipeline...")
 
         # Legacy direct Excel processing is disabled. Keep CLI active by routing
         # through the dataset pipeline:
-        # ExcelToJsonExtractor -> standardizationPipeline -> ExportEngine.
+        # ExcelToJsonExtractor -> StandardizationPipeline -> ExportEngine.
         orchestrator.export_vba_parity_workbook_from_json(
             file_path,
             output_excel_path

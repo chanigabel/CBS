@@ -104,7 +104,7 @@ def client_with_two_sheets(tmp_path, monkeypatch):
     import webapp.dependencies as deps
     from webapp.services.upload_service import UploadService
     from webapp.services.workbook_service import WorkbookService
-    from webapp.services.standardization_service import standardizationService
+    from webapp.services.standardization_service import StandardizationService
     from webapp.services.edit_service import EditService
     from webapp.services.export_service import ExportService
 
@@ -113,7 +113,7 @@ def client_with_two_sheets(tmp_path, monkeypatch):
     monkeypatch.setattr(deps, "_session_service", svc)
     monkeypatch.setattr(deps, "_upload_service", UploadService(svc, tmp_path / "uploads", tmp_path / "work"))
     monkeypatch.setattr(deps, "_workbook_service", WorkbookService(svc))
-    monkeypatch.setattr(deps, "_standardization_service", standardizationService(svc))
+    monkeypatch.setattr(deps, "_standardization_service", StandardizationService(svc))
     monkeypatch.setattr(deps, "_edit_service", EditService(svc))
     monkeypatch.setattr(deps, "_export_service", ExportService(svc, tmp_path / "output"))
 
@@ -483,7 +483,7 @@ class TestValidationMisparDira:
         import webapp.dependencies as deps
         from webapp.services.upload_service import UploadService
         from webapp.services.workbook_service import WorkbookService
-        from webapp.services.standardization_service import standardizationService
+        from webapp.services.standardization_service import StandardizationService
         from webapp.services.edit_service import EditService
         from webapp.services.export_service import ExportService
 
@@ -494,7 +494,7 @@ class TestValidationMisparDira:
         monkeypatch.setattr(deps, "_session_service", svc)
         monkeypatch.setattr(deps, "_upload_service", UploadService(svc, tmp_path / "u", tmp_path / "w"))
         monkeypatch.setattr(deps, "_workbook_service", WorkbookService(svc))
-        monkeypatch.setattr(deps, "_standardization_service", standardizationService(svc))
+        monkeypatch.setattr(deps, "_standardization_service", StandardizationService(svc))
         monkeypatch.setattr(deps, "_edit_service", EditService(svc))
         monkeypatch.setattr(deps, "_export_service", ExportService(svc, tmp_path / "o"))
 
@@ -512,7 +512,7 @@ class TestValidationMisparDira:
         import webapp.dependencies as deps
         from webapp.services.upload_service import UploadService
         from webapp.services.workbook_service import WorkbookService
-        from webapp.services.standardization_service import standardizationService
+        from webapp.services.standardization_service import StandardizationService
         from webapp.services.edit_service import EditService
         from webapp.services.export_service import ExportService
 
@@ -523,7 +523,7 @@ class TestValidationMisparDira:
         monkeypatch.setattr(deps, "_session_service", svc)
         monkeypatch.setattr(deps, "_upload_service", UploadService(svc, tmp_path / "u", tmp_path / "w"))
         monkeypatch.setattr(deps, "_workbook_service", WorkbookService(svc))
-        monkeypatch.setattr(deps, "_standardization_service", standardizationService(svc))
+        monkeypatch.setattr(deps, "_standardization_service", StandardizationService(svc))
         monkeypatch.setattr(deps, "_edit_service", EditService(svc))
         monkeypatch.setattr(deps, "_export_service", ExportService(svc, tmp_path / "o"))
 
@@ -628,7 +628,7 @@ class TestLegacyApplyValidation:
         import webapp.dependencies as deps
         from webapp.services.upload_service import UploadService
         from webapp.services.workbook_service import WorkbookService
-        from webapp.services.standardization_service import standardizationService
+        from webapp.services.standardization_service import StandardizationService
         from webapp.services.edit_service import EditService
         from webapp.services.export_service import ExportService
 
@@ -639,7 +639,7 @@ class TestLegacyApplyValidation:
         monkeypatch.setattr(deps, "_session_service", svc)
         monkeypatch.setattr(deps, "_upload_service", UploadService(svc, tmp_path / "u", tmp_path / "w"))
         monkeypatch.setattr(deps, "_workbook_service", WorkbookService(svc))
-        monkeypatch.setattr(deps, "_standardization_service", standardizationService(svc))
+        monkeypatch.setattr(deps, "_standardization_service", StandardizationService(svc))
         monkeypatch.setattr(deps, "_edit_service", EditService(svc))
         monkeypatch.setattr(deps, "_export_service", ExportService(svc, tmp_path / "o"))
 
@@ -910,7 +910,7 @@ class TestSelectedRowsRuntimeRegression:
         import webapp.dependencies as deps
         from webapp.services.upload_service import UploadService
         from webapp.services.workbook_service import WorkbookService
-        from webapp.services.standardization_service import standardizationService
+        from webapp.services.standardization_service import StandardizationService
         from webapp.services.edit_service import EditService
         from webapp.services.export_service import ExportService
 
@@ -942,7 +942,7 @@ class TestSelectedRowsRuntimeRegression:
         monkeypatch.setattr(deps, "_upload_service",
                             UploadService(svc, tmp_path / "u", tmp_path / "w"))
         monkeypatch.setattr(deps, "_workbook_service", WorkbookService(svc))
-        monkeypatch.setattr(deps, "_standardization_service", standardizationService(svc))
+        monkeypatch.setattr(deps, "_standardization_service", StandardizationService(svc))
         monkeypatch.setattr(deps, "_edit_service", EditService(svc))
         monkeypatch.setattr(deps, "_export_service",
                             ExportService(svc, tmp_path / "o"))

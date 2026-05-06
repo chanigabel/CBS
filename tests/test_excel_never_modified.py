@@ -18,7 +18,7 @@ import hashlib
 from openpyxl import Workbook
 
 from src.excel_standardization.io_layer import ExcelReader, ExcelToJsonExtractor
-from src.excel_standardization.processing import standardizationPipeline
+from src.excel_standardization.processing import StandardizationPipeline
 from src.excel_standardization.json_exporter import JsonExporter, generate_output_filenames
 from src.excel_standardization.engines import (
     NameEngine, GenderEngine, DateEngine, IdentifierEngine, TextProcessor
@@ -107,7 +107,7 @@ class TestExcelNeverModified:
         workbook_dataset = extractor.extract_workbook_to_json(temp_excel_file)
         
         # Normalize data
-        pipeline = standardizationPipeline(
+        pipeline = StandardizationPipeline(
             name_engine=NameEngine(TextProcessor()),
             gender_engine=GenderEngine(),
             date_engine=DateEngine(),
@@ -145,7 +145,7 @@ class TestExcelNeverModified:
             exporter.export_workbook_to_json(workbook_dataset, raw_json_path)
             
             # Normalize data
-            pipeline = standardizationPipeline(
+            pipeline = StandardizationPipeline(
                 name_engine=NameEngine(TextProcessor()),
                 gender_engine=GenderEngine(),
                 date_engine=DateEngine(),
@@ -245,7 +245,7 @@ class TestExcelNeverModified:
             exporter = JsonExporter()
             exporter.export_workbook_to_json(workbook_dataset, raw_json_path)
             
-            pipeline = standardizationPipeline(
+            pipeline = StandardizationPipeline(
                 name_engine=NameEngine(TextProcessor()),
                 gender_engine=GenderEngine(),
                 date_engine=DateEngine(),

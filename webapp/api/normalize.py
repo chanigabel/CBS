@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Query
 
 from webapp.dependencies import get_standardization_service
 from webapp.models.responses import StandardizeResponse
-from webapp.services.standardization_service import standardizationService
+from webapp.services.standardization_service import StandardizationService
 
 # This module is kept for backward compatibility.
 # The canonical router is webapp/api/standardize.py
@@ -16,7 +16,7 @@ router = APIRouter(tags=["standardize"])
 def normalize_workbook(
     session_id: str,
     sheet: Optional[str] = Query(default=None, description="Sheet name to standardize (omit for all sheets)"),
-    standardization_service: standardizationService = Depends(get_standardization_service),
+    standardization_service: StandardizationService = Depends(get_standardization_service),
 ) -> StandardizeResponse:
     """Backward-compatible alias for POST /standardize."""
     return standardization_service.standardize(session_id, sheet_name=sheet)

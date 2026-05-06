@@ -433,8 +433,8 @@ class TeststandardizationEditReplay:
         assert record.edits[("Sheet1", rachel_uid, "first_name_corrected")] == "Racheli"
         
         # Simulate standardization replay
-        from webapp.services.standardization_service import standardizationService
-        norm_svc = standardizationService(session_svc)
+        from webapp.services.standardization_service import StandardizationService
+        norm_svc = StandardizationService(session_svc)
         
         # The standardization service replays edits by row_uid
         # We'll verify the edit is still there after a simulated reload

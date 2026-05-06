@@ -155,8 +155,8 @@ class TestInvalidValues:
 
 class TestPipelineInvalidGender:
     def _make_pipeline(self):
-        from src.excel_standardization.processing.standardization_pipeline import standardizationPipeline
-        return standardizationPipeline(gender_engine=GenderEngine())
+        from src.excel_standardization.processing.standardization_pipeline import StandardizationPipeline
+        return StandardizationPipeline(gender_engine=GenderEngine())
 
     def test_invalid_numeric_8_corrected_empty(self):
         pipeline = self._make_pipeline()

@@ -17,7 +17,7 @@ from webapp.dependencies import (
 )
 from webapp.services.export_service import ExportService
 from webapp.services.processing_report_service import ProcessingReportService
-from webapp.services.standardization_service import standardizationService
+from webapp.services.standardization_service import StandardizationService
 from webapp.services.upload_service import UploadService
 
 router = APIRouter(tags=["process-file"])
@@ -47,7 +47,7 @@ def _assert_real_excel_output(output_path: Path) -> None:
 async def process_file(
     file: UploadFile = File(...),
     upload_service: UploadService = Depends(get_upload_service),
-    standardization_service: standardizationService = Depends(get_standardization_service),
+    standardization_service: StandardizationService = Depends(get_standardization_service),
     export_service: ExportService = Depends(get_export_service),
     report_service: ProcessingReportService = Depends(get_processing_report_service),
 ) -> FileResponse:

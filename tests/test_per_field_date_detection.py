@@ -24,7 +24,7 @@ from openpyxl import Workbook
 
 from src.excel_standardization.io_layer.excel_reader import ExcelReader
 from src.excel_standardization.io_layer.excel_to_json_extractor import ExcelToJsonExtractor
-from src.excel_standardization.processing.standardization_pipeline import standardizationPipeline
+from src.excel_standardization.processing.standardization_pipeline import StandardizationPipeline
 from src.excel_standardization.engines.date_engine import DateEngine
 from src.excel_standardization.data_types import DateFormatPattern
 
@@ -49,7 +49,7 @@ def _check_mapping(label, ws, expected_present, expected_absent=None):
 
 
 def _pipeline():
-    p = standardizationPipeline(date_engine=DateEngine())
+    p = StandardizationPipeline(date_engine=DateEngine())
     p._date_format_pattern = DateFormatPattern.DDMM
     return p
 

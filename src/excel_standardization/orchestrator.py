@@ -3,7 +3,7 @@
 The legacy direct Excel/VBA parity implementation was moved to
 ``archive_legacy/``. The active runtime path is:
 
-Upload/Web/API -> WorkbookDataset/SheetDataset -> standardizationPipeline ->
+Upload/Web/API -> WorkbookDataset/SheetDataset -> StandardizationPipeline ->
 ExportService/ExportEngine.
 """
 
@@ -20,7 +20,7 @@ from .export.export_engine import ExportEngine
 from .io_layer.excel_reader import ExcelReader
 from .io_layer.excel_to_json_extractor import ExcelToJsonExtractor
 from .json_exporter import JsonExporter
-from .processing.standardization_pipeline import standardizationPipeline
+from .processing.standardization_pipeline import StandardizationPipeline
 
 
 LEGACY_DISABLED_MESSAGE = (
@@ -28,7 +28,7 @@ LEGACY_DISABLED_MESSAGE = (
 )
 
 
-class standardizationOrchestrator:
+class StandardizationOrchestrator:
     """Coordinates workbook extraction, dataset normalization, and export.
 
     This active orchestrator intentionally does not import or instantiate the old
@@ -51,7 +51,7 @@ class standardizationOrchestrator:
 
         Disabled legacy direct Excel path. Use the Web/Dataset pipeline instead:
         Upload/Web/API -> WorkbookDataset/SheetDataset ->
-        standardizationPipeline -> ExportService/ExportEngine.
+        StandardizationPipeline -> ExportService/ExportEngine.
         """
         raise RuntimeError(LEGACY_DISABLED_MESSAGE)
 
@@ -115,7 +115,7 @@ class standardizationOrchestrator:
         """Run the active Dataset pipeline and export an Excel workbook.
 
         Pipeline:
-            ExcelToJsonExtractor -> standardizationPipeline -> ExportEngine
+            ExcelToJsonExtractor -> StandardizationPipeline -> ExportEngine
         """
         workbook_dataset = self._extract_workbook(input_excel_path)
         workbook_dataset.sheets = self._normalize_sheets(workbook_dataset.sheets)
@@ -142,8 +142,8 @@ class standardizationOrchestrator:
             raise ValueError(f"No valid sheets found in workbook '{input_excel_path}'")
         return workbook_dataset
 
-    def _build_pipeline(self) -> standardizationPipeline:
-        return standardizationPipeline(
+    def _build_pipeline(self) -> StandardizationPipeline:
+        return StandardizationPipeline(
             name_engine=self.name_engine,
             gender_engine=self.gender_engine,
             date_engine=self.date_engine,
@@ -180,3 +180,7 @@ class standardizationOrchestrator:
             suffix += 1
 
         return str(candidate)
+
+
+# Backward-compatible alias for callers that still import the legacy name.
+standardizationOrchestrator = StandardizationOrchestrator

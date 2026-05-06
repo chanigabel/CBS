@@ -1,4 +1,4 @@
-"""standardizationService: runs the standardization pipeline on a session's workbook."""
+"""StandardizationService: runs the standardization pipeline on a session's workbook."""
 
 import logging
 from typing import List, Optional
@@ -8,7 +8,7 @@ from openpyxl import load_workbook as _lw
 
 from src.excel_standardization.io_layer.excel_to_json_extractor import ExcelToJsonExtractor
 from src.excel_standardization.io_layer.excel_reader import ExcelReader
-from src.excel_standardization.processing.standardization_pipeline import standardizationPipeline
+from src.excel_standardization.processing.standardization_pipeline import StandardizationPipeline
 from src.excel_standardization.engines.name_engine import NameEngine
 from src.excel_standardization.engines.gender_engine import GenderEngine
 from src.excel_standardization.engines.date_engine import DateEngine
@@ -24,7 +24,7 @@ from webapp.services.mosad_id_scanner import scan_mosad_id
 logger = logging.getLogger(__name__)
 
 
-class standardizationService:
+class StandardizationService:
     """Runs the standardization pipeline on a session's working copy."""
 
     def __init__(
@@ -324,10 +324,10 @@ class standardizationService:
     def normalize(self, session_id: str, sheet_name: Optional[str] = None) -> StandardizeResponse:
         return self.standardize(session_id, sheet_name=sheet_name)
 
-    def _build_pipeline(self) -> standardizationPipeline:
-        """Build a fresh standardizationPipeline with all four engines."""
+    def _build_pipeline(self) -> StandardizationPipeline:
+        """Build a fresh StandardizationPipeline with all four engines."""
         tp = TextProcessor()
-        return standardizationPipeline(
+        return StandardizationPipeline(
             name_engine=NameEngine(tp),
             gender_engine=GenderEngine(),
             date_engine=DateEngine(),
@@ -337,3 +337,7 @@ class standardizationService:
             apply_date_standardization_enabled=True,
             apply_identifier_standardization_enabled=True,
         )
+
+
+# Backward-compatible alias for callers that still import the legacy name.
+standardizationService = StandardizationService

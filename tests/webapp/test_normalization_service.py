@@ -1,4 +1,4 @@
-"""Unit tests for standardizationService."""
+"""Unit tests for StandardizationService."""
 
 import io
 import pytest
@@ -9,7 +9,7 @@ from fastapi import HTTPException
 from src.excel_standardization.data_types import SheetDataset, WorkbookDataset
 from webapp.models.session import SessionRecord
 from webapp.services.session_service import SessionService
-from webapp.services.standardization_service import standardizationService
+from webapp.services.standardization_service import StandardizationService
 
 
 def make_xlsx_bytes(sheet_names=None) -> bytes:
@@ -63,7 +63,7 @@ def session_with_file(tmp_path):
         workbook_dataset=wbd,
     )
     svc.create(record)
-    return svc, standardizationService(svc)
+    return svc, StandardizationService(svc)
 
 
 def test_successful_standardization_sets_status_to_normalized(session_with_file):
@@ -109,7 +109,7 @@ def test_standardization_raises_500_for_invalid_working_copy(tmp_path):
         status="uploaded",
     )
     svc.create(record)
-    norm_svc = standardizationService(svc)
+    norm_svc = StandardizationService(svc)
     with pytest.raises(HTTPException) as exc_info:
         norm_svc.normalize("bad-session")
     assert exc_info.value.status_code == 500

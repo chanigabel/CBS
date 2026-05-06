@@ -1,6 +1,6 @@
-"""standardizationPipeline: Apply standardization engines to JSON rows.
+"""StandardizationPipeline: Apply standardization engines to JSON rows.
 
-This module provides the standardizationPipeline class that orchestrates the
+This module provides the StandardizationPipeline class that orchestrates the
 application of standardization engines (NameEngine, GenderEngine, DateEngine,
 IdentifierEngine) to JSON row data extracted from Excel worksheets.
 
@@ -69,7 +69,7 @@ def _detect_date_format_pattern(rows: List[JsonRow]) -> "DateFormatPattern":
     return DateFormatPattern.MMDD if mmdd > ddmm else DateFormatPattern.DDMM
 
 
-class standardizationPipeline:
+class StandardizationPipeline:
     """Apply standardization engines to JSON rows.
     
     This class orchestrates the application of standardization engines to JSON
@@ -95,7 +95,7 @@ class standardizationPipeline:
     
     Example:
         # Create pipeline with all engines
-        pipeline = standardizationPipeline(
+        pipeline = StandardizationPipeline(
             name_engine=NameEngine(TextProcessor()),
             gender_engine=GenderEngine(),
             date_engine=DateEngine(),
@@ -133,7 +133,7 @@ class standardizationPipeline:
         apply_date_standardization_enabled: bool = True,
         apply_identifier_standardization_enabled: bool = True
     ):
-        """Initialize standardizationPipeline with engine dependencies.
+        """Initialize StandardizationPipeline with engine dependencies.
         
         Args:
             name_engine: Engine for standardizing name fields (optional)
@@ -955,4 +955,8 @@ class standardizationPipeline:
             corrected_rows.append(row)
 
         return corrected_rows
+
+
+# Backward-compatible alias for callers that still import the legacy name.
+standardizationPipeline = StandardizationPipeline
 

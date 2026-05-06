@@ -20,7 +20,7 @@ from .data_types import (
     TableRegion,
     WorkbookDataset,
 )
-from .orchestrator import standardizationOrchestrator
+from .orchestrator import StandardizationOrchestrator
 from .json_exporter import JsonExporter, generate_output_filenames
 
 __all__ = [
@@ -38,7 +38,10 @@ __all__ = [
     "TableRegion",
     "WorkbookDataset",
     # Main entry points
-    "standardizationOrchestrator",
+    "StandardizationOrchestrator",
     "JsonExporter",
     "generate_output_filenames",
 ]
+
+# Backward-compatible alias for callers that still import the legacy name.
+standardizationOrchestrator = StandardizationOrchestrator

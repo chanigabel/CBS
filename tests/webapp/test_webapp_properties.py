@@ -290,7 +290,7 @@ def test_standardization_updates_session_status_and_dataset(workbook_data):
 
     Validates: Requirements 5.4
     """
-    from webapp.services.standardization_service import standardizationService
+    from webapp.services.standardization_service import StandardizationService
 
     file_bytes, _ = workbook_data
     with tempfile.TemporaryDirectory() as tmp:
@@ -298,7 +298,7 @@ def test_standardization_updates_session_status_and_dataset(workbook_data):
         upload_svc, session_svc = _make_upload_service(tmp_path)
         response = upload_svc.handle_upload("test.xlsx", file_bytes)
 
-        norm_svc = standardizationService(session_svc)
+        norm_svc = StandardizationService(session_svc)
         norm_response = norm_svc.normalize(response.session_id)
 
         record = session_svc.get(response.session_id)
@@ -320,7 +320,7 @@ def test_source_file_never_modified(workbook_data):
     Validates: Requirements 5.8, 7.5, 9.2
     """
     import hashlib
-    from webapp.services.standardization_service import standardizationService
+    from webapp.services.standardization_service import StandardizationService
     from webapp.services.export_service import ExportService
 
     file_bytes, _ = workbook_data
@@ -336,7 +336,7 @@ def test_source_file_never_modified(workbook_data):
         original_hash = hashlib.sha256(source_files[0].read_bytes()).hexdigest()
 
         # Run standardization
-        norm_svc = standardizationService(session_svc)
+        norm_svc = StandardizationService(session_svc)
         norm_svc.normalize(response.session_id)
 
         # Source file must still be identical
@@ -366,10 +366,10 @@ def test_standardization_equivalence(workbook_data):
 
     Validates: Requirements 12.5
     """
-    from webapp.services.standardization_service import standardizationService
+    from webapp.services.standardization_service import StandardizationService
     from src.excel_standardization.io_layer.excel_to_json_extractor import ExcelToJsonExtractor
     from src.excel_standardization.io_layer.excel_reader import ExcelReader
-    from src.excel_standardization.processing.standardization_pipeline import standardizationPipeline
+    from src.excel_standardization.processing.standardization_pipeline import StandardizationPipeline
     from src.excel_standardization.engines.name_engine import NameEngine
     from src.excel_standardization.engines.gender_engine import GenderEngine
     from src.excel_standardization.engines.date_engine import DateEngine
@@ -382,8 +382,8 @@ def test_standardization_equivalence(workbook_data):
         upload_svc, session_svc = _make_upload_service(tmp_path)
         response = upload_svc.handle_upload("test.xlsx", file_bytes)
 
-        # Run via standardizationService
-        norm_svc = standardizationService(session_svc)
+        # Run via StandardizationService
+        norm_svc = StandardizationService(session_svc)
         norm_svc.normalize(response.session_id)
         record = session_svc.get(response.session_id)
         webapp_sheets = {s.sheet_name: s.rows for s in record.workbook_dataset.sheets}
@@ -401,7 +401,7 @@ def test_standardization_equivalence(workbook_data):
         response2 = upload_svc2.handle_upload("test2.xlsx", file_bytes)
         record2 = session_svc2.get(response2.session_id)
 
-        pipeline = standardizationPipeline(
+        pipeline = StandardizationPipeline(
             name_engine=NameEngine(TextProcessor()),
             gender_engine=GenderEngine(),
             date_engine=DateEngine(),
@@ -447,13 +447,13 @@ def test_nonexistent_session_returns_404(session_uuid):
 
         from webapp.services.upload_service import UploadService
         from webapp.services.workbook_service import WorkbookService
-        from webapp.services.standardization_service import standardizationService
+        from webapp.services.standardization_service import StandardizationService
         from webapp.services.edit_service import EditService
         from webapp.services.export_service import ExportService
 
         upload_svc = UploadService(session_svc, tmp_path / "uploads", tmp_path / "work")
         workbook_svc = WorkbookService(session_svc)
-        norm_svc = standardizationService(session_svc)
+        norm_svc = StandardizationService(session_svc)
         edit_svc = EditService(session_svc)
         export_svc = ExportService(session_svc, tmp_path / "output")
 

@@ -85,7 +85,7 @@ class TestSetupLogging:
 class TestMain:
     """Tests for main function."""
     
-    @patch('src.excel_standardization.cli.standardizationOrchestrator')
+    @patch('src.excel_standardization.cli.StandardizationOrchestrator')
     def test_main_success(self, mock_orchestrator, tmp_path):
         """Test successful execution of main."""
         # Create a test Excel file
@@ -127,7 +127,7 @@ class TestMain:
         # Check exit code
         assert exit_code == 1
     
-    @patch('src.excel_standardization.cli.standardizationOrchestrator')
+    @patch('src.excel_standardization.cli.StandardizationOrchestrator')
     def test_main_unexpected_error(self, mock_orchestrator, tmp_path):
         """Test main with unexpected error during processing."""
         # Create a test Excel file
