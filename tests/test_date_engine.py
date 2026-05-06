@@ -86,6 +86,18 @@ class TestParseFromSplitColumns:
         
         result = engine.parse_from_split_columns(1990, 12, None)
         assert result.is_valid is False
+
+    def test_text_component_is_non_numeric_date_value(self):
+        """Text inside a split date component should not be parsed as a blank date."""
+        engine = DateEngine()
+
+        result = engine.parse_from_split_columns(1990, "Invalid ID number", 25)
+
+        assert result.is_valid is False
+        assert result.year == 1990
+        assert result.month is None
+        assert result.day == 25
+        assert result.status_text == "ערך תאריך לא תקין"
     
     def test_invalid_day_range(self):
         """Day outside 1-31 should be invalid."""

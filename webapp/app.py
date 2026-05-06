@@ -19,7 +19,16 @@ from fastapi.templating import Jinja2Templates
 from starlette.middleware.base import BaseHTTPMiddleware
 from contextlib import asynccontextmanager
 
-from webapp.api import upload, workbook, standardize, edit, export, institution, process_file
+from webapp.api import (
+    edit,
+    export,
+    institution,
+    process_file,
+    processing_report,
+    standardize,
+    upload,
+    workbook,
+)
 
 # ---------------------------------------------------------------------------
 # Asset path resolution — works both in development and inside a PyInstaller
@@ -107,6 +116,7 @@ app.include_router(edit.router, prefix="/api")
 app.include_router(export.router, prefix="/api")
 app.include_router(institution.router, prefix="/api")
 app.include_router(process_file.router, prefix="/api")
+app.include_router(processing_report.router, prefix="/api")
 
 
 def _file_hash(path: Path, length: int = 8) -> str:

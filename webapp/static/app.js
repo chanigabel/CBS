@@ -65,6 +65,25 @@ async function apiCall(method, url, body = null) {
     return response.json();
 }
 
+function formatProcessingReportSummary(report) {
+    const parts = [];
+    const missingRequired = (report.missing_required_fields || [])
+        .map(item => `${item.field}: ${item.count}`)
+        .join(', ');
+    const dateSummary = (report.date_summary || [])
+        .map(item => `${item.message}: ${item.count}`)
+        .join(', ');
+    const identifierSummary = (report.identifier_summary || [])
+        .map(item => `${item.message}: ${item.count}`)
+        .join(', ');
+
+    if (missingRequired) parts.push(`Missing required fields: ${missingRequired}`);
+    if (dateSummary) parts.push(`Dates: ${dateSummary}`);
+    if (identifierSummary) parts.push(`Identifiers: ${identifierSummary}`);
+
+    return parts.length ? parts.join(' | ') : report.status_reason;
+}
+
 // ---------------------------------------------------------------------------
 // Upload Flow — U-10: XHR with progress feedback
 // ---------------------------------------------------------------------------
@@ -934,6 +953,9 @@ async function exportWorkbook() {
 
     try {
         await _downloadFile(`/api/workbook/${state.sessionId}/export`, 'POST', 'normalized.xlsx');
+        const report = await apiCall('GET', `/api/workbook/${state.sessionId}/processing-report`);
+        document.getElementById('grid-stats').textContent =
+            `Export complete (${report.status}) - ${formatProcessingReportSummary(report)}`;
     } catch (err) {
         showError(`Export failed: ${err.message}`);
     } finally {

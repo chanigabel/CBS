@@ -9,6 +9,7 @@ from fastapi import HTTPException
 
 from webapp.models.responses import UploadResponse
 from webapp.models.session import SessionRecord
+from webapp.services.processing_report_service import ProcessingReportService
 from webapp.services.session_service import SessionService
 
 logger = logging.getLogger(__name__)
@@ -24,10 +25,14 @@ class UploadService:
         session_service: SessionService,
         uploads_dir: Path,
         work_dir: Path,
+        processing_report_service: ProcessingReportService | None = None,
     ) -> None:
         self.session_service = session_service
         self.uploads_dir = uploads_dir
         self.work_dir = work_dir
+        self.processing_report_service = (
+            processing_report_service or ProcessingReportService(session_service)
+        )
 
     def handle_upload(self, filename: str, file_bytes: bytes) -> UploadResponse:
         """Process an uploaded file and create a new session.
@@ -123,11 +128,18 @@ class UploadService:
             workbook_dataset=None,
         )
         self.session_service.create(record)
+        self.processing_report_service.start(session_id)
+        self.processing_report_service.complete_stage(session_id, "upload")
 
         sheet_names = list(sheet_names)
         logger.info(
-            f"Upload successful: session={session_id}, "
-            f"file='{filename}', sheets={sheet_names}"
+            "upload_successful",
+            extra={
+                "event": "upload_successful",
+                "session_id": session_id,
+                "upload_filename": filename,
+                "sheet_count": len(sheet_names),
+            },
         )
 
         return UploadResponse(session_id=session_id, sheet_names=sheet_names)

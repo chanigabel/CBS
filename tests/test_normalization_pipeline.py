@@ -182,6 +182,42 @@ class TestApplyDatestandardization:
         assert row["entry_month_corrected"] == 3
         assert row["entry_day_corrected"] == 20
 
+    def test_split_entry_date_text_month_is_blanked_with_status(self):
+        row = {
+            "entry_year": 2010,
+            "entry_month": "Invalid ID number",
+            "entry_day": 20,
+        }
+        self.pipeline.apply_date_standardization(row)
+        assert row["entry_year_corrected"] == 2010
+        assert row["entry_month_corrected"] == ""
+        assert row["entry_day_corrected"] == 20
+        assert row["entry_date_status"] == "ערך תאריך לא תקין"
+
+    def test_split_birth_date_invalid_month_blanks_month(self):
+        row = {"birth_year": 1990, "birth_month": 13, "birth_day": 20}
+        self.pipeline.apply_date_standardization(row)
+        assert row["birth_year_corrected"] == 1990
+        assert row["birth_month_corrected"] == ""
+        assert row["birth_day_corrected"] == 20
+        assert row["birth_date_status"] == "חודש לא תקין"
+
+    def test_split_birth_date_invalid_day_blanks_day(self):
+        row = {"birth_year": 1990, "birth_month": 12, "birth_day": 32}
+        self.pipeline.apply_date_standardization(row)
+        assert row["birth_year_corrected"] == 1990
+        assert row["birth_month_corrected"] == 12
+        assert row["birth_day_corrected"] == ""
+        assert row["birth_date_status"] == "יום לא תקין"
+
+    def test_split_birth_date_invalid_year_blanks_year(self):
+        row = {"birth_year": -1, "birth_month": 12, "birth_day": 20}
+        self.pipeline.apply_date_standardization(row)
+        assert row["birth_year_corrected"] == ""
+        assert row["birth_month_corrected"] == 12
+        assert row["birth_day_corrected"] == 20
+        assert row["birth_date_status"] == "שנה לא תקינה"
+
     def test_single_birth_date_string(self):
         row = {"birth_date": "15/05/1990"}
         self.pipeline.apply_date_standardization(row)

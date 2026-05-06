@@ -12,6 +12,7 @@ from openpyxl.styles import Alignment
 
 from webapp.services.session_service import SessionService
 from webapp.services.derived_columns import apply_derived_columns, detect_serial_field, SYNTHETIC_SERIAL_KEY
+from webapp.services.processing_report_service import ProcessingReportService
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +67,7 @@ _HEADERS_MESHKEY: List[str] = [
     "ShemPrati", "ShemMishpaha", "ShemHaAv",
     "MisparZehut", "Darkon", "Min",
     "ShnatLida", "HodeshLida", "YomLida",
-    "ShnatKnisa", "HodeshKnisa", "YomKnisa",
+    "shnatKnisa", "Hodeshknisa", "YomKnisa",
 ]
 
 # Unknown / unmatched sheets fall back to the DayarimYahidim schema.
@@ -105,8 +106,8 @@ EXPORT_MAPPING: Dict[str, Optional[str]] = {
     "ShnatLida":           "birth_year_corrected",
     "HodeshLida":          "birth_month_corrected",
     "YomLida":             "birth_day_corrected",
-    "ShnatKnisa":          "entry_year_corrected",
-    "HodeshKnisa":         "entry_month_corrected",
+    "shnatKnisa":          "entry_year_corrected",
+    "Hodeshknisa":         "entry_month_corrected",
     "YomKnisa":            "entry_day_corrected",
 }
 
@@ -265,9 +266,17 @@ def visible_rows(sheet_dataset) -> Tuple[List[Dict[str, Any]], List[str]]:
 class ExportService:
     """Writes the current in-memory WorkbookDataset to an Excel file for download."""
 
-    def __init__(self, session_service: SessionService, output_dir: Path) -> None:
+    def __init__(
+        self,
+        session_service: SessionService,
+        output_dir: Path,
+        processing_report_service: ProcessingReportService | None = None,
+    ) -> None:
         self.session_service = session_service
         self.output_dir = output_dir
+        self.processing_report_service = (
+            processing_report_service or ProcessingReportService(session_service)
+        )
 
     def export(self, session_id: str) -> Path:
         """Export the session's workbook using the fixed 14-column schema.
@@ -329,6 +338,9 @@ class ExportService:
             if wb.sheetnames:
                 wb.remove(wb[wb.sheetnames[0]])
 
+            rows_exported = 0
+            rows_exported_by_sheet: Dict[str, int] = {}
+
             for sheet_dataset in record.workbook_dataset.sheets:
                 export_name = canonical_sheet_name(sheet_dataset.sheet_name)
                 ws = wb.create_sheet(title=export_name)
@@ -375,6 +387,7 @@ class ExportService:
                 serial_field = detect_serial_field(sheet_dataset.field_names) or SYNTHETIC_SERIAL_KEY
 
                 out_row = 2
+                sheet_rows_exported = 0
                 for row in data_rows:
                     for col_idx, header in enumerate(schema, start=1):
                         json_key = EXPORT_MAPPING.get(header)
@@ -384,12 +397,38 @@ class ExportService:
                         if v is not None and v != "":
                             ws.cell(row=out_row, column=col_idx, value=v)
                     out_row += 1
+                    rows_exported += 1
+                    sheet_rows_exported += 1
+                rows_exported_by_sheet[sheet_dataset.sheet_name] = sheet_rows_exported
 
             wb.save(str(output_path))
-            logger.info(f"Export successful: {output_path}")
+            self.processing_report_service.finalize_export_details(
+                session_id,
+                record=record,
+                rows_exported_by_sheet=rows_exported_by_sheet,
+                output_filename=output_path.name,
+            )
+            logger.info(
+                "export_successful",
+                extra={
+                    "event": "export_successful",
+                    "session_id": session_id,
+                    "output_filename": output_path.name,
+                    "rows_exported": rows_exported,
+                },
+            )
 
         except Exception as exc:
-            logger.error(f"Export failed for session {session_id}: {exc}", exc_info=True)
+            self.processing_report_service.add_error(session_id, "Export failed.")
+            logger.error(
+                "export_failed",
+                exc_info=True,
+                extra={
+                    "event": "export_failed",
+                    "session_id": session_id,
+                    "error_type": type(exc).__name__,
+                },
+            )
             raise HTTPException(
                 status_code=500,
                 detail="Export failed. Please try again. Your session data is preserved.",

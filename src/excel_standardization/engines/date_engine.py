@@ -159,6 +159,7 @@ Known limitations:
 from datetime import date, datetime
 import logging
 import re
+from typing import Optional
 
 from ..data_types import DateParseResult, DateFormatPattern, DateFieldType
 
@@ -198,6 +199,18 @@ class DateEngine:
     def parse_from_split_columns(self, year_val, month_val, day_val) -> DateParseResult:
         result = self._blank_result()
 
+        yr, year_ok = self._coerce_split_component(year_val)
+        mo, month_ok = self._coerce_split_component(month_val)
+        dy, day_ok = self._coerce_split_component(day_val)
+
+        result.year = yr
+        result.month = mo
+        result.day = dy
+
+        if not (year_ok and month_ok and day_ok):
+            result.status_text = "ערך תאריך לא תקין"
+            return result
+
         try:
             yr = int(float(str(year_val).strip()))
             mo = int(float(str(month_val).strip()))
@@ -210,7 +223,7 @@ class DateEngine:
         # value.  The list-level majority correction in DateFieldProcessor
         # uses this flag to distinguish auto-completed years from explicitly
         # written 4-digit years.
-        year_was_auto_completed = yr < 100
+        year_was_auto_completed = 0 <= yr < 100
 
         if year_was_auto_completed:
             yr = self._expand_two_digit_year(yr)
@@ -722,19 +735,22 @@ class DateEngine:
 
     def _has_split_date(self, y, m, d):
 
+        return (
+            not self._is_empty(y)
+            and not self._is_empty(m)
+            and not self._is_empty(d)
+        )
+
+    def _is_empty(self, value) -> bool:
+        return value is None or str(value).strip() == ""
+
+    def _coerce_split_component(self, value) -> tuple[Optional[int], bool]:
+        if self._is_empty(value):
+            return None, False
         try:
-            if y in (None, "") or m in (None, "") or d in (None, ""):
-                return False
-            # Accept numeric types directly (int/float from Excel cells)
-            if isinstance(y, (int, float)) and isinstance(m, (int, float)) and isinstance(d, (int, float)):
-                return True
-            return (
-                str(y).strip().replace(".", "").replace("-", "").isdigit()
-                and str(m).strip().replace(".", "").replace("-", "").isdigit()
-                and str(d).strip().replace(".", "").replace("-", "").isdigit()
-            )
+            return int(float(str(value).strip())), True
         except Exception:
-            return False
+            return None, False
 
     def _calculate_age(self, birth: date, today: date) -> int:
         """Exact age calculation equivalent to VBA DateDiff('yyyy') with birthday check."""

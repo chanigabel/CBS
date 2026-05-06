@@ -15,6 +15,7 @@ from webapp.services.workbook_service import WorkbookService
 from webapp.services.standardization_service import standardizationService
 from webapp.services.edit_service import EditService
 from webapp.services.export_service import ExportService
+from webapp.services.processing_report_service import ProcessingReportService
 
 
 def _get_data_dir() -> Path:
@@ -44,11 +45,20 @@ for _d in (UPLOADS_DIR, WORK_DIR, OUTPUT_DIR):
 
 # Shared service instances (singletons for the process lifetime)
 _session_service = SessionService()
-_upload_service = UploadService(_session_service, UPLOADS_DIR, WORK_DIR)
+_processing_report_service = ProcessingReportService(_session_service)
+_upload_service = UploadService(
+    _session_service,
+    UPLOADS_DIR,
+    WORK_DIR,
+    _processing_report_service,
+)
 _workbook_service = WorkbookService(_session_service)
-_standardization_service = standardizationService(_session_service)
+_standardization_service = standardizationService(
+    _session_service,
+    _processing_report_service,
+)
 _edit_service = EditService(_session_service)
-_export_service = ExportService(_session_service, OUTPUT_DIR)
+_export_service = ExportService(_session_service, OUTPUT_DIR, _processing_report_service)
 
 
 def get_session_service() -> SessionService:
@@ -73,3 +83,7 @@ def get_edit_service() -> EditService:
 
 def get_export_service() -> ExportService:
     return _export_service
+
+
+def get_processing_report_service() -> ProcessingReportService:
+    return _processing_report_service

@@ -25,6 +25,16 @@ def test_export_returns_file_response(client):
     # The important thing is it doesn't crash with 404
     assert response.status_code in (200, 500)
 
+    report_response = client.get(f"/api/workbook/{session_id}/processing-report")
+    assert report_response.status_code == 200
+    report = report_response.json()
+    assert "upload" in report["completed_stages"]
+    assert "standardize" in report["completed_stages"]
+    if response.status_code == 200:
+        assert "export" in report["completed_stages"]
+        assert report["rows_exported"] >= 0
+        assert report["output_filename"].endswith(".xlsx")
+
 
 def test_export_returns_404_for_unknown_session(client):
     response = client.post("/api/workbook/ghost-session/export")

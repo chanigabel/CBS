@@ -3,6 +3,7 @@
 from dataclasses import dataclass, field
 from typing import List, Optional
 from src.excel_standardization.data_types import WorkbookDataset
+from webapp.models.processing_report import ProcessingReport
 
 
 @dataclass
@@ -59,6 +60,7 @@ class SessionRecord:
         sug_mosad_configs: Scoped SugMosad configurations.  When non-empty these
                      take precedence over the legacy mosad_types[0] workbook-level
                      default during export.
+        processing_report: Latest non-sensitive ProcessingReport for this session.
     """
 
     session_id: str
@@ -72,3 +74,4 @@ class SessionRecord:
     mosad_name: str = ""
     mosad_types: List[str] = field(default_factory=list)
     sug_mosad_configs: List[SugMosadConfig] = field(default_factory=list)
+    processing_report: Optional[ProcessingReport] = None

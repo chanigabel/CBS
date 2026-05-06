@@ -489,21 +489,23 @@ class standardizationPipeline:
                 )
                 date_result = result
                 
-                # Store corrected values
-                json_row[f"{year_field}_corrected"] = result.year if result.year is not None else year_val
-                json_row[f"{month_field}_corrected"] = result.month if result.month is not None else month_val
-                json_row[f"{day_field}_corrected"] = result.day if result.day is not None else day_val
+                corrected_year, corrected_month, corrected_day = (
+                    self._date_corrected_components(result)
+                )
+                json_row[f"{year_field}_corrected"] = corrected_year
+                json_row[f"{month_field}_corrected"] = corrected_month
+                json_row[f"{day_field}_corrected"] = corrected_day
                 # Write status text so the UI can display it
                 json_row[f"{prefix}_date_status"] = result.status_text
                 # Tag whether the year was auto-completed (for list-level majority correction)
                 json_row[f"_{prefix}_year_auto_completed"] = result.year_was_auto_completed
                 
             except Exception as e:
-                # If engine fails, store original values
-                json_row[f"{year_field}_corrected"] = year_val
-                json_row[f"{month_field}_corrected"] = month_val
-                json_row[f"{day_field}_corrected"] = day_val
-                json_row[f"{prefix}_date_status"] = ""
+                # If engine fails, do not leak raw date values into corrected fields.
+                json_row[f"{year_field}_corrected"] = ""
+                json_row[f"{month_field}_corrected"] = ""
+                json_row[f"{day_field}_corrected"] = ""
+                json_row[f"{prefix}_date_status"] = "ערך תאריך לא תקין"
                 json_row[f"_{prefix}_year_auto_completed"] = False
                 
                 # Track all three fields as failed
@@ -575,6 +577,34 @@ class standardizationPipeline:
                 )
         
         return failed_fields, date_result
+
+    def _date_corrected_components(self, result) -> Tuple[Any, Any, Any]:
+        """Return UI/export-safe corrected date components.
+
+        Invalid raw split-date values must never be copied into corrected
+        fields. Component-level range errors blank only the failing component;
+        non-numeric date content blanks any component that could not be parsed.
+        """
+        year = result.year
+        month = result.month
+        day = result.day
+        status = result.status_text or ""
+
+        if status == "ערך תאריך לא תקין":
+            return (
+                year if year is not None else "",
+                month if month is not None else "",
+                day if day is not None else "",
+            )
+
+        if status == "שנה לא תקינה":
+            year = ""
+        if status == "חודש לא תקין":
+            month = ""
+        if status == "יום לא תקין":
+            day = ""
+
+        return year, month, day
     
     def apply_identifier_standardization(self, json_row: JsonRow, row_number: Optional[int] = None) -> List[str]:
         """Apply IdentifierEngine to identifier fields in the row.

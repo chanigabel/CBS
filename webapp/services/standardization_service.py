@@ -17,6 +17,7 @@ from src.excel_standardization.engines.text_processor import TextProcessor
 from src.excel_standardization.data_types import SheetDataset
 
 from webapp.models.responses import StandardizeResponse, PerSheetStat
+from webapp.services.processing_report_service import ProcessingReportService
 from webapp.services.session_service import SessionService
 from webapp.services.mosad_id_scanner import scan_mosad_id
 
@@ -26,8 +27,15 @@ logger = logging.getLogger(__name__)
 class standardizationService:
     """Runs the standardization pipeline on a session's working copy."""
 
-    def __init__(self, session_service: SessionService) -> None:
+    def __init__(
+        self,
+        session_service: SessionService,
+        processing_report_service: ProcessingReportService | None = None,
+    ) -> None:
         self.session_service = session_service
+        self.processing_report_service = (
+            processing_report_service or ProcessingReportService(session_service)
+        )
 
     def standardize(self, session_id: str, sheet_name: Optional[str] = None) -> StandardizeResponse:
         """Run standardization on the session's working copy.
@@ -52,9 +60,23 @@ class standardizationService:
             try:
                 wbd = extractor.extract_workbook_to_json(record.working_copy_path)
                 self.session_service.update(session_id, workbook_dataset=wbd)
+                self.processing_report_service.complete_stage(session_id, "extract")
+                self.processing_report_service.update_workbook_counts(session_id, wbd)
                 record = self.session_service.get(session_id)
             except Exception as exc:
-                logger.error(f"Failed to load workbook for standardization: {exc}", exc_info=True)
+                self.processing_report_service.add_error(
+                    session_id,
+                    "Failed to extract workbook for standardization.",
+                )
+                logger.error(
+                    "standardization_extract_failed",
+                    exc_info=True,
+                    extra={
+                        "event": "standardization_extract_failed",
+                        "session_id": session_id,
+                        "error_type": type(exc).__name__,
+                    },
+                )
                 raise HTTPException(
                     status_code=500,
                     detail="No workbook data available. Please load a sheet first.",
@@ -84,10 +106,24 @@ class standardizationService:
                     fresh.set_metadata("MosadID", mosad_id)
                 sheets_to_normalize = [fresh]
                 wb.close()
+                self.processing_report_service.complete_stage(session_id, "extract")
             except HTTPException:
                 raise
             except Exception as exc:
-                logger.error(f"Failed to extract sheet '{sheet_name}': {exc}", exc_info=True)
+                self.processing_report_service.add_error(
+                    session_id,
+                    f"Failed to extract sheet '{sheet_name}'.",
+                )
+                logger.error(
+                    "standardization_sheet_extract_failed",
+                    exc_info=True,
+                    extra={
+                        "event": "standardization_sheet_extract_failed",
+                        "session_id": session_id,
+                        "sheet_name": sheet_name,
+                        "error_type": type(exc).__name__,
+                    },
+                )
                 raise HTTPException(
                     status_code=500,
                     detail="Failed to read the working copy for standardization.",
@@ -110,8 +146,21 @@ class standardizationService:
                         fresh.set_metadata("MosadID", mosad_id)
                     sheets_to_normalize.append(fresh)
                 wb.close()
+                self.processing_report_service.complete_stage(session_id, "extract")
             except Exception as exc:
-                logger.error(f"Failed to extract workbook: {exc}", exc_info=True)
+                self.processing_report_service.add_error(
+                    session_id,
+                    "Failed to extract workbook for standardization.",
+                )
+                logger.error(
+                    "standardization_extract_failed",
+                    exc_info=True,
+                    extra={
+                        "event": "standardization_extract_failed",
+                        "session_id": session_id,
+                        "error_type": type(exc).__name__,
+                    },
+                )
                 raise HTTPException(
                     status_code=500,
                     detail="Failed to read the working copy for standardization.",
@@ -132,14 +181,37 @@ class standardizationService:
                     rows=stats.get("total_rows", len(norm.rows)),
                     success_rate=stats.get("success_rate", 1.0),
                 ))
-                logger.info(f"Sheet '{sheet.sheet_name}' standardized: "
-                            f"{per_sheet_stats[-1].rows} rows")
+                logger.info(
+                    "sheet_standardized",
+                    extra={
+                        "event": "sheet_standardized",
+                        "session_id": session_id,
+                        "sheet_name": sheet.sheet_name,
+                        "rows": per_sheet_stats[-1].rows,
+                    },
+                )
             except Exception as exc:
-                logger.error(f"Failed to normalize sheet '{sheet.sheet_name}': {exc}",
-                             exc_info=True)
+                self.processing_report_service.add_warning(
+                    session_id,
+                    f"Standardization failed for sheet '{sheet.sheet_name}'.",
+                )
+                logger.error(
+                    "sheet_standardization_failed",
+                    exc_info=True,
+                    extra={
+                        "event": "sheet_standardization_failed",
+                        "session_id": session_id,
+                        "sheet_name": sheet.sheet_name,
+                        "error_type": type(exc).__name__,
+                    },
+                )
                 failed_sheets.append(sheet.sheet_name)
 
         if not normalized_sheets:
+            self.processing_report_service.add_error(
+                session_id,
+                "Standardization failed for all sheets.",
+            )
             raise HTTPException(
                 status_code=500,
                 detail=f"standardization failed for all sheets: {', '.join(failed_sheets)}",
@@ -196,7 +268,12 @@ class standardizationService:
                     "Workbook-level institution-report validation completed for session %s",
                     session_id,
                 )
+            self.processing_report_service.complete_stage(session_id, "validate")
         except Exception as _wv_exc:
+            self.processing_report_service.add_warning(
+                session_id,
+                "Workbook-level validation was skipped.",
+            )
             logger.warning(
                 "Workbook-level institution-report validation skipped: %s", _wv_exc
             )
@@ -222,8 +299,18 @@ class standardizationService:
         self.session_service.update(session_id, status="standardized")
 
         total_rows = sum(s.rows for s in per_sheet_stats)
-        logger.info(f"standardization complete for session {session_id}: "
-                    f"{len(normalized_sheets)} sheets, {total_rows} total rows")
+        record = self.session_service.get(session_id)
+        self.processing_report_service.complete_stage(session_id, "standardize")
+        self.processing_report_service.update_workbook_counts(session_id, record.workbook_dataset)
+        logger.info(
+            "standardization_complete",
+            extra={
+                "event": "standardization_complete",
+                "session_id": session_id,
+                "sheets_processed": len(normalized_sheets),
+                "rows_processed": total_rows,
+            },
+        )
 
         return StandardizeResponse(
             session_id=session_id,
