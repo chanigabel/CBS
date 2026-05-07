@@ -106,7 +106,7 @@ EXPORT_MAPPING: Dict[str, Optional[str]] = {
     "ShnatLida":           "birth_year_corrected",
     "HodeshLida":          "birth_month_corrected",
     "YomLida":             "birth_day_corrected",
-    "shnatKnisa":          "entry_year_corrected",
+    "shnatknisa":          "entry_year_corrected",
     "Hodeshknisa":         "entry_month_corrected",
     "YomKnisa":            "entry_day_corrected",
 }

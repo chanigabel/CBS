@@ -18,6 +18,9 @@ from ..engines.date_engine import DateEngine
 from ..engines.identifier_engine import IdentifierEngine
 from ..engines.text_processor import TextProcessor
 from . import date_standardization
+from . import gender_standardization
+from . import identifier_standardization
+from . import name_standardization
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
@@ -183,7 +186,7 @@ class StandardizationPipeline:
 
         Last-name removal uses the two-stage logic in NameEngine:
           Stage A: substring removal.
-          Stage B: positional fallback — only when Stage A made no change.
+          Stage B: positional fallback ? only when Stage A made no change.
 
         The pattern for father_name and first_name is stored on the pipeline
         instance (set by normalize_dataset before iterating rows).
@@ -198,64 +201,8 @@ class StandardizationPipeline:
         Requirements:
             - Validates: Requirements 12.3, 12.8, 14.1-14.5, 18.1-18.4
         """
-        from ..data_types import FatherNamePattern
+        return name_standardization.apply_name_standardization(self, json_row, row_number)
 
-        failed_fields: List[str] = []
-
-        try:
-            # --- last_name: clean only, no removal ---
-            if "last_name" in json_row:
-                original = json_row["last_name"]
-                if original is None or original == "":
-                    json_row["last_name_corrected"] = original
-                else:
-                    json_row["last_name_corrected"] = self.name_engine.normalize_name(str(original))
-
-            # Resolve cleaned last name for use in removal below
-            cleaned_last = ""
-            if "last_name" in json_row:
-                raw_last = json_row.get("last_name")
-                if raw_last:
-                    cleaned_last = self.name_engine.normalize_name(str(raw_last))
-
-            # --- first_name: clean + last-name removal ---
-            if "first_name" in json_row:
-                original = json_row["first_name"]
-                if original is None or original == "":
-                    json_row["first_name_corrected"] = original
-                else:
-                    cleaned = self.name_engine.normalize_name(str(original))
-                    if cleaned_last:
-                        pattern = getattr(self, "_first_name_pattern", FatherNamePattern.NONE)
-                        cleaned = self.name_engine.remove_last_name_from_first_name(
-                            cleaned, cleaned_last, pattern
-                        )
-                    json_row["first_name_corrected"] = cleaned
-
-            # --- father_name: clean + last-name removal ---
-            if "father_name" in json_row:
-                original = json_row["father_name"]
-                if original is None or original == "":
-                    json_row["father_name_corrected"] = original
-                else:
-                    cleaned = self.name_engine.normalize_name(str(original))
-                    if cleaned_last:
-                        pattern = getattr(self, "_father_name_pattern", FatherNamePattern.NONE)
-                        cleaned = self.name_engine.remove_last_name_from_father(
-                            cleaned, cleaned_last, pattern
-                        )
-                    json_row["father_name_corrected"] = cleaned
-
-        except Exception as e:
-            for field in ["first_name", "last_name", "father_name"]:
-                if field in json_row and f"{field}_corrected" not in json_row:
-                    json_row[f"{field}_corrected"] = json_row[field]
-                    failed_fields.append(field)
-            row_info = f"row {row_number}" if row_number is not None else "unknown row"
-            logger.error(f"Name standardization failed at {row_info}: {e}")
-
-        return failed_fields
-    
     def apply_gender_standardization(self, json_row: JsonRow, row_number: Optional[int] = None) -> List[str]:
         """Apply GenderEngine to gender field in the row.
         
@@ -272,42 +219,8 @@ class StandardizationPipeline:
         Requirements:
             - Validates: Requirements 12.4, 12.8, 14.1-14.5, 18.1-18.4
         """
-        failed_fields: List[str] = []
-        
-        if "gender" in json_row:
-            original = json_row["gender"]
-            
-            # F-04: Handle None, empty string, AND whitespace-only values consistently.
-            # Previously only None and "" were caught here; whitespace-only strings
-            # fell through to the engine which stripped them and returned 1 (male),
-            # inconsistent with how None/"" are handled (preserved as-is).
-            if original is None or str(original).strip() == "":
-                json_row["gender_corrected"] = original
-                return failed_fields
-            
-            # Try to normalize the gender
-            try:
-                corrected = self.gender_engine.normalize_gender(original)
-                json_row["gender_corrected"] = corrected
-                # Write a status message when the value is unrecognized (engine returns "").
-                if corrected == "":
-                    json_row["gender_status"] = "קוד מין לא תקין - חייב להיות 1 (זכר) או 2 (נקבה)"
-                else:
-                    json_row.setdefault("gender_status", "")
-            except Exception as e:
-                # If engine fails, store original value
-                json_row["gender_corrected"] = original
-                failed_fields.append("gender")
-                
-                # Log error with context
-                row_info = f"row {row_number}" if row_number is not None else "unknown row"
-                logger.error(
-                    f"Gender standardization failed for field 'gender' at {row_info}: {str(e)}. "
-                    f"Original value: '{original}'"
-                )
-        
-        return failed_fields
-    
+        return gender_standardization.apply_gender_standardization(self, json_row, row_number)
+
     def apply_date_standardization(self, json_row: JsonRow, row_number: Optional[int] = None) -> List[str]:
         """Apply DateEngine to date fields in the row.
         
@@ -329,46 +242,6 @@ class StandardizationPipeline:
             - Validates: Requirements 12.5, 12.8, 14.1-14.5, 18.1-18.4
         """
         return date_standardization.apply_date_standardization(self, json_row, row_number)
-
-        from ..data_types import DateFormatPattern, DateFieldType
-        
-        failed_fields: List[str] = []
-        
-        # Process birth date — store result for cross-validation below
-        failures, birth_result = self._normalize_date_field(
-            json_row,
-            "birth",
-            DateFieldType.BIRTH_DATE,
-            row_number
-        )
-        failed_fields.extend(failures)
-        
-        # Process entry date — store result for cross-validation below
-        failures, entry_result = self._normalize_date_field(
-            json_row,
-            "entry",
-            DateFieldType.ENTRY_DATE,
-            row_number
-        )
-        failed_fields.extend(failures)
-
-        # F-02: Cross-validate entry date against birth date.
-        # DateEngine.validate_entry_before_birth exists but was never called by
-        # the pipeline.  We call it here and append a warning to entry_date_status
-        # when the entry date precedes the birth date.
-        if birth_result is not None and entry_result is not None:
-            try:
-                if not self.date_engine.validate_entry_before_birth(birth_result, entry_result):
-                    warning = "תאריך כניסה לפני תאריך לידה"
-                    existing_status = json_row.get("entry_date_status", "")
-                    if existing_status:
-                        json_row["entry_date_status"] = f"{existing_status} | {warning}"
-                    else:
-                        json_row["entry_date_status"] = warning
-            except Exception:
-                pass  # Cross-validation is best-effort; never block standardization
-        
-        return failed_fields
     
     def _normalize_date_field(self, json_row: JsonRow, prefix: str, field_type, row_number: Optional[int] = None):
         """Helper method to normalize a date field (birth or entry).
@@ -386,156 +259,6 @@ class StandardizationPipeline:
         """
         return date_standardization.normalize_date_field(self, json_row, prefix, field_type, row_number)
 
-        from ..data_types import DateFormatPattern
-        
-        failed_fields: List[str] = []
-        date_result = None  # returned for entry-before-birth cross-validation (F-02)
-        
-        # F-03: Use the per-dataset detected date format pattern instead of always
-        # hardcoding DDMM.  The pattern is detected once in normalize_dataset() and
-        # cached on the pipeline instance as _date_format_pattern.
-        pattern = getattr(self, "_date_format_pattern", DateFormatPattern.DDMM)
-        
-        # Check for split date fields
-        year_field = f"{prefix}_year"
-        month_field = f"{prefix}_month"
-        day_field = f"{prefix}_day"
-        
-        # Check for single date field
-        date_field = f"{prefix}_date"
-        
-        # Determine if we have split or single date
-        has_split = (year_field in json_row or month_field in json_row or day_field in json_row)
-        has_single = date_field in json_row
-        
-        if has_split:
-            # Process split date fields
-            year_val = json_row.get(year_field)
-            month_val = json_row.get(month_field)
-            day_val = json_row.get(day_field)
-
-            # If only year_val is present (month/day are null), treat year_val as main_val.
-            # This handles the case where a full date string (ISO, DD/MM/YYYY, etc.) is
-            # stored in the year column because the sheet uses a single merged date cell
-            # that openpyxl maps to the first split column.
-            # Also handle datetime objects stored in the year column.
-            from datetime import datetime as _dt, date as _date
-            if year_val is not None and month_val is None and day_val is None:
-                main_val_for_engine = year_val
-                year_val_for_engine = None
-                month_val_for_engine = None
-                day_val_for_engine = None
-            elif isinstance(year_val, (_dt, _date)):
-                # Excel datetime stored in year column — treat as main value
-                main_val_for_engine = year_val
-                year_val_for_engine = None
-                month_val_for_engine = None
-                day_val_for_engine = None
-            else:
-                main_val_for_engine = None
-                year_val_for_engine = year_val
-                month_val_for_engine = month_val
-                day_val_for_engine = day_val
-            
-            try:
-                # Use DateEngine to parse from split columns
-                result = self.date_engine.parse_date(
-                    year_val_for_engine, month_val_for_engine, day_val_for_engine,
-                    main_val_for_engine,
-                    pattern,
-                    field_type
-                )
-                date_result = result
-                
-                corrected_year, corrected_month, corrected_day = (
-                    self._date_corrected_components(result)
-                )
-                json_row[f"{year_field}_corrected"] = corrected_year
-                json_row[f"{month_field}_corrected"] = corrected_month
-                json_row[f"{day_field}_corrected"] = corrected_day
-                # Write status text so the UI can display it
-                json_row[f"{prefix}_date_status"] = result.status_text
-                # Tag whether the year was auto-completed (for list-level majority correction)
-                json_row[f"_{prefix}_year_auto_completed"] = result.year_was_auto_completed
-                
-            except Exception as e:
-                # If engine fails, do not leak raw date values into corrected fields.
-                json_row[f"{year_field}_corrected"] = ""
-                json_row[f"{month_field}_corrected"] = ""
-                json_row[f"{day_field}_corrected"] = ""
-                json_row[f"{prefix}_date_status"] = "ערך תאריך לא תקין"
-                json_row[f"_{prefix}_year_auto_completed"] = False
-                
-                # Track all three fields as failed
-                failed_fields.extend([year_field, month_field, day_field])
-                
-                # Log error with context
-                row_info = f"row {row_number}" if row_number is not None else "unknown row"
-                logger.error(
-                    f"Date standardization failed for split date fields '{prefix}_*' at {row_info}: {str(e)}. "
-                    f"Original values: year={year_val}, month={month_val}, day={day_val}"
-                )
-        
-        elif has_single:
-            # Process single date field.
-            # The source has one date column (e.g. birth_date) with raw values.
-            # We parse the value and ALWAYS write structured year/month/day
-            # corrected fields — the same output model as the split path.
-            # There is no weaker "leave it as one text field" fallback.
-            date_val = json_row.get(date_field)
-
-            # Derive the structured field names (same as split path)
-            year_field = f"{prefix}_year"
-            month_field = f"{prefix}_month"
-            day_field = f"{prefix}_day"
-
-            # Handle None/empty values
-            if date_val is None or date_val == "":
-                json_row[f"{year_field}_corrected"] = None
-                json_row[f"{month_field}_corrected"] = None
-                json_row[f"{day_field}_corrected"] = None
-                json_row[f"{prefix}_date_status"] = ""
-                json_row[f"_{prefix}_year_auto_completed"] = False
-                return failed_fields, date_result
-
-            try:
-                # Use DateEngine to parse from main value
-                result = self.date_engine.parse_date(
-                    None, None, None,  # no split values
-                    date_val,          # main_val
-                    pattern,
-                    field_type
-                )
-                date_result = result
-
-                # Always write structured year/month/day corrected fields.
-                # When parsing failed (components are None), write None so the
-                # UI shows empty cells rather than the raw unparseable string.
-                json_row[f"{year_field}_corrected"] = result.year
-                json_row[f"{month_field}_corrected"] = result.month
-                json_row[f"{day_field}_corrected"] = result.day
-                # Write status text so the UI can display it
-                json_row[f"{prefix}_date_status"] = result.status_text
-                # Tag whether the year was auto-completed (for list-level majority correction)
-                json_row[f"_{prefix}_year_auto_completed"] = result.year_was_auto_completed
-
-            except Exception as e:
-                # If engine fails, write empty structured fields
-                json_row[f"{year_field}_corrected"] = None
-                json_row[f"{month_field}_corrected"] = None
-                json_row[f"{day_field}_corrected"] = None
-                json_row[f"{prefix}_date_status"] = ""
-                json_row[f"_{prefix}_year_auto_completed"] = False
-                failed_fields.append(date_field)
-
-                row_info = f"row {row_number}" if row_number is not None else "unknown row"
-                logger.error(
-                    f"Date standardization failed for field '{date_field}' at {row_info}: {str(e)}. "
-                    f"Original value: '{date_val}'"
-                )
-        
-        return failed_fields, date_result
-
     def _date_corrected_components(self, result) -> Tuple[Any, Any, Any]:
         """Return UI/export-safe corrected date components.
 
@@ -544,27 +267,6 @@ class StandardizationPipeline:
         non-numeric date content blanks any component that could not be parsed.
         """
         return date_standardization.date_corrected_components(result)
-
-        year = result.year
-        month = result.month
-        day = result.day
-        status = result.status_text or ""
-
-        if status == "ערך תאריך לא תקין":
-            return (
-                year if year is not None else "",
-                month if month is not None else "",
-                day if day is not None else "",
-            )
-
-        if status == "שנה לא תקינה":
-            year = ""
-        if status == "חודש לא תקין":
-            month = ""
-        if status == "יום לא תקין":
-            day = ""
-
-        return year, month, day
     
     def apply_identifier_standardization(self, json_row: JsonRow, row_number: Optional[int] = None) -> List[str]:
         """Apply IdentifierEngine to identifier fields in the row.
@@ -583,58 +285,8 @@ class StandardizationPipeline:
         Requirements:
             - Validates: Requirements 12.6, 12.8, 14.1-14.5, 18.1-18.4
         """
-        failed_fields: List[str] = []
-        
-        # Get original values
-        id_value = json_row.get("id_number")
-        passport_value = json_row.get("passport")
-        
-        # Handle case where neither field exists
-        if "id_number" not in json_row and "passport" not in json_row:
-            return failed_fields
-        
-        # Handle None/empty values for both fields
-        if (id_value is None or id_value == "") and (passport_value is None or passport_value == ""):
-            if "id_number" in json_row:
-                json_row["id_number_corrected"] = id_value
-            if "passport" in json_row:
-                json_row["passport_corrected"] = passport_value
-            # Always write identifier_status so the column appears consistently
-            # in field_names even when both identifiers are empty.
-            json_row["identifier_status"] = "חסר מזהים"
-            return failed_fields
-        
-        try:
-            # Use IdentifierEngine to normalize both fields together
-            result = self.identifier_engine.normalize_identifiers(id_value, passport_value)
-            
-            # Store corrected values
-            if "id_number" in json_row:
-                json_row["id_number_corrected"] = result.corrected_id
-            if "passport" in json_row:
-                json_row["passport_corrected"] = result.corrected_passport
-            # Always write the status text so the UI can display it
-            json_row["identifier_status"] = result.status_text
-                
-        except Exception as e:
-            # If engine fails, store original values
-            if "id_number" in json_row:
-                json_row["id_number_corrected"] = id_value
-                failed_fields.append("id_number")
-            if "passport" in json_row:
-                json_row["passport_corrected"] = passport_value
-                failed_fields.append("passport")
-            json_row["identifier_status"] = ""
-            
-            # Log error with context
-            row_info = f"row {row_number}" if row_number is not None else "unknown row"
-            logger.error(
-                f"Identifier standardization failed for fields 'id_number'/'passport' at {row_info}: {str(e)}. "
-                f"Original values: id_number='{id_value}', passport='{passport_value}'"
-            )
-        
-        return failed_fields
-    
+        return identifier_standardization.apply_identifier_standardization(self, json_row, row_number)
+
     def normalize_dataset(self, raw_dataset: SheetDataset) -> SheetDataset:
         """Apply standardization engines to all rows in dataset.
 
@@ -851,73 +503,6 @@ class StandardizationPipeline:
         - The internal tag key is stripped from the final rows.
         """
         return date_standardization.apply_birth_year_majority_correction(self, rows)
-
-        from ..data_types import DateFieldType, DateFormatPattern
-
-        # Determine which year field to inspect: split (birth_year_corrected)
-        # or single (birth_date_corrected contains DD/MM/YYYY string).
-        # We use the _birth_year_auto_completed tag to identify eligible rows
-        # and read the corrected year from birth_year_corrected when present,
-        # otherwise parse it from birth_date_corrected.
-
-        def _get_corrected_year(row):
-            """Extract the corrected birth year integer from a row, or None."""
-            if "birth_year_corrected" in row:
-                try:
-                    return int(row["birth_year_corrected"])
-                except (TypeError, ValueError):
-                    return None
-            return None
-
-        auto_1900s = sum(
-            1 for r in rows
-            if r.get("_birth_year_auto_completed") is True
-            and _get_corrected_year(r) is not None
-            and 1900 <= _get_corrected_year(r) <= 1999
-        )
-        auto_2000s = sum(
-            1 for r in rows
-            if r.get("_birth_year_auto_completed") is True
-            and _get_corrected_year(r) is not None
-            and 2000 <= _get_corrected_year(r) <= 2099
-        )
-
-        total_auto = auto_1900s + auto_2000s
-        do_correction = total_auto > 0 and auto_1900s > auto_2000s
-
-        corrected_rows = []
-        for row in rows:
-            row = dict(row)  # shallow copy so we don't mutate the original
-            is_auto = row.get("_birth_year_auto_completed") is True
-            yr = _get_corrected_year(row)
-
-            if do_correction and is_auto and yr is not None and 2000 <= yr <= 2099:
-                new_yr = yr - 100  # e.g. 2026 → 1926
-
-                if "birth_year_corrected" in row:
-                    # Update the corrected year and re-validate
-                    mo = row.get("birth_month_corrected")
-                    dy = row.get("birth_day_corrected")
-                    try:
-                        new_result = self.date_engine._validate_date(new_yr, mo, dy)
-                        new_result.year_was_auto_completed = True
-                        new_result = self.date_engine.validate_business_rules(
-                            new_result, DateFieldType.BIRTH_DATE
-                        )
-                        row["birth_year_corrected"] = new_result.year if new_result.year is not None else new_yr
-                        row["birth_month_corrected"] = new_result.month if new_result.month is not None else mo
-                        row["birth_day_corrected"] = new_result.day if new_result.day is not None else dy
-                        row["birth_date_status"] = new_result.status_text
-                    except Exception:
-                        row["birth_year_corrected"] = new_yr
-
-            # Strip the internal tag — it must not appear in the UI payload
-            row.pop("_birth_year_auto_completed", None)
-            row.pop("_entry_year_auto_completed", None)
-            corrected_rows.append(row)
-
-        return corrected_rows
-
 
 # Backward-compatible alias for callers that still import the legacy name.
 standardizationPipeline = StandardizationPipeline
