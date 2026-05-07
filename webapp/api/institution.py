@@ -1,6 +1,5 @@
 ﻿"""Institution router: GET/PATCH institution metadata and bulk MosadType apply."""
 
-import re
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, field_validator
 from typing import List, Optional
@@ -19,12 +18,6 @@ class InstitutionUpdateRequest(BaseModel):
     mosad_name: Optional[str] = None
     mosad_types: Optional[List[str]] = None
 
-    @field_validator("mosad_id")
-    @classmethod
-    def validate_mosad_id(cls, v: Optional[str]) -> Optional[str]:
-        if v is None:
-            return v
-        return _validate_numeric_min3(v, "מספר מוסד")
 
     @field_validator("mosad_types")
     @classmethod

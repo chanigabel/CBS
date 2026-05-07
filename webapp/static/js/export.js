@@ -198,17 +198,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const instType2 = document.getElementById('inst-type-2');
     const instType3 = document.getElementById('inst-type-3');
 
-    function saveInstitution() {
-        if (!state.sessionId) return;
-        const rawId = instId ? instId.value.trim() : '';
-        // Validate mosad_id before saving — reject non-numeric or < 3 digits
-        if (rawId) {
-            const idErr = validateNumericMin3(rawId, 'מספר מוסד');
-            if (idErr) { showError(idErr); if (instId) instId.focus(); return; }
-        }
-        const types = [instType1, instType2, instType3]
-            .map(el => el ? el.value.trim() : '')
-            .filter(v => v !== '');
+function saveInstitution() {
+    if (!state.sessionId) return;
+    const rawId = instId ? instId.value.trim() : '';
+    const types = [instType1, instType2, instType3]
+        .map(el => el ? el.value.trim() : '')
+        .filter(v => v !== '');
         // Validate each mosad_type before saving
         for (const t of types) {
             const tErr = validateNumericMin3(t, 'סוג מוסד');

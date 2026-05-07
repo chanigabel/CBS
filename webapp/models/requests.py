@@ -74,7 +74,7 @@ class ApplySugMosadRequest(BaseModel):
 
     Validation:
         - sug_mosad must be numeric-only, ≥ 3 digits (for workbook/sheet scope).
-        - mosad_id, if provided, must be numeric-only, ≥ 3 digits.
+        - mosad_id, if provided, is stored as-is after trimming.
         - sheet_name required for "sheet" and "selected_rows" scopes.
         - selected_rows required (1–3 entries) for "selected_rows" scope.
     """
@@ -99,12 +99,6 @@ class ApplySugMosadRequest(BaseModel):
             return v
         return _validate_numeric_min3(v, "סוג מוסד")
 
-    @field_validator("mosad_id")
-    @classmethod
-    def validate_mosad_id(cls, v: Optional[str]) -> Optional[str]:
-        if v is None:
-            return v
-        return _validate_numeric_min3(v, "מספר מוסד")
 
     @model_validator(mode="after")
     def validate_scope_fields(self) -> "ApplySugMosadRequest":

@@ -14,8 +14,8 @@ Covers:
 - Validation: non-numeric Institution Type rejected.
 - Validation: Institution Type with < 3 digits rejected.
 - Validation: Institution Type with exactly 3 digits accepted.
-- Validation: non-numeric MosadID rejected.
-- Validation: MosadID with < 3 digits rejected.
+- Validation: MosadID accepts non-numeric values.
+- Validation: MosadID accepts short values.
 - Validation: MosadID with exactly 3 digits accepted.
 - Validation: non-numeric MisparDiraBeMosad flagged when column exists.
 - No failure when MisparDiraBeMosad column does not exist.
@@ -411,19 +411,21 @@ class TestValidationSugMosad:
 # ---------------------------------------------------------------------------
 
 class TestValidationMosadId:
-    def test_non_numeric_rejected(self, client_with_two_sheets):
+    def test_non_numeric_allowed(self, client_with_two_sheets):
         client, svc, record = client_with_two_sheets
         resp = client.post("/api/workbook/test-session/mosad-type/apply-scoped", json={
             "scope": "workbook", "sug_mosad": "1234", "mosad_id": "abc",
         })
-        assert resp.status_code == 422
+        assert resp.status_code == 200
+        assert svc.get("test-session").mosad_id == "abc"
 
-    def test_two_digit_rejected(self, client_with_two_sheets):
+    def test_two_digit_allowed(self, client_with_two_sheets):
         client, svc, record = client_with_two_sheets
         resp = client.post("/api/workbook/test-session/mosad-type/apply-scoped", json={
             "scope": "workbook", "sug_mosad": "1234", "mosad_id": "12",
         })
-        assert resp.status_code == 422
+        assert resp.status_code == 200
+        assert svc.get("test-session").mosad_id == "12"
 
     def test_three_digit_accepted_and_stored(self, client_with_two_sheets):
         client, svc, record = client_with_two_sheets
@@ -670,19 +672,21 @@ class TestLegacyApplyValidation:
 # ---------------------------------------------------------------------------
 
 class TestPatchInstitutionValidation:
-    """PATCH /institution must validate mosad_id and mosad_types."""
+    """PATCH /institution must allow mosad_id values and validate mosad_types."""
 
-    def test_two_digit_mosad_id_rejected(self, client_with_two_sheets):
+    def test_two_digit_mosad_id_allowed(self, client_with_two_sheets):
         client, svc, record = client_with_two_sheets
         resp = client.patch("/api/workbook/test-session/institution",
                             json={"mosad_id": "12"})
-        assert resp.status_code == 422
+        assert resp.status_code == 200
+        assert svc.get("test-session").mosad_id == "12"
 
-    def test_non_numeric_mosad_id_rejected(self, client_with_two_sheets):
+    def test_non_numeric_mosad_id_allowed(self, client_with_two_sheets):
         client, svc, record = client_with_two_sheets
         resp = client.patch("/api/workbook/test-session/institution",
                             json={"mosad_id": "abc"})
-        assert resp.status_code == 422
+        assert resp.status_code == 200
+        assert svc.get("test-session").mosad_id == "abc"
 
     def test_three_digit_mosad_id_accepted(self, client_with_two_sheets):
         client, svc, record = client_with_two_sheets
@@ -879,19 +883,19 @@ class TestSelectedRowsAccumulation:
         })
         assert r3.status_code == 422
 
-    def test_two_digit_mosad_id_rejected_in_all_scopes(self, client_with_two_sheets):
-        """2-digit mosad_id must be rejected regardless of scope."""
+    def test_two_digit_mosad_id_allowed_in_all_scopes(self, client_with_two_sheets):
+        """2-digit mosad_id must be accepted regardless of scope."""
         client, svc, record = client_with_two_sheets
 
         r1 = client.post("/api/workbook/test-session/mosad-type/apply-scoped", json={
             "scope": "workbook", "sug_mosad": "1234", "mosad_id": "12",
         })
-        assert r1.status_code == 422
+        assert r1.status_code == 200
 
         r2 = client.post("/api/workbook/test-session/mosad-type/apply-scoped", json={
             "scope": "sheet", "sug_mosad": "1234", "sheet_name": "Sheet1", "mosad_id": "12",
         })
-        assert r2.status_code == 422
+        assert r2.status_code == 200
 
 
 # ---------------------------------------------------------------------------

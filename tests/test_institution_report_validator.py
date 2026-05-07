@@ -19,8 +19,6 @@ from src.excel_standardization.validation.institution_report_validator import (
     SHEET_DAYARIM_YAHIDIM,
     SHEET_MESHKEY_BAYT,
     MSG_MOSAD_ID_MISSING,
-    MSG_MOSAD_ID_NOT_NUMERIC,
-    MSG_MOSAD_ID_TOO_SHORT,
     MSG_SUG_MOSAD_MISSING,
     MSG_SUG_MOSAD_NOT_NUMERIC,
     MSG_SUG_MOSAD_TOO_SHORT,
@@ -94,8 +92,6 @@ class TestMosadID:
         row = _make_valid_row()
         r = _validator().validate_row(row)
         assert MSG_MOSAD_ID_MISSING not in _messages(r)
-        assert MSG_MOSAD_ID_NOT_NUMERIC not in _messages(r)
-        assert MSG_MOSAD_ID_TOO_SHORT not in _messages(r)
 
     def test_missing(self):
         row = _make_valid_row(MosadID=None)
@@ -107,21 +103,20 @@ class TestMosadID:
         r = _validator().validate_row(row)
         assert MSG_MOSAD_ID_MISSING in _messages(r)
 
-    def test_not_numeric(self):
+    def test_non_numeric_allowed(self):
         row = _make_valid_row(MosadID="abc")
         r = _validator().validate_row(row)
-        assert MSG_MOSAD_ID_NOT_NUMERIC in _messages(r)
+        assert MSG_MOSAD_ID_MISSING not in _messages(r)
 
-    def test_too_short(self):
+    def test_short_value_allowed(self):
         row = _make_valid_row(MosadID="12")
         r = _validator().validate_row(row)
-        assert MSG_MOSAD_ID_TOO_SHORT in _messages(r)
+        assert MSG_MOSAD_ID_MISSING not in _messages(r)
 
     def test_exactly_3_digits_ok(self):
         row = _make_valid_row(MosadID="123")
         r = _validator().validate_row(row)
-        assert MSG_MOSAD_ID_TOO_SHORT not in _messages(r)
-        assert MSG_MOSAD_ID_NOT_NUMERIC not in _messages(r)
+        assert MSG_MOSAD_ID_MISSING not in _messages(r)
 
 
 # ---------------------------------------------------------------------------

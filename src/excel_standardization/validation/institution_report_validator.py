@@ -10,8 +10,8 @@ fields, so it reads *_corrected values where available and falls back to origina
 
 Validation categories implemented here:
     1. Required-field presence (empty = error)
-    2. Numeric-only checks
-    3. Minimum-length checks (MosadID, SugMosad ≥ 3 digits)
+    2. Numeric-only checks (SugMosad only)
+    3. Minimum-length checks (SugMosad ≥ 3 digits)
     4. Numeric range checks (month 1-12, day 1-31 basic)
     5. Birth year minimum 1906
     6. Gender valid values (1 or 2)
@@ -62,8 +62,6 @@ KNOWN_SHEETS = {SHEET_ANASHEY_TZEVET, SHEET_DAYARIM_YAHIDIM, SHEET_MESHKEY_BAYT}
 
 # MosadID
 MSG_MOSAD_ID_MISSING = "חסר מספר מוסד"
-MSG_MOSAD_ID_NOT_NUMERIC = "מספר מוסד חייב להכיל ספרות בלבד"
-MSG_MOSAD_ID_TOO_SHORT = "מספר מוסד חייב להכיל לפחות 3 ספרות"
 
 # SugMosad
 MSG_SUG_MOSAD_MISSING = "חסר סוג מוסד"
@@ -418,16 +416,10 @@ class InstitutionReportValidator:
     # ------------------------------------------------------------------
 
     def _validate_mosad_id(self, row: Dict[str, Any], result: RowValidationResult) -> None:
-        """MosadID: required, numeric, ≥3 digits."""
+        """MosadID: required in export only; missing values are reported."""
         val = _to_str(_get_field(row, "MosadID", "mosad_id"))
         if not val:
             result.add("MosadID", MSG_MOSAD_ID_MISSING)
-            return
-        if not _is_numeric_str(val):
-            result.add("MosadID", MSG_MOSAD_ID_NOT_NUMERIC)
-            return
-        if len(val) < 3:
-            result.add("MosadID", MSG_MOSAD_ID_TOO_SHORT)
 
     def _validate_sug_mosad(self, row: Dict[str, Any], result: RowValidationResult) -> None:
         """SugMosad: required, numeric, ≥3 digits.

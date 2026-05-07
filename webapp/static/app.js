@@ -45,15 +45,11 @@ function initApp() {
     function saveInstitution() {
         if (!state.sessionId) return;
         const rawId = instId ? instId.value.trim() : '';
-        if (rawId) {
-            const idErr = validateNumericMin3(rawId, '???? ????');
-            if (idErr) { showError(idErr); if (instId) instId.focus(); return; }
-        }
         const types = [instType1, instType2, instType3]
             .map(el => el ? el.value.trim() : '')
             .filter(v => v !== '');
         for (const t of types) {
-            const tErr = validateNumericMin3(t, '??? ????');
+            const tErr = validateNumericMin3(t, 'סוג מוסד');
             if (tErr) { showError(tErr); return; }
         }
         apiCall('PATCH', `/api/workbook/${state.sessionId}/institution`, {

@@ -422,10 +422,6 @@ async function applyMosadTypeScoped() {
     const mosadId     = (document.getElementById('inst-id') || {}).value?.trim() || '';
     const sheetName   = (document.getElementById('inst-sheet-select') || {}).value || state.currentSheet || '';
 
-    // Validate MosadID if provided
-    const mosadIdErr = validateNumericMin3(mosadId, 'מספר מוסד');
-    if (mosadIdErr) { showError(mosadIdErr); return; }
-
     // Validate sug_mosad for workbook/sheet scopes
     if (scope !== 'selected_rows') {
         if (!sugMosad) { showError('הזן ערך סוג מוסד לפני ההחלה.'); return; }
