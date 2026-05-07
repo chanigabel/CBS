@@ -1,0 +1,94 @@
+"""Helpers for export row preparation and derived metadata."""
+
+from __future__ import annotations
+
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
+
+from webapp.services.derived_columns import apply_derived_columns, detect_serial_field, SYNTHETIC_SERIAL_KEY
+from webapp.services.export_schema import canonical_sheet_name, headers_for_sheet
+from webapp.services.export_validation import (
+    is_numeric_like,
+    row_has_visible_original_values,
+    row_is_numeric_helper_row,
+)
+
+
+def _to_pascal_case(text: str) -> str:
+    """Convert a free-text name to PascalCase English words joined without spaces."""
+    import re
+
+    tokens = re.split(r"[\s\-]+", text.strip())
+    return "".join(t.capitalize() for t in tokens if t)
+
+
+def build_export_filename(record) -> str:
+    """Build the export filename from institution metadata."""
+    mosad_id = (record.mosad_id or "").strip()
+    mosad_name = (record.mosad_name or "").strip()
+
+    if mosad_id and mosad_name:
+        pascal = _to_pascal_case(mosad_name)
+        return f"{mosad_id} {pascal}.xlsx"
+
+    original_stem = Path(record.original_filename).stem
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    return f"{original_stem}_standardized_{timestamp}.xlsx"
+
+
+def resolve_sug_mosad_for_sheet(configs, sheet_name: str, fallback: str):
+    """Return the SugMosad value (or callable) to apply for a given sheet during export."""
+    if not configs:
+        return fallback
+
+    for cfg in configs:
+        if cfg.scope == "selected_rows" and cfg.sheet_name == sheet_name:
+            uid_map: dict = {}
+            for grp in cfg.selected_rows:
+                for uid in grp.row_uids:
+                    uid_map[uid] = grp.sug_mosad
+
+            def _uid_resolver(row_uid: str, _map=uid_map) -> Optional[str]:
+                return _map.get(row_uid)
+
+            return _uid_resolver
+
+    for cfg in configs:
+        if cfg.scope == "sheet" and cfg.sheet_name == sheet_name:
+            return cfg.sug_mosad
+
+    for cfg in configs:
+        if cfg.scope == "workbook":
+            return cfg.sug_mosad
+
+    return fallback
+
+
+def visible_rows(sheet_dataset) -> Tuple[List[Dict[str, Any]], List[str]]:
+    """Return (rows, display_columns) exactly as the UI would show them."""
+    original_field_set = set(sheet_dataset.field_names)
+
+    rows = [
+        {k: v for k, v in row.items() if not k.startswith("_standardization")}
+        for row in sheet_dataset.rows
+    ]
+
+    rows = [
+        row for row in rows
+        if row_has_visible_original_values(row, original_field_set)
+    ]
+
+    if rows and row_is_numeric_helper_row(rows[0], original_field_set):
+        rows = rows[1:]
+
+    display_columns = list(sheet_dataset.field_names)
+    meta_mosad_id = sheet_dataset.get_metadata("MosadID")
+    rows, display_columns = apply_derived_columns(
+        rows=rows,
+        field_names=sheet_dataset.field_names,
+        display_columns=display_columns,
+        meta_mosad_id=meta_mosad_id,
+    )
+    return rows, display_columns
+
