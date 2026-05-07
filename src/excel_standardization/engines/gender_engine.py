@@ -133,7 +133,7 @@ class GenderEngine:
         """
         # Convert to string and handle None/empty values
         if value is None:
-            return 1
+            return ""
 
         # Convert to string, trim, and lowercase
         value_str = str(value).strip().lower()
@@ -141,7 +141,7 @@ class GenderEngine:
         # Empty values default to male (pipeline short-circuits before this,
         # but keep the guard for direct callers)
         if not value_str:
-            return 1
+            return ""
 
         # Check female patterns first
         for pattern in self.FEMALE_PATTERNS:
