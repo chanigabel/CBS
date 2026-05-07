@@ -67,7 +67,7 @@ _HEADERS_MESHKEY: List[str] = [
     "ShemPrati", "ShemMishpaha", "ShemHaAv",
     "MisparZehut", "Darkon", "Min",
     "ShnatLida", "HodeshLida", "YomLida",
-    "shnatKnisa", "Hodeshknisa", "YomKnisa",
+    "ShnatKnisa", "HodeshKnisa", "YomKnisa",
 ]
 
 # Unknown / unmatched sheets fall back to the DayarimYahidim schema.
@@ -107,7 +107,9 @@ EXPORT_MAPPING: Dict[str, Optional[str]] = {
     "HodeshLida":          "birth_month_corrected",
     "YomLida":             "birth_day_corrected",
     "shnatknisa":          "entry_year_corrected",
+    "ShnatKnisa":          "entry_year_corrected",
     "Hodeshknisa":         "entry_month_corrected",
+    "HodeshKnisa":         "entry_month_corrected",
     "YomKnisa":            "entry_day_corrected",
 }
 
