@@ -1,40 +1,9 @@
-"""InstitutionReportValidator — mandatory field validation for institution-report files.
+"""Workbook validation for institution-report fields.
 
-This module validates rows from the three institution-report sheets:
-    - AnasheyTzevet
-    - DayarimYahidim
-    - MeshkeyBayt
-
-It is designed to run AFTER the standardization pipeline has produced corrected
-fields, so it reads *_corrected values where available and falls back to originals.
-
-Validation categories implemented here:
-    1. Required-field presence (empty = error)
-    2. Numeric-only checks (SugMosad only)
-    3. Minimum-length checks (SugMosad ≥ 3 digits)
-    4. Numeric range checks (month 1-12, day 1-31 basic)
-    5. Birth year minimum 1906
-    6. Gender valid values (1 or 2)
-    7. Duplicate MisparZehut within a sheet
-    8. Duplicate MisparZehut across all sheets in a workbook
-    9. YomKnisa required only for DayarimYahidim
-
-Blocked / missing reference data (documented as TODO):
-    - SugMosad dictionary validation (no dictionary available)
-    - Population registry cross-check (no registry available)
-    - Related-institution duplicate check (no reference data available)
-    - Minimum entry age by SugMosad (no SugMosad→min_age mapping available)
-
-Business rule note:
-    When institution data received from the institution does not match existing
-    data already stored in the system, this validator ONLY reports a mismatch
-    status. It does NOT overwrite or complete existing data. This is the safe
-    default until an explicit business rule is defined.
-
-Census year:
-    The entry-date cutoff year is configurable via CENSUS_YEAR.
-    Default: current_year - 1 (matching existing DateEngine behavior).
-    Set CENSUS_YEAR in the environment or pass it to the validator constructor.
+The validator runs after standardization, reads corrected values when present,
+and records row-level findings for required fields, duplicate IDs, and date
+constraints. Checks that depend on external reference data are documented but
+not implemented because the project does not include those sources.
 """
 
 from __future__ import annotations
@@ -57,7 +26,7 @@ SHEET_MESHKEY_BAYT = "MeshkeyBayt"
 KNOWN_SHEETS = {SHEET_ANASHEY_TZEVET, SHEET_DAYARIM_YAHIDIM, SHEET_MESHKEY_BAYT}
 
 # ---------------------------------------------------------------------------
-# Status message constants (Hebrew)
+# Status message constants
 # ---------------------------------------------------------------------------
 
 # MosadID
@@ -67,8 +36,6 @@ MSG_MOSAD_ID_MISSING = "חסר מספר מוסד"
 MSG_SUG_MOSAD_MISSING = "חסר סוג מוסד"
 MSG_SUG_MOSAD_NOT_NUMERIC = "סוג מוסד חייב להכיל ספרות בלבד"
 MSG_SUG_MOSAD_TOO_SHORT = "סוג מוסד חייב להכיל לפחות 3 ספרות"
-# TODO: MSG_SUG_MOSAD_NOT_IN_DICT = "סוג מוסד אינו קיים במילון סוגי מוסד"
-# Blocked: SugMosad dictionary not available in this project.
 
 # MisparDiraBeMosad
 MSG_DIRA_NOT_NUMERIC = "מספר דירה במוסד חייב להכיל ספרות בלבד"
@@ -83,10 +50,6 @@ MSG_SHEM_MISHPAHA_MISSING = "חסר שם משפחה"
 MSG_MISPAR_ZEHUT_MISSING = "חסר מספר זהות"
 MSG_MISPAR_ZEHUT_DUPLICATE_SHEET = "מספר זהות כפול בגיליון הנוכחי"
 MSG_MISPAR_ZEHUT_DUPLICATE_WORKBOOK = "מספר זהות כפול בחוברת העבודה"
-# TODO: MSG_MISPAR_ZEHUT_DUPLICATE_RELATED = "מספר זהות כבר דווח במוסד קשור"
-# Blocked: related-institution reference data not available.
-# TODO: MSG_MISPAR_ZEHUT_NOT_IN_REGISTRY = "מספר זהות לא נמצא / אי-התאמה ברשומות האוכלוסין"
-# Blocked: population registry integration not available.
 
 # Min (gender)
 MSG_MIN_INVALID = "קוד מין לא תקין - חייב להיות 1 (זכר) או 2 (נקבה)"
@@ -108,8 +71,6 @@ MSG_SHNAT_KNISA_MISSING = "חסרה שנת כניסה"
 MSG_SHNAT_KNISA_NOT_NUMERIC = "שנת כניסה חייבת להכיל ספרות בלבד"
 MSG_SHNAT_KNISA_AFTER_CENSUS = "תאריך כניסה מאוחר מהתאריך שנקבע לדיווח"
 MSG_SHNAT_KNISA_BEFORE_BIRTH = "תאריך כניסה לפני תאריך לידה"
-# TODO: MSG_SHNAT_KNISA_MIN_AGE = "גיל כניסה נמוך מהמינימום המותר לסוג מוסד זה"
-# Blocked: SugMosad→min_age dictionary not available.
 MSG_HODESH_KNISA_MISSING = "חסר חודש כניסה"
 MSG_HODESH_KNISA_NOT_NUMERIC = "חודש כניסה חייב להכיל ספרות בלבד"
 MSG_HODESH_KNISA_RANGE = "חודש כניסה חייב להיות בין 1 ל-12"
@@ -422,11 +383,10 @@ class InstitutionReportValidator:
             result.add("MosadID", MSG_MOSAD_ID_MISSING)
 
     def _validate_sug_mosad(self, row: Dict[str, Any], result: RowValidationResult) -> None:
-        """SugMosad: required, numeric, ≥3 digits.
+        """SugMosad is required, numeric, and at least three digits long.
 
-        TODO: validate against SugMosad dictionary when available.
-        The dictionary is not present in this project.  When it becomes
-        available, add a check here and use MSG_SUG_MOSAD_NOT_IN_DICT.
+        The source project does not include a SugMosad dictionary, so
+        membership checks are intentionally not implemented.
         """
         val = _to_str(_get_field(row, "SugMosad", "sug_mosad"))
         if not val:
@@ -437,7 +397,6 @@ class InstitutionReportValidator:
             return
         if len(val) < 3:
             result.add("SugMosad", MSG_SUG_MOSAD_TOO_SHORT)
-        # TODO: check val in sug_mosad_dictionary when available
 
     def _validate_mispar_dira(self, row: Dict[str, Any], result: RowValidationResult) -> None:
         """MisparDiraBeMosad: optional; if provided must be numeric.
@@ -474,48 +433,33 @@ class InstitutionReportValidator:
         sheet_id_seen: Dict[str, int],
         workbook_id_registry: Optional[Dict[str, List[str]]],
     ) -> None:
-        """MisparZehut: required, valid Israeli ID (checksum handled by IdentifierEngine).
+        """MisparZehut is required, must be valid, and must be unique.
 
-        Duplicate detection:
-            - Within the same sheet (sheet_id_seen).
-            - Across all sheets in the workbook (workbook_id_registry).
-
-        Blocked checks (documented):
-            - Related-institution duplicate: no reference data available.
-            - Population registry cross-check: no registry available.
-
-        Business rule note:
-            This validator only REPORTS mismatches.  It does not overwrite or
-            complete existing data.  The identifier_status field written by
-            IdentifierEngine already carries the checksum result; we add
-            required-field and duplicate checks on top.
+        Missing values are errors. Duplicate values are checked within each
+        sheet and across the workbook. Registry and related-institution checks
+        are intentionally not implemented because the required data is absent.
         """
         id_val = _to_str(row.get("id_number_corrected") or "")
 
         if not id_val:
-            # Also check original — if original is present but corrected is empty,
-            # the IdentifierEngine rejected it (invalid checksum, moved to passport).
-            # We still flag the required-field error if the original is also empty.
+            # If the corrected ID is empty, keep only the missing-field check.
             original_id = _to_str(row.get("id_number") or "")
             if not original_id:
                 result.add("MisparZehut", MSG_MISPAR_ZEHUT_MISSING)
-            # If original is present but corrected is empty, IdentifierEngine already
-            # wrote a status (e.g. "ת.ז. לא תקינה") — no additional required-field error.
+            # A rejected ID already has a status from IdentifierEngine.
             return
 
-        # Duplicate within sheet (only for valid corrected IDs)
+        # Duplicate within the current sheet.
         first_occurrence = sheet_id_seen.get(id_val)
         if first_occurrence is not None and first_occurrence != row_index:
             result.add("MisparZehut", MSG_MISPAR_ZEHUT_DUPLICATE_SHEET)
 
-        # Duplicate across workbook (cross-sheet)
+        # Duplicate across the workbook.
         if workbook_id_registry is not None:
             sheets_with_id = workbook_id_registry.get(id_val, [])
             if len(sheets_with_id) > 1:
                 result.add("MisparZehut", MSG_MISPAR_ZEHUT_DUPLICATE_WORKBOOK, severity="warning")
 
-        # TODO: check against related-institution reference data when available.
-        # TODO: check against population registry when available.
 
     def _validate_min(self, row: Dict[str, Any], result: RowValidationResult) -> None:
         """Min (gender): if present, must be 1 or 2.
@@ -548,13 +492,11 @@ class InstitutionReportValidator:
             result.add("Min", MSG_MIN_INVALID)
 
     def _validate_birth_date(self, row: Dict[str, Any], result: RowValidationResult) -> None:
-        """Birth date: required fields, numeric, range, min year 1906.
+        """Birth date is checked for required values, numeric input, range, and
+        the 1906 minimum year.
 
-        The DateEngine now enforces 1906 directly and writes birth_date_status.
-        This validator adds:
-            - Required-field checks for year/month/day.
-            - Redundant 1906 minimum check (safety net for raw/uncorrected values).
-            - Numeric checks on raw values (in case DateEngine was not run).
+        The DateEngine also enforces these rules and writes birth_date_status.
+        This validator keeps a second pass for raw or uncorrected values.
         """
         year_val = _get_corrected_or_original(row, "birth_year")
         month_val = _get_corrected_or_original(row, "birth_month")
@@ -597,15 +539,11 @@ class InstitutionReportValidator:
                 result.add("YomLida", MSG_YOM_LIDA_RANGE)
 
     def _validate_entry_date(self, row: Dict[str, Any], result: RowValidationResult) -> None:
-        """Entry date: required fields, numeric, range, census year cutoff.
+        """Entry date is checked for numeric values, range, and the census cutoff.
 
-        YomKnisa is required ONLY for DayarimYahidim.
-
-        Census year cutoff: entry year must be ≤ self.census_year.
-        This is configurable via the constructor or CENSUS_YEAR env var.
-
-        TODO: validate entry age ≥ minimum age for SugMosad when the
-        SugMosad→min_age dictionary becomes available.
+        YomKnisa is required only for DayarimYahidim. The minimum-entry-age
+        rule is not implemented because the required SugMosad reference data is
+        not available in this project.
         """
         year_val = _get_corrected_or_original(row, "entry_year")
         month_val = _get_corrected_or_original(row, "entry_month")
@@ -634,7 +572,7 @@ class InstitutionReportValidator:
             if mo is not None and not (1 <= mo <= 12):
                 result.add("Hodeshknisa", MSG_HODESH_KNISA_RANGE)
 
-        # YomKnisa: required only for DayarimYahidim
+        # YomKnisa is required only for DayarimYahidim.
         yom_required = (self.sheet_name == SHEET_DAYARIM_YAHIDIM)
         if not day_str:
             if yom_required:
@@ -647,7 +585,5 @@ class InstitutionReportValidator:
             if dy is not None and not (1 <= dy <= 31):
                 result.add("YomKnisa", MSG_YOM_KNISA_RANGE)
 
-        # TODO: validate entry age ≥ min age for SugMosad.
-        # Blocked: SugMosad→min_age dictionary not available.
         # When available, compute age = entry_year - birth_year and compare
         # against the dictionary value for the row's SugMosad.

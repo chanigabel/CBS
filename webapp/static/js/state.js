@@ -1,17 +1,12 @@
 /**
- * Excel standardization Web App - Frontend JavaScript
- * Vanilla JS, no external dependencies, fully offline-capable.
+ * Frontend state shared by the page scripts.
  */
 
 // ---------------------------------------------------------------------------
 // Application State
 // ---------------------------------------------------------------------------
 
-// sessions: Map<sessionId, SessionMeta>
-// SessionMeta: { sessionId, filename, sheetNames, lastSheet, isNormalized,
-//               hasEdits, sheetStats }
-// Each session keeps its own last-viewed sheet and standardization flag so
-// switching between files restores the correct view.
+// Sessions keyed by session ID.
 const sessions = new Map();
 
 const state = {

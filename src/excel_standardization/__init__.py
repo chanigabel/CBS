@@ -1,8 +1,4 @@
-"""Excel Data standardization System.
-
-A Python-based system that replicates the exact behavior of a legacy VBA
-implementation for standardizing Excel data containing person records.
-"""
+"""Core package for Excel data standardization and export."""
 
 __version__ = "1.0.0"
 

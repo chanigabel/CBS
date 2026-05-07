@@ -1,7 +1,5 @@
 /**
  * Processing report UI helpers.
- * Kept separate from the main app shell so summary formatting can evolve
- * without dragging the grid and upload code with it.
  */
 
 function formatProcessingReportSummary(report) {

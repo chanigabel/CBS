@@ -1,4 +1,4 @@
-"""ExportService facade for writing the normalized workbook to disk."""
+"""Export service facade for writing the normalized workbook to disk."""
 
 from __future__ import annotations
 

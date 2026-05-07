@@ -1,4 +1,4 @@
-﻿"""Institution router: GET/PATCH institution metadata and bulk MosadType apply."""
+﻿"""Institution metadata and scoped SugMosad update endpoints."""
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, field_validator
@@ -84,7 +84,7 @@ def apply_mosad_type(
     req: ApplyMosadTypeRequest,
     session_service: SessionService = Depends(get_session_service),
 ) -> dict:
-    """Bulk-apply a user-entered MosadType value to all SugMosad cells (legacy)."""
+    """Apply one stored mosad_type value to all SugMosad cells."""
     record = session_service.get(session_id)
 
     value = req.mosad_type.strip()
@@ -113,23 +113,10 @@ def apply_mosad_type_scoped(
     req: ApplySugMosadRequest,
     session_service: SessionService = Depends(get_session_service),
 ) -> dict:
-    """Apply SugMosad with a specific scope: workbook, sheet, or selected rows.
+    """Apply SugMosad with workbook, sheet, or selected-row scope.
 
-    Scope "workbook":
-        Applies sug_mosad to every row in every sheet.
-
-    Scope "sheet":
-        Applies sug_mosad only to rows in sheet_name.
-        Other sheets are untouched.
-
-    Scope "selected_rows":
-        Applies each entry's sug_mosad to the rows matching its row_uids
-        inside sheet_name.  Uses the same _row_uid identity as row deletion.
-        Other sheets and unselected rows are untouched.
-        Up to 3 SelectedRowsRequest entries allowed.
-
-    In all cases the config is persisted on the session so export reproduces
-    the exact same scoped application.
+    The chosen scope is stored on the session so export can reproduce the same
+    row-level assignments later.
     """
     record = session_service.get(session_id)
 
@@ -169,7 +156,7 @@ def apply_mosad_type_scoped(
         if sheet_obj is None:
             raise HTTPException(status_code=404, detail=f"Sheet '{req.sheet_name}' not found.")
 
-        # Build a uid->row lookup for fast access (same identity as row deletion)
+        # Build a row lookup keyed by _row_uid.
         uid_to_row = {
             row["_row_uid"]: row
             for row in sheet_obj.rows
@@ -205,20 +192,19 @@ def apply_mosad_type_scoped(
             existing_map: dict = {}
             for grp in existing_sr.selected_rows:
                 existing_map.setdefault(grp.sug_mosad, set()).update(grp.row_uids)
-            # Merge new entries: new UIDs override any previous sug_mosad assignment
-            # for those UIDs (a row can only have one sug_mosad at a time).
+            # New assignments replace any previous value for the same row.
             new_uids_all: set = set()
             for sc in selected_configs:
                 new_uids_all.update(sc.row_uids)
-            # Remove newly-assigned UIDs from all existing groups
+            # Remove the newly assigned rows from existing groups.
             for key in list(existing_map.keys()):
                 existing_map[key] -= new_uids_all
                 if not existing_map[key]:
                     del existing_map[key]
-            # Add new groups
+            # Add the new groups.
             for sc in selected_configs:
                 existing_map.setdefault(sc.sug_mosad, set()).update(sc.row_uids)
-            # Rebuild selected_configs from merged map (cap at 3 groups)
+            # Rebuild the merged config, capped at three groups.
             merged = [
                 SelectedRowsConfig(sug_mosad=sm, row_uids=list(uids))
                 for sm, uids in existing_map.items()

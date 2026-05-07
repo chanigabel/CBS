@@ -1,4 +1,4 @@
-"""WorkbookService: serves workbook summary and sheet data from session state."""
+"""Workbook service for session-backed workbook summaries and sheet data."""
 
 import logging
 import uuid

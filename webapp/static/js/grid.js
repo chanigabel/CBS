@@ -309,7 +309,6 @@ function renderGrid(sheetData, rows, targetContainer) {
         tdCheck.appendChild(cb);
         tr.appendChild(tdCheck);
 
-        // U-07: Count changed corrected fields for this row and show a badge
         const changedFields = displayColumns.filter(col => {
             if (!col.endsWith('_corrected')) return false;
             const origVal = row[col.replace(/_corrected$/, '')];
@@ -329,7 +328,6 @@ function renderGrid(sheetData, rows, targetContainer) {
         delBtn.addEventListener('click', () => deleteSingleRow(row._row_uid));
         tdDel.appendChild(delBtn);
 
-        // U-07: Add change-count badge when there are corrections
         if (changedFields.length > 0) {
             tr.classList.add('row-has-changes');
             const badge = document.createElement('span');
@@ -349,7 +347,6 @@ function renderGrid(sheetData, rows, targetContainer) {
 
             const cls = colClass(col);
             if (cls === 'corrected') {
-                // U-03: Normalize comparison to avoid false "changed" highlights on
                 // type mismatches (e.g. gender original="ז" str vs corrected=1 int).
                 const origVal = row[col.replace(/_corrected$/, '')];
                 const origStr = (origVal !== null && origVal !== undefined) ? String(origVal).trim() : '';
@@ -357,7 +354,7 @@ function renderGrid(sheetData, rows, targetContainer) {
                 td.className = (corrStr !== '' && corrStr !== origStr)
                     ? 'corrected-changed' : 'corrected-cell';
             } else if (cls === 'status') {
-                // U-02: Visually distinguish error status cells from empty ones
+                // Highlight non-empty status cells.
                 const statusText = String(value || '').trim();
                 td.className = statusText !== '' ? 'status-cell status-error' : 'status-cell status-ok';
             }
@@ -411,7 +408,6 @@ function updateDeleteButton() {
 }
 
 // ---------------------------------------------------------------------------
-// Row Deletion — U-06: confirm before bulk delete
 // ---------------------------------------------------------------------------
 
 Object.assign(window, { getFilteredRows, getDistinctValues, openFilterDropdown, updateFilterButtonState, applyFilters, clearAllFilters, openGridOverlay, closeGridOverlay, _overlayEscHandler, renderGrid, toggleSelectAll, updateDeleteButton });

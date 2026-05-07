@@ -3,7 +3,7 @@ async function deleteSingleRow(rowUid) { await _deleteRows([rowUid]); }
 async function deleteSelectedRows() {
     if (state.selectedRows.size === 0) return;
     const n = state.selectedRows.size;
-    // U-06: Ask for confirmation when deleting more than one row
+    // Confirm multi-row deletes.
     if (n > 1) {
         const confirmed = confirm(
             `Delete ${n} rows?\n\nThis cannot be undone without re-running standardization.`
@@ -27,7 +27,7 @@ async function _deleteRows(rowUids) {
         const uidSet = new Set(rowUids);
         state.sheetData.rows = state.sheetData.rows.filter(r => !uidSet.has(r._row_uid));
 
-        // Remove deleted UIDs from selectedRows
+        // Clear deleted rows from the selection set.
         uidSet.forEach(uid => state.selectedRows.delete(uid));
 
         const filtered = getFilteredRows(state.sheetData.rows);
@@ -71,19 +71,19 @@ function makeEditable(td, rowUid, fieldName) {
                 `/api/workbook/${state.sessionId}/sheet/${encodeURIComponent(state.currentSheet)}/cell`,
                 { row_uid: rowUid, field_name: fieldName, new_value: newValue }
             );
-            // Find the row in sheetData.rows by matching _row_uid
+            // Update the cached row data.
             const editedRow = state.sheetData?.rows.find(r => r._row_uid === rowUid);
             if (editedRow) editedRow[fieldName] = newValue;
             td.textContent = newValue;
             td.className = td.className.replace(' editing', '');
             if (fieldName.endsWith('_corrected')) {
-                // U-03: Use string comparison to avoid false highlights
+                // Compare normalized values to avoid false highlights.
                 const origVal = editedRow ? editedRow[fieldName.replace(/_corrected$/, '')] : null;
                 const origStr = (origVal !== null && origVal !== undefined) ? String(origVal).trim() : '';
                 td.className = (newValue.trim() !== '' && newValue.trim() !== origStr)
                     ? 'corrected-changed' : 'corrected-cell';
             }
-            // Mark session as having unsaved edits (U-01)
+            // Mark the session as dirty.
             const session = sessions.get(state.sessionId);
             if (session) session.hasEdits = true;
         } catch (err) {
@@ -104,7 +104,7 @@ function makeEditable(td, rowUid, fieldName) {
 }
 
 // ---------------------------------------------------------------------------
-// standardization — U-01, U-05
+// Editing helpers
 // ---------------------------------------------------------------------------
 
 

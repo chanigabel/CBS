@@ -1,4 +1,4 @@
-"""Status and reason helpers for processing reports."""
+"""Helpers for compact processing-report status and reason text."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ _STAGE_ORDER = ["upload", "extract", "standardize", "validate", "export"]
 
 
 def is_invalid_date_component(status: str, corrected) -> bool:
+    """Return True when a date status indicates an invalid corrected value."""
     if not status:
         return False
     invalid_status = (
@@ -24,10 +25,12 @@ def is_real_identifier_issue(status: str) -> bool:
 
 
 def row_number(sheet, idx: int) -> int:
+    """Return the 1-based workbook row number for a sheet row index."""
     return int(sheet.header_row or 1) + int(sheet.header_rows_count or 1) + idx + 1
 
 
 def refresh_status(report: ProcessingReport) -> None:
+    """Recompute processing status and its human-readable reason."""
     if report.errors:
         report.status = "failed"
     elif (
@@ -46,6 +49,7 @@ def refresh_status(report: ProcessingReport) -> None:
 
 
 def status_reason(report: ProcessingReport) -> str:
+    """Build a compact reason string for the current report state."""
     if report.status == "failed":
         return f"failed because {len(report.errors)} error(s) occurred"
 

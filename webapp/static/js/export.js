@@ -2,8 +2,7 @@ async function runstandardization() {
     if (!state.sessionId) return;
     dismissError();
 
-    // U-01: Warn the user if they have unsaved manual edits that will be
-    // overwritten by re-standardization.
+    // Prompt before dropping unsaved manual edits.
     const session = sessions.get(state.sessionId);
     if (session && session.hasEdits) {
         const confirmed = confirm(
@@ -18,30 +17,26 @@ async function runstandardization() {
     btn.innerHTML = '⏳ standardizing... <span class="loading"></span>';
 
     try {
-        // Normalize the entire workbook (all sheets) — this is the default and
-        // correct behavior.  The backend supports ?sheet=<name> for single-sheet
-        // standardization but the UI button must always normalize all sheets so
-        // that identifier_status, MosadID, and all corrected fields are
-        // consistent across every sheet in the workbook.
+        // Normalize the full workbook from the main action.
         const result = await apiCall('POST',
             `/api/workbook/${state.sessionId}/normalize`);
 
-        // U-05: Cache per-sheet stats on the session so tabs can show badges
+        // Store the returned sheet stats on the session.
         if (session) {
             session.isNormalized = true;
-            session.hasEdits = false;  // edits were replayed by the server (F-01)
+            session.hasEdits = false;
             if (!session.sheetStats) session.sheetStats = {};
             result.per_sheet_stats.forEach(s => {
                 session.sheetStats[s.sheet_name] = s;
             });
             renderSessionSwitcher();
             _highlightActiveSession();
-            // Re-render sheet tabs with updated stats badges
+            // Re-render sheet tabs with updated stats.
             renderSheetSelector(session.sheetNames, session.sheetStats);
             if (state.currentSheet) setActiveSheetTab(state.currentSheet);
         }
 
-        // Reload the current sheet so the grid shows the corrected values
+        // Reload the current sheet.
         if (state.currentSheet) await loadSheet(state.currentSheet);
 
         const stats = result.per_sheet_stats
@@ -58,7 +53,7 @@ async function runstandardization() {
 }
 
 // ---------------------------------------------------------------------------
-// Single-file Export
+// Single-file export
 // ---------------------------------------------------------------------------
 
 async function exportWorkbook() {
@@ -83,7 +78,7 @@ async function exportWorkbook() {
 }
 
 // ---------------------------------------------------------------------------
-// Bulk Export (ZIP)
+// Bulk export (ZIP)
 // ---------------------------------------------------------------------------
 
 async function exportBulk(sessionIds) {
@@ -121,7 +116,7 @@ async function exportBulk(sessionIds) {
     }
 }
 
-// Export only the sessions whose file-tab checkboxes are checked
+// Export only the sessions whose file-tab checkboxes are checked.
 async function exportSelected() {
     const checked = [...document.querySelectorAll('.file-tab-check:checked')]
         .map(cb => cb.dataset.sessionId);
@@ -156,7 +151,7 @@ async function _downloadFile(url, method, defaultFilename) {
 }
 
 // ---------------------------------------------------------------------------
-// Initialize — U-08: keyboard shortcuts
+// Initial wiring
 // ---------------------------------------------------------------------------
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -175,9 +170,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // U-08: Keyboard shortcuts for power users.
-    // Ctrl+Enter (or Cmd+Enter on Mac) = Run standardization
-    // Ctrl+S (or Cmd+S on Mac) = Export / Download
+    // Keyboard shortcuts.
     document.addEventListener('keydown', e => {
         const mod = e.ctrlKey || e.metaKey;
         if (!mod) return;
@@ -191,7 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Institution bar: save on blur for all inputs
+    // Institution metadata form.
     const instId    = document.getElementById('inst-id');
     const instName  = document.getElementById('inst-name');
     const instType1 = document.getElementById('inst-type-1');
@@ -204,7 +197,7 @@ function saveInstitution() {
     const types = [instType1, instType2, instType3]
         .map(el => el ? el.value.trim() : '')
         .filter(v => v !== '');
-        // Validate each mosad_type before saving
+        // Validate each mosad_type before saving.
         for (const t of types) {
             const tErr = validateNumericMin3(t, 'סוג מוסד');
             if (tErr) { showError(tErr); return; }
@@ -219,7 +212,7 @@ function saveInstitution() {
     if (instId)    instId.addEventListener('blur', saveInstitution);
     if (instName)  instName.addEventListener('blur', saveInstitution);
 
-    // Rebuild the apply-dropdown whenever a type input changes, then save.
+    // Refresh the apply dropdown when a type input changes.
     [instType1, instType2, instType3].forEach(el => {
         if (!el) return;
         el.addEventListener('input', updateMosadTypeDropdown);
@@ -228,13 +221,11 @@ function saveInstitution() {
 });
 
 // ---------------------------------------------------------------------------
-// Institution bar
+// Institution metadata helpers
 // ---------------------------------------------------------------------------
 
 /**
- * Rebuild the apply-dropdown from the actual user-entered type values.
- * Only non-empty inputs appear as selectable options.
- * Preserves the currently selected value when possible.
+ * Rebuild the apply dropdown from the current type values.
  */
 
 Object.assign(window, { runstandardization, exportWorkbook, exportBulk, exportSelected, _downloadFile });

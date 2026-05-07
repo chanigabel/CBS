@@ -1,4 +1,4 @@
-"""Collection helpers for processing reports."""
+"""Helpers that collect processing-report warnings and summaries."""
 
 from __future__ import annotations
 
@@ -18,6 +18,7 @@ from webapp.services.report_status_builder import is_invalid_date_component, row
 
 
 def collect_missing_input_columns(workbook_dataset) -> list[MissingInputColumnsBySheet]:
+    """Collect expected input columns that are missing from each sheet."""
     if workbook_dataset is None:
         return []
 
@@ -47,6 +48,7 @@ def collect_missing_input_columns(workbook_dataset) -> list[MissingInputColumnsB
 
 
 def collect_missing_required_export_fields(record) -> list[MissingRequiredExportField]:
+    """Collect export fields that are still empty after session injection."""
     if record.workbook_dataset is None:
         return []
 
@@ -93,6 +95,7 @@ def collect_missing_required_export_fields(record) -> list[MissingRequiredExport
 
 
 def collect_invalid_date_values(record) -> list[InvalidDateValue]:
+    """Collect invalid birth and entry date components for the report."""
     if record.workbook_dataset is None:
         return []
 
@@ -125,6 +128,7 @@ def collect_invalid_date_values(record) -> list[InvalidDateValue]:
 
 
 def collect_invalid_identifier_values(record, is_real_identifier_issue) -> list[InvalidIdentifierValue]:
+    """Collect identifier rows whose status represents a real problem."""
     if record.workbook_dataset is None:
         return []
 
@@ -155,6 +159,7 @@ def collect_invalid_identifier_values(record, is_real_identifier_issue) -> list[
 
 
 def aggregate_detail_messages_by_sheet(details) -> dict[str, list[tuple[str, int]]]:
+    """Group per-sheet validation messages into compact counts."""
     counts = defaultdict(Counter)
     for item in details:
         if item.status_message:
@@ -166,6 +171,7 @@ def aggregate_detail_messages_by_sheet(details) -> dict[str, list[tuple[str, int
 
 
 def aggregate_identifier_messages_by_sheet(details) -> dict[str, list[tuple[str, int]]]:
+    """Group identifier validation messages by sheet and count."""
     counts = defaultdict(Counter)
     seen_rows = set()
     for item in details:
@@ -187,6 +193,7 @@ def empty_required_columns_message_for_sheet(
     export_name: str,
     details: list[MissingRequiredExportField],
 ) -> str:
+    """Format one compact warning for missing required export fields."""
     counts_by_field: dict[str, int] = {}
     for item in details:
         if item.sheet_name != export_name or item.rows_affected <= 0:
@@ -209,6 +216,7 @@ def build_per_sheet_warnings(
     rows_exported_by_sheet: dict[str, int],
     report: ProcessingReport,
 ) -> list[PerSheetProcessingReport]:
+    """Build compact per-sheet warnings for the processing report."""
     if record.workbook_dataset is None:
         return []
 

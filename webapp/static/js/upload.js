@@ -1,9 +1,9 @@
 // ---------------------------------------------------------------------------
-// Upload Flow — U-10: XHR with progress feedback
+// Upload flow
 // ---------------------------------------------------------------------------
 
 /**
- * U-10: Upload a single file using XMLHttpRequest so we can report progress.
+ * Upload a single file using XMLHttpRequest so progress can be reported.
  * Returns a Promise that resolves with the parsed JSON response.
  */
 function uploadWithProgress(file, onProgress) {
@@ -58,7 +58,7 @@ async function handleUpload(event) {
 
     for (const file of files) {
         try {
-            // U-10: Show per-file upload progress
+            // Show per-file upload progress.
             statusDiv.textContent = `Uploading ${file.name}: 0%`;
             const data = await uploadWithProgress(file, pct => {
                 statusDiv.textContent = `Uploading ${file.name}: ${pct}%`;
@@ -96,7 +96,7 @@ async function handleUpload(event) {
 }
 
 // ---------------------------------------------------------------------------
-// Session Switcher — U-05: sheet stats badges on file tabs
+// Session switcher
 // ---------------------------------------------------------------------------
 
 function renderSessionSwitcher() {
@@ -114,7 +114,7 @@ function renderSessionSwitcher() {
         btn.className = 'sheet-tab file-tab';
         btn.dataset.sessionId = sessionId;
 
-        // U-05: Show a warning badge if any sheet has < 100% success rate
+        // Show a warning badge if any sheet has < 100% success rate.
         const hasWarning = sheetStats && Object.values(sheetStats).some(s => s.success_rate < 1.0);
         let label = filename;
         if (isNormalized) label += hasWarning ? ' ⚠' : ' ✓';
@@ -126,8 +126,7 @@ function renderSessionSwitcher() {
         tabs.appendChild(btn);
     });
 
-    // Bulk-export controls (commented out in original, preserved)
-    let bulkBar = document.getElementById('bulk-export-bar');
+        let bulkBar = document.getElementById('bulk-export-bar');
     if (!bulkBar) {
         bulkBar = document.createElement('div');
         bulkBar.id = 'bulk-export-bar';
@@ -146,14 +145,14 @@ function _highlightActiveSession() {
 }
 
 // ---------------------------------------------------------------------------
-// Session Activation — preserves per-session state
+// Session activation
 // ---------------------------------------------------------------------------
 
 async function activateSession(sessionId) {
     const session = sessions.get(sessionId);
     if (!session) return;
 
-    // Save current sheet back to the outgoing session before switching
+    // Save the outgoing sheet before switching sessions.
     if (state.sessionId && state.sessionId !== sessionId) {
         const outgoing = sessions.get(state.sessionId);
         if (outgoing) outgoing.lastSheet = state.currentSheet;
@@ -172,10 +171,10 @@ async function activateSession(sessionId) {
     document.getElementById('grid-section').classList.add('hidden');
     document.getElementById('grid-container').innerHTML = '';
 
-    // Load institution metadata for this session
+    // Load institution metadata for this session.
     await loadInstitution();
 
-    // Restore the last sheet this session had open, or default to first sheet
+    // Restore the last sheet this session had open, or default to the first sheet.
     const sheetToLoad = session.lastSheet || session.sheetNames[0];
     if (sheetToLoad) {
         await loadSheet(sheetToLoad);
@@ -183,7 +182,7 @@ async function activateSession(sessionId) {
 }
 
 // ---------------------------------------------------------------------------
-// Sheet Selector — U-05: show per-sheet success rate badge
+// Sheet selector
 // ---------------------------------------------------------------------------
 
 function renderSheetSelector(sheetNames, sheetStats) {
@@ -197,7 +196,7 @@ function renderSheetSelector(sheetNames, sheetStats) {
         btn.setAttribute('role', 'tab');
         btn.onclick = () => loadSheet(name);
 
-        // U-05: Annotate sheet tab with success rate when available
+        // Annotate sheet tabs with success-rate badges when available.
         const stat = (sheetStats || {})[name];
         if (stat && stat.success_rate < 1.0) {
             btn.textContent = `${name} ⚠ ${Math.round(stat.success_rate * 100)}%`;
@@ -215,7 +214,7 @@ function renderSheetSelector(sheetNames, sheetStats) {
 
 function setActiveSheetTab(sheetName) {
     document.querySelectorAll('#sheet-tabs .sheet-tab').forEach(btn => {
-        // Match by the base name (strip any appended stats badge)
+        // Match by the base name, ignoring any appended stats badge.
         btn.classList.toggle('active', btn.textContent.startsWith(sheetName));
     });
 }

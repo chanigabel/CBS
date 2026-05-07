@@ -1,4 +1,4 @@
-"""StandardizationService: runs the standardization pipeline on a session's workbook."""
+"""Service layer that runs the standardization pipeline for a session."""
 
 import logging
 from typing import List, Optional
@@ -56,7 +56,7 @@ class StandardizationService:
         )
 
         if record.workbook_dataset is None:
-            # Auto-load all sheets from disk when no prior sheet access has occurred.
+            # Load the workbook when no sheet has been accessed yet.
             try:
                 wbd = extractor.extract_workbook_to_json(record.working_copy_path)
                 self.session_service.update(session_id, workbook_dataset=wbd)
@@ -82,9 +82,9 @@ class StandardizationService:
                     detail="No workbook data available. Please load a sheet first.",
                 )
 
-        # Determine which sheets to extract fresh from disk and normalize.
+        # Determine which sheets to re-extract and normalize.
         if sheet_name is not None:
-            # Fast path: single sheet only.
+            # Single-sheet path.
             try:
                 wb = _lw(record.working_copy_path, data_only=True)
                 if sheet_name not in wb.sheetnames:
@@ -95,7 +95,7 @@ class StandardizationService:
                     )
                 ws = wb[sheet_name]
                 fresh = extractor.extract_sheet_to_json(ws)
-                # Preserve MosadID from existing metadata or re-scan.
+                # Preserve MosadID from metadata or re-scan from the sheet.
                 existing = record.workbook_dataset.get_sheet_by_name(sheet_name)
                 mosad_id = (
                     existing.get_metadata("MosadID")
@@ -129,7 +129,7 @@ class StandardizationService:
                     detail="Failed to read the working copy for standardization.",
                 )
         else:
-            # Full path: re-extract all sheets and re-scan for MosadID.
+            # Full-workbook path.
             try:
                 wb = _lw(record.working_copy_path, data_only=True)
                 sheets_to_normalize = []
@@ -218,7 +218,6 @@ class StandardizationService:
             )
 
         # Merge normalized sheets back into the session dataset.
-        # For single-sheet standardization, replace only that sheet.
         norm_by_name = {s.sheet_name: s for s in normalized_sheets}
         updated_sheets = []
         for existing in record.workbook_dataset.sheets:
@@ -230,10 +229,7 @@ class StandardizationService:
         updated_sheets.extend(norm_by_name.values())
         record.workbook_dataset.sheets = updated_sheets
 
-        # ------------------------------------------------------------------
-        # Workbook-level institution-report validation (cross-sheet duplicate
-        # detection for MisparZehut).  Runs after all sheets are normalized.
-        # ------------------------------------------------------------------
+        # Workbook-level institution-report validation runs after normalization.
         try:
             from src.excel_standardization.validation.institution_report_validator import (
                 InstitutionReportValidator,
@@ -248,8 +244,7 @@ class StandardizationService:
                 for s in record.workbook_dataset.sheets
                 if resolve_canonical_sheet_name(s.sheet_name) in KNOWN_SHEETS
             }
-            # Build per-sheet metadata so the validator can check MosadID/SugMosad
-            # even when they are not yet injected into individual row dicts.
+            # Pass sheet metadata so the validator can see MosadID and SugMosad.
             sheet_meta_for_validation = {
                 resolve_canonical_sheet_name(s.sheet_name): {
                     "MosadID": record.mosad_id or s.get_metadata("MosadID"),
@@ -278,10 +273,7 @@ class StandardizationService:
                 "Workbook-level institution-report validation skipped: %s", _wv_exc
             )
 
-        # F-01: Replay manual edits that were recorded before this standardization.
-        # record.edits stores {(sheet_name, row_uid, field_name): value} for every
-        # PATCH /cell call.  Re-applying them here ensures that manual corrections
-        # survive a re-normalize without requiring the user to redo them.
+        # Replay manual edits recorded before standardization.
         if record.edits:
             for (edit_sheet, edit_row_uid, edit_field), edit_value in record.edits.items():
                 sheet_obj = record.workbook_dataset.get_sheet_by_name(edit_sheet)
@@ -325,7 +317,7 @@ class StandardizationService:
         return self.standardize(session_id, sheet_name=sheet_name)
 
     def _build_pipeline(self) -> StandardizationPipeline:
-        """Build a fresh StandardizationPipeline with all four engines."""
+        """Build a StandardizationPipeline with the active engines."""
         tp = TextProcessor()
         return StandardizationPipeline(
             name_engine=NameEngine(tp),

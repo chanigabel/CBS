@@ -1,2 +1,2 @@
-"""Export layer for producing VBA-parity output workbooks."""
+"""Export layer for producing normalized workbook output."""
 

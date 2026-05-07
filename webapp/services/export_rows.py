@@ -1,4 +1,4 @@
-"""Helpers for export row preparation and derived metadata."""
+"""Helpers for export filename generation and row preparation."""
 
 from __future__ import annotations
 

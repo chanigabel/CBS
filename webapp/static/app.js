@@ -19,9 +19,7 @@ function initApp() {
         });
     }
 
-    // U-08: Keyboard shortcuts for power users.
-    // Ctrl+Enter (or Cmd+Enter on Mac) = Run standardization
-    // Ctrl+S (or Cmd+S on Mac) = Export / Download
+    // Keyboard shortcuts.
     document.addEventListener('keydown', e => {
         const mod = e.ctrlKey || e.metaKey;
         if (!mod) return;
@@ -35,7 +33,7 @@ function initApp() {
         }
     });
 
-    // Institution bar: save on blur for all inputs
+    // Institution metadata form.
     const instId    = document.getElementById('inst-id');
     const instName  = document.getElementById('inst-name');
     const instType1 = document.getElementById('inst-type-1');
@@ -73,7 +71,7 @@ function initApp() {
         });
     }
 
-    // Initialize institution dropdowns and selectors
+    // Initialize dependent UI controls.
     updateMosadTypeDropdown();
     updateInstSheetSelector();
     onScopeChange();
