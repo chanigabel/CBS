@@ -203,99 +203,91 @@ def detect_columns(reader, worksheet: Worksheet) -> Dict[str, ColumnHeaderInfo]:
         Returns:
             Dictionary mapping field names to ColumnHeaderInfo
         """
-    if True:
-        # Check cache
-        ws_id = id(worksheet)
-        if ws_id in reader._column_mapping_cache:
-            return reader._column_mapping_cache[ws_id]
+    # Check cache
+    ws_id = id(worksheet)
+    if ws_id in reader._column_mapping_cache:
+        return reader._column_mapping_cache[ws_id]
 
-        # Detect table region
-        table_region = reader.detect_table_region(worksheet)
-        if table_region is None:
-            reader._column_mapping_cache[ws_id] = {}
-            return {}
+    # Detect table region
+    table_region = reader.detect_table_region(worksheet)
+    if table_region is None:
+        reader._column_mapping_cache[ws_id] = {}
+        return {}
 
-        column_mapping: Dict[str, ColumnHeaderInfo] = {}
-        processed_merged_cols = set()  # Track columns already processed as part of merged cells
-        # Track every col_idx that was handled by the keyword-matching loop
-        # (including date group parent headers that produce sub-columns rather
-        # than a direct mapping entry).  These must be excluded from the
-        # passthrough pass so they don't appear as duplicate raw columns.
-        keyword_handled_cols: Set[int] = set()
+    column_mapping: Dict[str, ColumnHeaderInfo] = {}
+    processed_merged_cols = set()  # Track columns already processed as part of merged cells
+    # Track every col_idx that was handled by the keyword-matching loop
+    # (including date group parent headers that produce sub-columns rather
+    # than a direct mapping entry).  These must be excluded from the
+    # passthrough pass so they don't appear as duplicate raw columns.
+    keyword_handled_cols: Set[int] = set()
 
-        # Scan header row(s) for columns
-        header_row = table_region.start_row
-        subheader_row = header_row + 1 if table_region.header_rows == 2 else None
+    # Scan header row(s) for columns
+    header_row = table_region.start_row
+    subheader_row = header_row + 1 if table_region.header_rows == 2 else None
 
-        # Deterministic date grouping (birth/entry)
-        date_groups = reader.detect_date_groups(worksheet, table_region)
+    # Deterministic date grouping (birth/entry)
+    date_groups = reader.detect_date_groups(worksheet, table_region)
 
-        for col_idx in range(table_region.start_col, table_region.end_col + 1):
-            # Skip if this column was already processed as part of a merged cell
-            if col_idx in processed_merged_cols:
-                continue
+    for col_idx in range(table_region.start_col, table_region.end_col + 1):
+        # Skip if this column was already processed as part of a merged cell
+        if col_idx in processed_merged_cols:
+            continue
 
-            # Get header cell text
-            header_cell = worksheet.cell(row=header_row, column=col_idx)
-            cell_value = header_cell.value
+        # Get header cell text
+        header_cell = worksheet.cell(row=header_row, column=col_idx)
+        cell_value = header_cell.value
 
-            # Handle merged cells - get value from top-left cell and mark all spanned columns
-            if (cell_value is None or str(cell_value).strip() == "") and reader._is_merged_cell(worksheet, header_row, col_idx):
-                merge_range = reader._get_merged_cell_range(worksheet, header_row, col_idx)
-                if merge_range:
-                    cell_value = worksheet.cell(row=merge_range[0], column=merge_range[2]).value
-                    for merged_col in range(merge_range[2], merge_range[3] + 1):
-                        processed_merged_cols.add(merged_col)
-            elif reader._is_merged_cell(worksheet, header_row, col_idx):
-                merge_range = reader._get_merged_cell_range(worksheet, header_row, col_idx)
-                if merge_range:
-                    for merged_col in range(merge_range[2], merge_range[3] + 1):
-                        processed_merged_cols.add(merged_col)
+        # Handle merged cells - get value from top-left cell and mark all spanned columns
+        if (cell_value is None or str(cell_value).strip() == "") and reader._is_merged_cell(worksheet, header_row, col_idx):
+            merge_range = reader._get_merged_cell_range(worksheet, header_row, col_idx)
+            if merge_range:
+                cell_value = worksheet.cell(row=merge_range[0], column=merge_range[2]).value
+                for merged_col in range(merge_range[2], merge_range[3] + 1):
+                    processed_merged_cols.add(merged_col)
+        elif reader._is_merged_cell(worksheet, header_row, col_idx):
+            merge_range = reader._get_merged_cell_range(worksheet, header_row, col_idx)
+            if merge_range:
+                for merged_col in range(merge_range[2], merge_range[3] + 1):
+                    processed_merged_cols.add(merged_col)
 
-            if cell_value is None:
-                continue
+        if cell_value is None:
+            continue
 
-            header_text = str(cell_value).strip()
+        header_text = str(cell_value).strip()
 
-            if reader._should_ignore_column(header_text):
-                continue
+        if reader._should_ignore_column(header_text):
+            continue
 
-            normalized_header = reader._normalize_text(header_text)
-            matched_field = reader._match_field(normalized_header)
+        normalized_header = reader._normalize_text(header_text)
+        matched_field = reader._match_field(normalized_header)
 
-            if matched_field:
-                keyword_handled_cols.add(col_idx)
+        if matched_field:
+            keyword_handled_cols.add(col_idx)
 
-                if matched_field in ["birth_date", "entry_date"] and subheader_row:
-                    group_type = DateFieldType.BIRTH_DATE if matched_field == "birth_date" else DateFieldType.ENTRY_DATE
-                    group = date_groups.get(group_type)
-                    if group:
-                        prefix = "birth" if matched_field == "birth_date" else "entry"
-                        column_mapping[f"{prefix}_year"] = ColumnHeaderInfo(
-                            col=group.year_col,
-                            header_row=subheader_row,
-                            last_row=table_region.end_row,
-                            header_text=str(worksheet.cell(row=subheader_row, column=group.year_col).value or ""),
-                        )
-                        column_mapping[f"{prefix}_month"] = ColumnHeaderInfo(
-                            col=group.month_col,
-                            header_row=subheader_row,
-                            last_row=table_region.end_row,
-                            header_text=str(worksheet.cell(row=subheader_row, column=group.month_col).value or ""),
-                        )
-                        column_mapping[f"{prefix}_day"] = ColumnHeaderInfo(
-                            col=group.day_col,
-                            header_row=subheader_row,
-                            last_row=table_region.end_row,
-                            header_text=str(worksheet.cell(row=subheader_row, column=group.day_col).value or ""),
-                        )
-                    else:
-                        column_mapping[matched_field] = ColumnHeaderInfo(
-                            col=col_idx,
-                            header_row=header_row,
-                            last_row=table_region.end_row,
-                            header_text=header_text,
-                        )
+            if matched_field in ["birth_date", "entry_date"] and subheader_row:
+                group_type = DateFieldType.BIRTH_DATE if matched_field == "birth_date" else DateFieldType.ENTRY_DATE
+                group = date_groups.get(group_type)
+                if group:
+                    prefix = "birth" if matched_field == "birth_date" else "entry"
+                    column_mapping[f"{prefix}_year"] = ColumnHeaderInfo(
+                        col=group.year_col,
+                        header_row=subheader_row,
+                        last_row=table_region.end_row,
+                        header_text=str(worksheet.cell(row=subheader_row, column=group.year_col).value or ""),
+                    )
+                    column_mapping[f"{prefix}_month"] = ColumnHeaderInfo(
+                        col=group.month_col,
+                        header_row=subheader_row,
+                        last_row=table_region.end_row,
+                        header_text=str(worksheet.cell(row=subheader_row, column=group.month_col).value or ""),
+                    )
+                    column_mapping[f"{prefix}_day"] = ColumnHeaderInfo(
+                        col=group.day_col,
+                        header_row=subheader_row,
+                        last_row=table_region.end_row,
+                        header_text=str(worksheet.cell(row=subheader_row, column=group.day_col).value or ""),
+                    )
                 else:
                     column_mapping[matched_field] = ColumnHeaderInfo(
                         col=col_idx,
@@ -303,21 +295,85 @@ def detect_columns(reader, worksheet: Worksheet) -> Dict[str, ColumnHeaderInfo]:
                         last_row=table_region.end_row,
                         header_text=header_text,
                     )
+            else:
+                column_mapping[matched_field] = ColumnHeaderInfo(
+                    col=col_idx,
+                    header_row=header_row,
+                    last_row=table_region.end_row,
+                    header_text=header_text,
+                )
 
-        # ---------------------------------------------------------------
-        # Passthrough pass: add every column whose header did NOT match a
-        # keyword so that no Excel column is silently dropped.
-        # ---------------------------------------------------------------
-        already_mapped_cols: Set[int] = {info.col for info in column_mapping.values()}
+    # ---------------------------------------------------------------
+    # Passthrough pass: add every column whose header did NOT match a
+    # keyword so that no Excel column is silently dropped.
+    # ---------------------------------------------------------------
+    already_mapped_cols: Set[int] = {info.col for info in column_mapping.values()}
+
+    for col_idx in range(table_region.start_col, table_region.end_col + 1):
+        if col_idx in already_mapped_cols or col_idx in processed_merged_cols or col_idx in keyword_handled_cols:
+            continue
+
+        cell_value = worksheet.cell(row=header_row, column=col_idx).value
+
+        if (cell_value is None or str(cell_value).strip() == "") and reader._is_merged_cell(worksheet, header_row, col_idx):
+            merge_range = reader._get_merged_cell_range(worksheet, header_row, col_idx)
+            if merge_range:
+                cell_value = worksheet.cell(row=merge_range[0], column=merge_range[2]).value
+
+        if cell_value is None or str(cell_value).strip() == "":
+            continue
+
+        header_text = str(cell_value).strip()
+
+        if reader._should_ignore_column(header_text):
+            continue
+
+        safe_key = re.sub(r'[^\w\u0590-\u05FF]+', '_', header_text).strip('_') or f"col_{col_idx}"
+        if safe_key in column_mapping:
+            safe_key = f"{safe_key}_{col_idx}"
+
+        column_mapping[safe_key] = ColumnHeaderInfo(
+            col=col_idx,
+            header_row=header_row,
+            last_row=table_region.end_row,
+            header_text=header_text,
+        )
+
+    # ---------------------------------------------------------------
+    # Sub-header pass (two-row header layout only):
+    # When header_rows == 2, some regular fields (e.g. שם פרטי, שם משפחה,
+    # שם האב) may live exclusively on the sub-header row while the top
+    # header row has empty cells in those columns.
+    #
+    # ALL שנה/חודש/יום cells on the sub-header row are excluded to prevent
+    # phantom `year`/`month`/`day` columns in the mapping.
+    # ---------------------------------------------------------------
+    if subheader_row is not None:
+        already_mapped_cols = {info.col for info in column_mapping.values()}
+
+        # Exclude all date-component sub-header columns
+        _date_component_cols: Set[int] = set()
+        for dg in date_groups.values():
+            _date_component_cols.update([dg.year_col, dg.month_col, dg.day_col])
+        _eff_end = table_region.end_col
+        for _c in range(worksheet.max_column or 0, 0, -1):
+            _v = worksheet.cell(row=subheader_row, column=_c).value
+            if _v is not None and str(_v).strip() != "":
+                _eff_end = max(_eff_end, _c)
+                break
+        for _c in range(table_region.start_col, _eff_end + 1):
+            _v = worksheet.cell(row=subheader_row, column=_c).value
+            if _v is not None and str(_v).strip() in ("שנה", "חודש", "יום"):
+                _date_component_cols.add(_c)
 
         for col_idx in range(table_region.start_col, table_region.end_col + 1):
-            if col_idx in already_mapped_cols or col_idx in processed_merged_cols or col_idx in keyword_handled_cols:
+            if col_idx in already_mapped_cols or col_idx in _date_component_cols:
                 continue
 
-            cell_value = worksheet.cell(row=header_row, column=col_idx).value
+            cell_value = worksheet.cell(row=subheader_row, column=col_idx).value
 
-            if (cell_value is None or str(cell_value).strip() == "") and reader._is_merged_cell(worksheet, header_row, col_idx):
-                merge_range = reader._get_merged_cell_range(worksheet, header_row, col_idx)
+            if (cell_value is None or str(cell_value).strip() == "") and reader._is_merged_cell(worksheet, subheader_row, col_idx):
+                merge_range = reader._get_merged_cell_range(worksheet, subheader_row, col_idx)
                 if merge_range:
                     cell_value = worksheet.cell(row=merge_range[0], column=merge_range[2]).value
 
@@ -329,97 +385,39 @@ def detect_columns(reader, worksheet: Worksheet) -> Dict[str, ColumnHeaderInfo]:
             if reader._should_ignore_column(header_text):
                 continue
 
-            safe_key = re.sub(r'[^\w\u0590-\u05FF]+', '_', header_text).strip('_') or f"col_{col_idx}"
-            if safe_key in column_mapping:
-                safe_key = f"{safe_key}_{col_idx}"
+            # Skip cells that look like data values rather than headers.
+            if reader._looks_like_data_value(cell_value):
+                continue
 
-            column_mapping[safe_key] = ColumnHeaderInfo(
-                col=col_idx,
-                header_row=header_row,
-                last_row=table_region.end_row,
-                header_text=header_text,
-            )
+            normalized_header = reader._normalize_text(header_text)
+            matched_field = reader._match_field(normalized_header)
 
-        # ---------------------------------------------------------------
-        # Sub-header pass (two-row header layout only):
-        # When header_rows == 2, some regular fields (e.g. שם פרטי, שם משפחה,
-        # שם האב) may live exclusively on the sub-header row while the top
-        # header row has empty cells in those columns.
-        #
-        # ALL שנה/חודש/יום cells on the sub-header row are excluded to prevent
-        # phantom `year`/`month`/`day` columns in the mapping.
-        # ---------------------------------------------------------------
-        if subheader_row is not None:
-            already_mapped_cols = {info.col for info in column_mapping.values()}
-
-            # Exclude all date-component sub-header columns
-            _date_component_cols: Set[int] = set()
-            for dg in date_groups.values():
-                _date_component_cols.update([dg.year_col, dg.month_col, dg.day_col])
-            _eff_end = table_region.end_col
-            for _c in range(worksheet.max_column or 0, 0, -1):
-                _v = worksheet.cell(row=subheader_row, column=_c).value
-                if _v is not None and str(_v).strip() != "":
-                    _eff_end = max(_eff_end, _c)
-                    break
-            for _c in range(table_region.start_col, _eff_end + 1):
-                _v = worksheet.cell(row=subheader_row, column=_c).value
-                if _v is not None and str(_v).strip() in ("שנה", "חודש", "יום"):
-                    _date_component_cols.add(_c)
-
-            for col_idx in range(table_region.start_col, table_region.end_col + 1):
-                if col_idx in already_mapped_cols or col_idx in _date_component_cols:
-                    continue
-
-                cell_value = worksheet.cell(row=subheader_row, column=col_idx).value
-
-                if (cell_value is None or str(cell_value).strip() == "") and reader._is_merged_cell(worksheet, subheader_row, col_idx):
-                    merge_range = reader._get_merged_cell_range(worksheet, subheader_row, col_idx)
-                    if merge_range:
-                        cell_value = worksheet.cell(row=merge_range[0], column=merge_range[2]).value
-
-                if cell_value is None or str(cell_value).strip() == "":
-                    continue
-
-                header_text = str(cell_value).strip()
-
-                if reader._should_ignore_column(header_text):
-                    continue
-
-                # Skip cells that look like data values rather than headers.
-                if reader._looks_like_data_value(cell_value):
-                    continue
-
-                normalized_header = reader._normalize_text(header_text)
-                matched_field = reader._match_field(normalized_header)
-
-                if matched_field:
-                    if matched_field not in column_mapping:
-                        column_mapping[matched_field] = ColumnHeaderInfo(
-                            col=col_idx,
-                            header_row=subheader_row,
-                            last_row=table_region.end_row,
-                            header_text=header_text,
-                        )
-                else:
-                    safe_key = re.sub(r'[^\w\u0590-\u05FF]+', '_', header_text).strip('_') or f"col_{col_idx}"
-                    if safe_key in column_mapping:
-                        safe_key = f"{safe_key}_{col_idx}"
-                    column_mapping[safe_key] = ColumnHeaderInfo(
+            if matched_field:
+                if matched_field not in column_mapping:
+                    column_mapping[matched_field] = ColumnHeaderInfo(
                         col=col_idx,
                         header_row=subheader_row,
                         last_row=table_region.end_row,
                         header_text=header_text,
                     )
+            else:
+                safe_key = re.sub(r'[^\w\u0590-\u05FF]+', '_', header_text).strip('_') or f"col_{col_idx}"
+                if safe_key in column_mapping:
+                    safe_key = f"{safe_key}_{col_idx}"
+                column_mapping[safe_key] = ColumnHeaderInfo(
+                    col=col_idx,
+                    header_row=subheader_row,
+                    last_row=table_region.end_row,
+                    header_text=header_text,
+                )
 
-        # Sort the final mapping by physical Excel column number so that
-        # field_names (built from list(column_mapping.keys())) reflects the
-        # true left-to-right worksheet column order regardless of which pass
-        # (keyword, passthrough, sub-header) inserted each entry.
-        sorted_mapping: Dict[str, ColumnHeaderInfo] = dict(
-            sorted(column_mapping.items(), key=lambda kv: kv[1].col)
-        )
+    # Sort the final mapping by physical Excel column number so that
+    # field_names (built from list(column_mapping.keys())) reflects the
+    # true left-to-right worksheet column order regardless of which pass
+    # (keyword, passthrough, sub-header) inserted each entry.
+    sorted_mapping: Dict[str, ColumnHeaderInfo] = dict(
+        sorted(column_mapping.items(), key=lambda kv: kv[1].col)
+    )
 
-        reader._column_mapping_cache[ws_id] = sorted_mapping
-        return sorted_mapping
-
+    reader._column_mapping_cache[ws_id] = sorted_mapping
+    return sorted_mapping

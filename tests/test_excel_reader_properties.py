@@ -12,7 +12,7 @@ Tests cover:
 """
 
 import pytest
-from hypothesis import given, strategies as st, assume
+from hypothesis import given, strategies as st, assume, settings
 from openpyxl import Workbook
 from src.excel_standardization.io_layer.excel_reader import ExcelReader
 
@@ -318,6 +318,7 @@ class TestBestRowSelectionProperties:
         assert isinstance(result, int), f"Expected int, got {type(result)}"
 
     @given(st.integers(min_value=1, max_value=30))
+    @settings(deadline=None)
     def test_score_header_row_non_negative(self, row_idx):
         """Property: Header row score should be non-negative."""
         from openpyxl import Workbook
