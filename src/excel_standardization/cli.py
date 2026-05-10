@@ -14,7 +14,7 @@ from typing import NoReturn
 
 from .orchestrator import StandardizationOrchestrator
 
-
+# הפונקציה מגדירה את מנגנון הלוגים של הרצת ה־CLI, כולל הדפסה למסך ושמירה לקובץ לוג.
 def setup_logging(file_path: str) -> None:
     """Configure logging with console INFO+ and file DEBUG+."""
 
@@ -47,7 +47,7 @@ def setup_logging(file_path: str) -> None:
 
     logger.info(f"Logging initialized. Log file: {log_file}")
 
-
+# הפונקציה קוראת את הפרמטרים שהמשתמש העביר בהרצה משורת הפקודה, בעיקר את נתיב קובץ האקסל.
 def parse_arguments() -> argparse.Namespace:
     """Parse CLI arguments."""
 
@@ -63,7 +63,7 @@ def parse_arguments() -> argparse.Namespace:
 
     return parser.parse_args()
 
-
+# הפונקציה בודקת שקובץ הקלט קיים, שהוא באמת קובץ Excel תקין, ושיש למערכת הרשאת קריאה אליו.
 def validate_file_path(file_path: str) -> None:
     """Validate input Excel file."""
 
@@ -83,7 +83,7 @@ def validate_file_path(file_path: str) -> None:
     if not path.stat().st_mode & 0o400:
         raise PermissionError(f"File is not readable: {file_path}")
 
-
+# הפונקציה יוצרת נתיב לקובץ הפלט המתוקן בלי לשנות את קובץ המקור.
 def build_output_path(input_file: str) -> str:
     """Create output Excel path without modifying original file."""
 
@@ -95,7 +95,7 @@ def build_output_path(input_file: str) -> str:
 
     return str(output_path)
 
-
+# הפונקציה הראשית של ה־CLI: קוראת פרמטרים, בודקת קובץ, מפעילה תקנון ומחזירה קוד הצלחה או שגיאה.
 def main() -> int:
     """Main CLI entry point."""
 
@@ -160,11 +160,11 @@ def main() -> int:
             print(f"ERROR: Unexpected error: {e}", file=sys.stderr)
         return 1
 
-
+# הפונקציה משמשת כנקודת כניסה להרצה כפקודת console ומסיימת את התהליך עם קוד החזרה מתאים.
 def cli_entry_point() -> NoReturn:
     """Console script entry point."""
     sys.exit(main())
 
-
+# מאפשר להריץ את הקובץ ישירות מהטרמינל, ואז main תופעל.
 if __name__ == "__main__":
     sys.exit(main())
