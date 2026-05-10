@@ -16,7 +16,9 @@ from ..data_types import DateParseResult, DateFormatPattern, DateFieldType
 logger = logging.getLogger(__name__)
 
 
+# המנוע אחראי לפענוח תאריכים, תיקון רכיבים והרצת חוקי תאריך.
 class DateEngine:
+    # הפונקציה יוצרת תוצאת תאריך ריקה כאשר אין ערך קלט לעיבוד.
     def _blank_result(self) -> DateParseResult:
         return DateParseResult(year=None, month=None, day=None, is_valid=False, status_text="")
 
@@ -24,6 +26,7 @@ class DateEngine:
     # MAIN ENTRY
     # ----------------------------------------------------
 
+    # הפונקציה משמשת נקודת כניסה לנרמול תאריך משדה יחיד או מעמודות שנה/חודש/יום.
     def parse_date(
         self,
         year_val,
@@ -45,6 +48,7 @@ class DateEngine:
     # SPLIT COLUMNS
     # ----------------------------------------------------
 
+    # הפונקציה מפענחת תאריך שמגיע משלוש עמודות נפרדות בגיליון.
     def parse_from_split_columns(self, year_val, month_val, day_val) -> DateParseResult:
         result = self._blank_result()
 
@@ -85,6 +89,7 @@ class DateEngine:
     # MAIN VALUE
     # ----------------------------------------------------
 
+    # הפונקציה מפענחת תאריך שמגיע מערך יחיד ושומרת תאימות לחתימות קיימות.
     def parse_from_main_value(
         self,
         raw_value,
@@ -93,6 +98,7 @@ class DateEngine:
         """Backward-compatible wrapper that now delegates to parse_date_value."""
         return self.parse_date_value(raw_value, pattern)
 
+    # הפונקציה בוחרת אסטרטגיית parsing לפי סוג הערך ודפוס התאריך שזוהה.
     def parse_date_value(self, raw_value, pattern: DateFormatPattern) -> DateParseResult:
         """Parse a date from a single cell value following VBA rules."""
         result = self._blank_result()
@@ -164,9 +170,11 @@ class DateEngine:
     # Public compatibility wrappers (used by unit tests / legacy callers)
     # ------------------------------------------------------------------
 
+    # הפונקציה מרחיבה שנה דו־ספרתית למאה המתאימה לפי כללי המערכת.
     def expand_two_digit_year(self, year: int) -> int:
         return self._expand_two_digit_year(year)
 
+    # הפונקציה מפענחת מחרוזת תאריך ספרתית ללא מפרידים.
     def parse_numeric_date_string(self, txt: str) -> DateParseResult:
         if txt is None:
             r = self._blank_result()
@@ -179,6 +187,7 @@ class DateEngine:
             return r
         return self._parse_numeric_date_string(s)
 
+    # הפונקציה מפענחת מחרוזת תאריך עם מפרידים לפי DD/MM או MM/DD.
     def parse_separated_date_string(self, txt: str, pattern: DateFormatPattern) -> DateParseResult:
         if txt is None:
             r = self._blank_result()
@@ -192,6 +201,7 @@ class DateEngine:
         s2 = s.replace(".", "/")
         return self._parse_separated_date_string(s2, pattern)
 
+    # הפונקציה מחשבת גיל לצורך בדיקות עסקיות של תאריך לידה וכניסה.
     def calculate_age(self, *args) -> int:
         """Compatibility wrapper.
 
@@ -210,6 +220,7 @@ class DateEngine:
     # NUMERIC DATE
     # ----------------------------------------------------
 
+    # הפונקציה מיישמת את parsing הספרות הפנימי ומחזירה רכיבי תאריך.
     def _parse_numeric_date_string(self, txt: str) -> DateParseResult:
         result = self._blank_result()
 
@@ -256,6 +267,7 @@ class DateEngine:
     # SEPARATED DATE
     # ----------------------------------------------------
 
+    # הפונקציה מיישמת parsing פנימי של תאריך עם מפרידים ועם דפוס גיליון.
     def _parse_separated_date_string(
         self,
         txt: str,
@@ -302,6 +314,7 @@ class DateEngine:
     # MIXED MONTH-NUMERIC (e.g., "12 January 2005", "ינואר 12 2005")
     # ----------------------------------------------------
 
+    # הפונקציה מטפלת בתאריכים הכוללים שם חודש וטקסט מספרי מעורב.
     def _parse_mixed_month_numeric(self, txt: str) -> DateParseResult:
         result = self._blank_result()
 
@@ -350,9 +363,11 @@ class DateEngine:
 
         return self._validate_date(yr, month_num, dy)
 
+    # הפונקציה מזהה האם הטקסט כולל שם חודש במקום מספר חודש.
     def _contains_month_name(self, txt: str) -> bool:
         return self._extract_month_number(txt) != 0
 
+    # הפונקציה ממירה שם חודש או וריאציה טקסטואלית למספר חודש.
     def _extract_month_number(self, txt: str) -> int:
         """Extract month number from text containing a month name."""
         t = txt.lower()
@@ -411,6 +426,7 @@ class DateEngine:
     # VALIDATE DATE
     # ----------------------------------------------------
 
+    # הפונקציה מאמתת רכיבי שנה/חודש/יום ומחזירה תוצאה תקנית או שגיאה.
     def _validate_date(self, yr, mo, dy) -> DateParseResult:
 
         result = self._blank_result()
@@ -461,6 +477,7 @@ class DateEngine:
     # BUSINESS RULES
     # ----------------------------------------------------
 
+    # הפונקציה מריצה חוקים עסקיים על תאריך לאחר parsing, כולל גיל ותאריך עתידי.
     def validate_business_rules(
         self,
         result: DateParseResult,
@@ -532,6 +549,7 @@ class DateEngine:
     # ENTRY BEFORE BIRTH
     # ----------------------------------------------------
 
+    # הפונקציה בודקת שתאריך כניסה אינו קודם לתאריך הלידה באותה שורה.
     def validate_entry_before_birth(
         self,
         birth: DateParseResult,
@@ -572,6 +590,7 @@ class DateEngine:
     # HELPERS
     # ----------------------------------------------------
 
+    # הפונקציה היא helper פנימי להרחבת שנה דו־ספרתית עם טיפול בערכים ריקים.
     def _expand_two_digit_year(self, yr):
 
         current = date.today().year
@@ -582,6 +601,7 @@ class DateEngine:
         else:
             return ((current // 100) - 1) * 100 + yr
 
+    # הפונקציה בודקת האם לפחות אחד מרכיבי התאריך המפוצל קיים.
     def _has_split_date(self, y, m, d):
 
         return (
@@ -590,9 +610,11 @@ class DateEngine:
             and not self._is_empty(d)
         )
 
+    # הפונקציה מזהה ערך ריק בצורה אחידה עבור רכיבי תאריך.
     def _is_empty(self, value) -> bool:
         return value is None or str(value).strip() == ""
 
+    # הפונקציה ממירה רכיב תאריך מפוצל למספר ומסמנת אם ההמרה הצליחה.
     def _coerce_split_component(self, value) -> tuple[Optional[int], bool]:
         if self._is_empty(value):
             return None, False
@@ -601,6 +623,7 @@ class DateEngine:
         except Exception:
             return None, False
 
+    # הפונקציה מחשבת גיל מדויק לפי תאריך לידה ותאריך ייחוס.
     def _calculate_age(self, birth: date, today: date) -> int:
         """Exact age calculation equivalent to VBA DateDiff('yyyy') with birthday check."""
         age = today.year - birth.year

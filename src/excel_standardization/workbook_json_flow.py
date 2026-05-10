@@ -16,6 +16,7 @@ from .processing.standardization_pipeline import StandardizationPipeline
 from .json_exporter import JsonExporter
 
 
+# הפונקציה מחלצת WorkbookDataset מקובץ Excel כשלב הראשון בנתיב ה־Dataset הפעיל.
 def extract_workbook(reader: ExcelReader, input_excel_path: str):
     extractor = ExcelToJsonExtractor(
         excel_reader=reader,
@@ -29,6 +30,7 @@ def extract_workbook(reader: ExcelReader, input_excel_path: str):
     return workbook_dataset
 
 
+# הפונקציה בונה את ה־pipeline עם כל מנועי הסטנדרטיזציה הפעילים.
 def build_pipeline(
     name_engine: NameEngine,
     gender_engine: GenderEngine,
@@ -47,6 +49,7 @@ def build_pipeline(
     )
 
 
+# הפונקציה מפעילה סטנדרטיזציה על כל גיליון שחולץ לפני שלב היצוא.
 def normalize_sheets(
     sheets: list,
     name_engine: NameEngine,
@@ -66,6 +69,7 @@ def normalize_sheets(
     return normalized_sheets
 
 
+# הפונקציה מחשבת נתיב יצוא ברירת מחדל בלי לדרוס קבצים קיימים.
 def default_export_path(input_excel_path: str) -> str:
     src = Path(input_excel_path)
     desktop = Path.home() / "Desktop"
@@ -82,6 +86,7 @@ def default_export_path(input_excel_path: str) -> str:
     return str(candidate)
 
 
+# הפונקציה מריצה את נתיב Excel -> Dataset -> Pipeline -> Export לקובץ תוצאה.
 def export_vba_parity_workbook_from_json(
     reader: ExcelReader,
     name_engine: NameEngine,
@@ -111,6 +116,7 @@ def export_vba_parity_workbook_from_json(
     )
 
 
+# הפונקציה מייצאת את תוצאת החילוץ הגולמית ל־JSON לצורכי בדיקה או דיבוג.
 def export_raw_json(reader: ExcelReader, input_excel_path: str, output_json_path: str) -> None:
     workbook_dataset = extract_workbook(reader, input_excel_path)
     JsonExporter(indent=2, ensure_ascii=False).export_workbook_to_json(
@@ -119,6 +125,7 @@ def export_raw_json(reader: ExcelReader, input_excel_path: str, output_json_path
     )
 
 
+# הפונקציה מייצאת Dataset לאחר סטנדרטיזציה ל־JSON בלי לכתוב Excel.
 def export_normalized_json(
     reader: ExcelReader,
     name_engine: NameEngine,

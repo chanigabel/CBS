@@ -26,6 +26,7 @@ from . import name_standardization
 logger = logging.getLogger(__name__)
 
 
+# המחלקה משמשת מתאם מרכזי שמריץ את מנועי הסטנדרטיזציה על SheetDataset.
 class StandardizationPipeline:
     """Apply standardization engines to JSON rows.
     
@@ -79,6 +80,7 @@ class StandardizationPipeline:
         - Validates: Requirements 12.1, 17.6
     """
     
+    # הפונקציה מקבלת את המנועים ואת דגלי ההפעלה שמגדירים אילו תיקונים ירוצו.
     def __init__(
         self,
         name_engine: Optional[NameEngine] = None,
@@ -121,6 +123,7 @@ class StandardizationPipeline:
         self.apply_date_standardization_enabled = apply_date_standardization_enabled
         self.apply_identifier_standardization_enabled = apply_identifier_standardization_enabled
     
+    # הפונקציה מנרמלת שורה אחת ומוסיפה שדות corrected בלי לשנות את ערכי המקור.
     def normalize_row(self, json_row: JsonRow, row_number: Optional[int] = None) -> JsonRow:
         """Apply standardization engines to a single row.
         
@@ -176,6 +179,7 @@ class StandardizationPipeline:
         
         return result
     
+    # הפונקציה מפעילה תיקוני שמות על השורה דרך מודול name_standardization.
     def apply_name_standardization(self, json_row: JsonRow, row_number: Optional[int] = None) -> List[str]:
         """Apply NameEngine to name fields in the row.
 
@@ -203,6 +207,7 @@ class StandardizationPipeline:
         """
         return name_standardization.apply_name_standardization(self, json_row, row_number)
 
+    # הפונקציה מפעילה תיקון מגדר ומעדכנת gender_corrected/status בשורת ה־Dataset.
     def apply_gender_standardization(self, json_row: JsonRow, row_number: Optional[int] = None) -> List[str]:
         """Apply GenderEngine to gender field in the row.
         
@@ -221,6 +226,7 @@ class StandardizationPipeline:
         """
         return gender_standardization.apply_gender_standardization(self, json_row, row_number)
 
+    # הפונקציה מפעילה תיקוני תאריך לידה וכניסה ומוסיפה שדות corrected/status.
     def apply_date_standardization(self, json_row: JsonRow, row_number: Optional[int] = None) -> List[str]:
         """Apply DateEngine to date fields in the row.
         
@@ -243,6 +249,7 @@ class StandardizationPipeline:
         """
         return date_standardization.apply_date_standardization(self, json_row, row_number)
     
+    # הפונקציה מנרמלת שדה תאריך יחיד או מפוצל עבור prefix נתון.
     def _normalize_date_field(self, json_row: JsonRow, prefix: str, field_type, row_number: Optional[int] = None):
         """Helper method to normalize a date field (birth or entry).
         
@@ -259,6 +266,7 @@ class StandardizationPipeline:
         """
         return date_standardization.normalize_date_field(self, json_row, prefix, field_type, row_number)
 
+    # הפונקציה מחזירה רכיבי תאריך בטוחים להצגה וליצוא לאחר parsing.
     def _date_corrected_components(self, result) -> Tuple[Any, Any, Any]:
         """Return UI/export-safe corrected date components.
 
@@ -268,6 +276,7 @@ class StandardizationPipeline:
         """
         return date_standardization.date_corrected_components(result)
     
+    # הפונקציה מפעילה תיקוני תעודת זהות ודרכון ומעדכנת שדות corrected.
     def apply_identifier_standardization(self, json_row: JsonRow, row_number: Optional[int] = None) -> List[str]:
         """Apply IdentifierEngine to identifier fields in the row.
         
@@ -287,6 +296,7 @@ class StandardizationPipeline:
         """
         return identifier_standardization.apply_identifier_standardization(self, json_row, row_number)
 
+    # הפונקציה מנרמלת גיליון שלם, מחשבת סטטיסטיקות ומריצה validation לאחר התיקונים.
     def normalize_dataset(self, raw_dataset: SheetDataset) -> SheetDataset:
         """Apply standardization engines to all rows in dataset.
 
@@ -411,6 +421,14 @@ class StandardizationPipeline:
         if self.apply_date_standardization_enabled and self.date_engine:
             normalized_rows = self._apply_birth_year_majority_correction(normalized_rows)
 
+        if (
+            self.apply_identifier_standardization_enabled
+            and any(row.get("passport_corrected") for row in normalized_rows)
+            and "passport_corrected" not in corrected_dataset.field_names
+        ):
+            corrected_dataset.field_names = list(corrected_dataset.field_names)
+            corrected_dataset.field_names.append("passport_corrected")
+
         # Update the rows in the dataset
         corrected_dataset.rows = normalized_rows
 
@@ -485,7 +503,7 @@ class StandardizationPipeline:
 
         return corrected_dataset
 
-
+    # הפונקציה מחילה תיקון רוב לשנת לידה מקוצרת אחרי נרמול כל השורות.
     def _apply_birth_year_majority_correction(self, rows: List[JsonRow]) -> List[JsonRow]:
         """One-way list-level majority correction for birth years in the web/JSON path.
 

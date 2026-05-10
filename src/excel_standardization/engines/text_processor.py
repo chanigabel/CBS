@@ -15,6 +15,7 @@ import re
 _RE_PAREN_ACRONYM = re.compile(r'\([^)]*["\u05f4\u05f3\'"][^)]*\)')
 
 
+# המנוע משמש לניקוי טקסט שמות לפני הפעלת חוקי השמות.
 class TextProcessor:
     """Pure business logic for text manipulation."""
 
@@ -121,6 +122,7 @@ class TextProcessor:
     # Low-level helpers
     # ------------------------------------------------------------------
 
+    # הפונקציה ממירה ערך מכל סוג למחרוזת נקייה ובטוחה לעיבוד.
     def safe_to_string(self, value) -> str:
         """Safely convert any variant to string."""
         if value is None:
@@ -130,15 +132,18 @@ class TextProcessor:
         except Exception:
             return ""
 
+    # הפונקציה מבצעת נרמול בסיסי בלי לשנות משמעות עסקית של הטקסט.
     def minimal_normalize(self, text: str) -> str:
         """Trim + collapse spaces + strip zero-width chars."""
         text = "".join(ch for ch in text if ch not in self._ZERO_WIDTH)
         return " ".join(text.strip().split())
 
+    # הפונקציה מחקה trim של Excel כדי לשמר תאימות לתהליך המקורי.
     def worksheet_trim(self, text: str) -> str:
         """WorksheetFunction.Trim equivalent: trim + collapse internal spaces."""
         return " ".join(self.safe_to_string(text).split())
 
+    # הפונקציה מצמצמת רווחים כפולים לפני התאמות וחיתוכים.
     def collapse_spaces(self, text: str) -> str:
         """Replace multiple consecutive spaces with a single space."""
         return " ".join(self.safe_to_string(text).split())
@@ -147,6 +152,7 @@ class TextProcessor:
     # Title / substring removal (kept for backwards-compat)
     # ------------------------------------------------------------------
 
+    # הפונקציה מסירה תארים נפוצים משמות לפני יצירת הערך המתוקן.
     def remove_titles(self, text: str) -> str:
         """Remove raw-form Hebrew/English titles (before char filtering).
 
@@ -175,6 +181,7 @@ class TextProcessor:
 
         return self.worksheet_trim(padded)
 
+    # הפונקציה מסירה מילים וסימנים שאינם חלק מהשם התקני.
     def remove_unwanted_tokens(self, text: str) -> str:
         """Remove unwanted Hebrew tokens from already-cleaned text.
 
@@ -204,6 +211,7 @@ class TextProcessor:
 
         return self.worksheet_trim(padded)
 
+    # הפונקציה מסירה תת־מחרוזת, למשל שם משפחה מתוך שדה שם מורכב.
     def remove_substring(self, text: str, substring: str) -> str:
         """Remove a word/phrase from text (word-boundary aware, VBA parity)."""
         base = self.safe_to_string(text)
@@ -220,10 +228,12 @@ class TextProcessor:
     # Diacritics, language detection, final-letter spacing
     # ------------------------------------------------------------------
 
+    # הפונקציה מסירה ניקוד וסימנים דיאקריטיים כדי לאחד וריאציות קלט.
     def remove_diacritics(self, text: str) -> str:
         """Remove diacritics using the DIACRITIC_MAP."""
         return "".join(self.DIACRITIC_MAP.get(ch, ch) for ch in text)
 
+    # הפונקציה מזהה דומיננטיות שפה כדי לבחור כללי ניקוי מתאימים.
     def detect_language_dominance(self, text: str) -> Language:
         """Detect dominant language by counting Hebrew vs English letters.
 
@@ -246,6 +256,7 @@ class TextProcessor:
             return Language.HEBREW
         return Language.ENGLISH
 
+    # הפונקציה מתקנת אותיות סופיות בעברית אחרי פעולות ניקוי וחיתוך.
     def fix_hebrew_final_letters(self, text: str) -> str:
         """Insert a space after final Hebrew letters when followed by a non-space char."""
         if not text:
@@ -265,6 +276,7 @@ class TextProcessor:
     # Public entry point — strict fixed-order pipeline
     # ------------------------------------------------------------------
 
+    # הפונקציה מייצרת שם נקי לשדות first/last/father לפני שמירה כ־corrected.
     def clean_name(self, value) -> str:
         """Clean a name value using a strict fixed-order pipeline.
 
@@ -352,6 +364,7 @@ class TextProcessor:
 
         return text
 
+    # הפונקציה מנקה טקסט כללי כאשר אין צורך בכלל שם ספציפי.
     def clean_text(self, text: str) -> str:
         """Legacy alias for clean_name."""
         return self.clean_name(text)

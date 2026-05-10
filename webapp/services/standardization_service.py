@@ -24,9 +24,11 @@ from webapp.services.mosad_id_scanner import scan_mosad_id
 logger = logging.getLogger(__name__)
 
 
+# שירות runtime שמריץ את StandardizationPipeline על session פעיל.
 class StandardizationService:
     """Runs the standardization pipeline on a session's working copy."""
 
+    # מקבל שירותי session/report כדי לעדכן מצב ודוחות במהלך העיבוד.
     def __init__(
         self,
         session_service: SessionService,
@@ -37,6 +39,7 @@ class StandardizationService:
             processing_report_service or ProcessingReportService(session_service)
         )
 
+    # מחלץ מחדש גיליון או workbook, מריץ pipeline ומחזיר סטטיסטיקות ל־UI.
     def standardize(self, session_id: str, sheet_name: Optional[str] = None) -> StandardizeResponse:
         """Run standardization on the session's working copy.
 
@@ -313,9 +316,11 @@ class StandardizationService:
         )
 
     # Backward-compatible alias
+    # alias תפעולי ל־standardize עבור endpoints או קריאות קיימות.
     def normalize(self, session_id: str, sheet_name: Optional[str] = None) -> StandardizeResponse:
         return self.standardize(session_id, sheet_name=sheet_name)
 
+    # בונה pipeline עם כל המנועים שה־Web flow מפעיל בפועל.
     def _build_pipeline(self) -> StandardizationPipeline:
         """Build a StandardizationPipeline with the active engines."""
         tp = TextProcessor()

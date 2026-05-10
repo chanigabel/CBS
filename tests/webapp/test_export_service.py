@@ -4,6 +4,7 @@ import pytest
 from pathlib import Path
 from fastapi import HTTPException
 from unittest.mock import patch
+from openpyxl import load_workbook
 
 from src.excel_standardization.data_types import SheetDataset, WorkbookDataset
 from webapp.models.session import SessionRecord
@@ -96,3 +97,39 @@ def test_export_raises_500_when_no_workbook_dataset(tmp_path):
     with pytest.raises(HTTPException) as exc_info:
         export_svc.export("no-wb-session")
     assert exc_info.value.status_code == 500
+
+
+def test_export_keeps_moved_passport_value_without_source_passport_column(tmp_path):
+    svc = SessionService()
+    sheet = SheetDataset(
+        sheet_name="DayarimYahidim",
+        header_row=1,
+        header_rows_count=1,
+        field_names=["id_number", "passport_corrected"],
+        rows=[
+            {
+                "id_number": "ABC123",
+                "id_number_corrected": "",
+                "passport_corrected": "ABC123",
+                "identifier_status": "moved",
+            }
+        ],
+    )
+    record = SessionRecord(
+        session_id="passport-export-session",
+        source_file_path="uploads/passport-export-session.xlsx",
+        working_copy_path="work/passport-export-session.xlsx",
+        original_filename="test.xlsx",
+        status="standardized",
+        workbook_dataset=WorkbookDataset(source_file="test.xlsx", sheets=[sheet]),
+    )
+    svc.create(record)
+
+    output_path = ExportService(svc, tmp_path / "output").export("passport-export-session")
+
+    wb = load_workbook(output_path)
+    ws = wb["DayarimYahidim"]
+    headers = [cell.value for cell in ws[1]]
+    darkon_col = headers.index("Darkon") + 1
+    assert ws.cell(row=2, column=darkon_col).value == "ABC123"
+    wb.close()

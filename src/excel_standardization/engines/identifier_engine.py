@@ -13,6 +13,7 @@ from ..data_types import IdentifierResult
 logger = logging.getLogger(__name__)
 
 
+# המנוע אחראי לניקוי, סיווג ואימות תעודות זהות ודרכונים.
 class IdentifierEngine:
     """Pure business logic for ID and passport validation.
 
@@ -31,6 +32,7 @@ class IdentifierEngine:
         8722,  # minus sign
     }
 
+    # הפונקציה מנרמלת זוג שדות מזהה/דרכון ומחזירה תוצאה אחת לשורת ה־Dataset.
     def normalize_identifiers(self, id_value: Any, passport_value: Any) -> IdentifierResult:
         """Process ID and passport values together (VBA NormalizeIdentifiers parity)."""
         id_str = self._safe_to_string(id_value).strip()
@@ -123,15 +125,18 @@ class IdentifierEngine:
     # Internal helpers mirroring VBA ProcessIDValue
     # ------------------------------------------------------------------
 
+    # הפונקציה ממירה ערך קלט לטקסט בטוח לפני ניקוי מזהים.
     def _safe_to_string(self, v: Any) -> str:
         try:
             return "" if v is None else str(v)
         except Exception:
             return ""
 
+    # הפונקציה משאירה רק ספרות עבור בדיקות תעודת זהות.
     def _clean_digits_only(self, txt: str) -> str:
         return "".join(ch for ch in txt if ch.isdigit())
 
+    # הפונקציה מנקה מספר זהות ומכינה אותו לסיווג ולאימות checksum.
     def clean_id_number(self, id_str: str) -> str:
         """Remove hyphen characters from an ID field value before validation.
 
@@ -155,6 +160,7 @@ class IdentifierEngine:
         """
         return "".join(ch for ch in id_str if ord(ch) not in self.DASH_CHARS)
 
+    # הפונקציה מעבדת ערך מזהה יחיד ומחליטה אם הוא תעודת זהות, דרכון או שגיאה.
     def _process_id_value(
         self,
         id_str: str,
@@ -221,6 +227,7 @@ class IdentifierEngine:
     # Public compatibility helpers used by unit tests / legacy callers
     # ------------------------------------------------------------------
 
+    # הפונקציה מסווגת ערך מזהה לשימוש בדוחות ובבדיקות ממוקדות.
     def classify_id_value(self, id_value: Any) -> Tuple[str, bool, str]:
         """Classify an ID value for 'move-to-passport' decisions.
 
@@ -250,6 +257,7 @@ class IdentifierEngine:
             return "", True, "too_long"
         return digits, False, ""
 
+    # הפונקציה בודקת checksum של תעודת זהות ישראלית לאחר ניקוי ופדינג.
     def validate_israeli_id(self, id_digits: str) -> bool:
         """Validate Israeli ID checksum.
 
@@ -286,6 +294,7 @@ class IdentifierEngine:
 
         return checksum % 10 == 0
 
+    # הפונקציה משלימה תעודת זהות קצרה לאורכה התקני לפני בדיקה או יצוא.
     def pad_id(self, id_digits: str) -> str:
         """Pad ID to 9 digits with leading zeros.
 
@@ -299,6 +308,7 @@ class IdentifierEngine:
         """
         return id_digits.zfill(9)
 
+    # הפונקציה מנקה דרכון מערכי קלט לא אחידים ומכינה אותו לשדה היצוא.
     def clean_passport(self, passport: str) -> str:
         """Remove invalid characters from passport value.
 

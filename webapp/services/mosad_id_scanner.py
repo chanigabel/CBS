@@ -39,6 +39,7 @@ _LABEL_FRAGMENTS = [
 ]
 
 
+# מנרמל טקסט תא כדי לזהות תוויות מספר מוסד.
 def _norm(text: str) -> str:
     """NFC-normalise, lower-case, collapse whitespace."""
     return unicodedata.normalize("NFC", " ".join(text.split())).lower()
@@ -47,6 +48,7 @@ def _norm(text: str) -> str:
 _NORM_FRAGMENTS = [_norm(f) for f in _LABEL_FRAGMENTS]
 
 
+# בודק האם תא נראה כמו תווית של MosadID.
 def _is_label_cell(value) -> bool:
     """Return True if *value* looks like a MosadID label."""
     if value is None:
@@ -55,6 +57,7 @@ def _is_label_cell(value) -> bool:
     return any(frag in n for frag in _NORM_FRAGMENTS)
 
 
+# ממיר ערך מספר מוסד שנמצא בגיליון למחרוזת נקייה.
 def _coerce_value(raw) -> Optional[str]:
     """Return a non-empty string from a raw cell value, or None."""
     if raw is None:
@@ -63,6 +66,7 @@ def _coerce_value(raw) -> Optional[str]:
     return s if s else None
 
 
+# סורק את הגיליון כדי למצוא MosadID שמועבר ל־validation וליצוא.
 def scan_mosad_id(worksheet: Worksheet) -> Optional[str]:
     """Scan *worksheet* for a MosadID label/value pair.
 

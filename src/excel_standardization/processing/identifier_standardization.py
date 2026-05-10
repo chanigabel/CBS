@@ -10,6 +10,7 @@ from ..data_types import JsonRow
 logger = logging.getLogger(__name__)
 
 
+# הפונקציה מנרמלת מזהים בשורה ומפרידה בין תעודת זהות, דרכון וסטטוס שגיאה.
 def apply_identifier_standardization(
     pipeline: Any,
     json_row: JsonRow,
@@ -37,7 +38,7 @@ def apply_identifier_standardization(
 
         if "id_number" in json_row:
             json_row["id_number_corrected"] = result.corrected_id
-        if "passport" in json_row:
+        if "passport" in json_row or result.corrected_passport:
             json_row["passport_corrected"] = result.corrected_passport
         json_row["identifier_status"] = result.status_text
 

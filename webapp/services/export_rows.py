@@ -15,6 +15,7 @@ from webapp.services.export_validation import (
 )
 
 
+# ממיר שם בסיס לשם שדה יצוא בפורמט PascalCase.
 def _to_pascal_case(text: str) -> str:
     """Convert a free-text name to PascalCase English words joined without spaces."""
     import re
@@ -23,6 +24,7 @@ def _to_pascal_case(text: str) -> str:
     return "".join(t.capitalize() for t in tokens if t)
 
 
+# בונה שם קובץ יצוא ייחודי לפי שם המקור וזמן הריצה.
 def build_export_filename(record) -> str:
     """Build the export filename from institution metadata."""
     mosad_id = (record.mosad_id or "").strip()
@@ -37,6 +39,7 @@ def build_export_filename(record) -> str:
     return f"{original_stem}_standardized_{timestamp}.xlsx"
 
 
+# קובע SugMosad לגיליון לפי קונפיגורציית היצוא או fallback.
 def resolve_sug_mosad_for_sheet(configs, sheet_name: str, fallback: str):
     """Return the SugMosad value (or callable) to apply for a given sheet during export."""
     if not configs:
@@ -65,6 +68,7 @@ def resolve_sug_mosad_for_sheet(configs, sheet_name: str, fallback: str):
     return fallback
 
 
+# מחזיר רק שורות פעילות ושדות מקור שרלוונטיים ליצוא ולדוחות.
 def visible_rows(sheet_dataset) -> Tuple[List[Dict[str, Any]], List[str]]:
     """Return (rows, display_columns) exactly as the UI would show them."""
     original_field_set = set(sheet_dataset.field_names)

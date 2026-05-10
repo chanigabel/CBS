@@ -7,6 +7,7 @@ from webapp.models.processing_report import ProcessingReport
 _STAGE_ORDER = ["upload", "extract", "standardize", "validate", "export"]
 
 
+# קובע האם רכיב תאריך צריך להיחשב כבעייתי בדוח העיבוד.
 def is_invalid_date_component(status: str, corrected) -> bool:
     """Return True when a date status indicates an invalid corrected value."""
     if not status:
@@ -20,15 +21,18 @@ def is_invalid_date_component(status: str, corrected) -> bool:
     return invalid_status and (corrected is None or str(corrected).strip() == "")
 
 
+# מסנן סטטוס מזהה כדי לדווח רק על בעיות אמיתיות למשתמש.
 def is_real_identifier_issue(status: str) -> bool:
     return bool(status) and ("חסר מזהים" in status or "לא תקינה" in status)
 
 
+# מחשב מספר שורה אמיתי ב־Excel עבור הודעות דוח.
 def row_number(sheet, idx: int) -> int:
     """Return the 1-based workbook row number for a sheet row index."""
     return int(sheet.header_row or 1) + int(sheet.header_rows_count or 1) + idx + 1
 
 
+# מעדכן סטטוס כולל של דוח העיבוד לפי שלבים, אזהרות ושגיאות.
 def refresh_status(report: ProcessingReport) -> None:
     """Recompute processing status and its human-readable reason."""
     if report.errors:
@@ -48,6 +52,7 @@ def refresh_status(report: ProcessingReport) -> None:
     report.status_reason = status_reason(report)
 
 
+# מחזיר טקסט קצר שמסביר את הסטטוס הנוכחי של הדוח.
 def status_reason(report: ProcessingReport) -> str:
     """Build a compact reason string for the current report state."""
     if report.status == "failed":

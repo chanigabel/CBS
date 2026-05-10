@@ -15,6 +15,7 @@ from webapp.services.export_schema import EXPORT_MAPPING, canonical_sheet_name, 
 logger = logging.getLogger(__name__)
 
 
+# כותב בפועל את Workbook היצוא מתוך ה־Dataset והסכמה הפעילה.
 def write_export_workbook(record, output_path: Path, workbook_factory=Workbook) -> Tuple[int, Dict[str, int]]:
     """Write the active workbook dataset to ``output_path`` and return counts."""
     wb = workbook_factory()

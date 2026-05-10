@@ -14,6 +14,7 @@ from webapp.services.derived_columns import apply_derived_columns
 logger = logging.getLogger(__name__)
 
 
+# מזהה ערכים מספריים כדי לסנן שורות עזר שאינן נתוני משתמש.
 def _is_numeric_like(value) -> bool:
     """Return True if *value* is numeric or a string that represents a number.
 
@@ -29,12 +30,15 @@ def _is_numeric_like(value) -> bool:
         return False
 
 
+# שירות קריאת workbook שמכין נתוני גיליון לתצוגה ב־UI.
 class WorkbookService:
     """Provides workbook summary and sheet data from in-memory session state."""
 
+    # מקבל SessionService כדי לגשת לעותק העבודה ול־Dataset בזיכרון.
     def __init__(self, session_service: SessionService) -> None:
         self.session_service = session_service
 
+    # טוען גיליון ל־WorkbookDataset אם המשתמש עדיין לא פתח אותו.
     def _ensure_sheet_loaded(self, record, sheet_name: str) -> None:
         """Lazily extract a single sheet from disk if not yet in the dataset."""
         from src.excel_standardization.data_types import WorkbookDataset
@@ -164,6 +168,7 @@ class WorkbookService:
             # Add the newly loaded sheet to the existing dataset.
             record.workbook_dataset.sheets.append(sheet_dataset)
 
+    # מחזיר תקציר workbook לגיליונות ולסטטוס הכללי של ה־UI.
     def get_summary(self, session_id: str) -> WorkbookSummary:
         """Return a summary of all sheets in the workbook."""
         record = self.session_service.get(session_id)
@@ -205,6 +210,7 @@ class WorkbookService:
         ]
         return WorkbookSummary(session_id=session_id, sheets=sheets)
 
+    # מחזיר שורות ועמודות של גיליון להצגה ועריכה בדפדפן.
     def get_sheet_data(self, session_id: str, sheet_name: str) -> SheetDataResponse:
         """Return all rows for a specific sheet.
 

@@ -11,6 +11,7 @@ from ..data_types import DateFieldType, DateFormatPattern, JsonRow
 logger = logging.getLogger(__name__)
 
 
+# הפונקציה מזהה ברמת גיליון אם התאריכים נראים כ־DD/MM או MM/DD לפני parsing.
 def detect_date_format_pattern(rows: List[JsonRow]) -> DateFormatPattern:
     """Detect whether date values in this dataset use DDMM or MMDD ordering."""
     date_fields = (
@@ -45,6 +46,7 @@ def detect_date_format_pattern(rows: List[JsonRow]) -> DateFormatPattern:
     return DateFormatPattern.MMDD if mmdd > ddmm else DateFormatPattern.DDMM
 
 
+# הפונקציה מפעילה נרמול תאריכי לידה וכניסה עבור שורת Dataset אחת.
 def apply_date_standardization(
     pipeline: Any,
     json_row: JsonRow,
@@ -86,6 +88,7 @@ def apply_date_standardization(
     return failed_fields
 
 
+# הפונקציה מנרמלת שדה תאריך יחיד או תאריך מפוצל לשדות corrected עקביים.
 def normalize_date_field(
     pipeline: Any,
     json_row: JsonRow,
@@ -208,6 +211,7 @@ def normalize_date_field(
     return failed_fields, date_result
 
 
+# הפונקציה ממירה תוצאת parsing לרכיבי שנה/חודש/יום בטוחים ל־UI וליצוא.
 def date_corrected_components(result) -> Tuple[Any, Any, Any]:
     """Return UI/export-safe corrected date components."""
     year = result.year
@@ -232,6 +236,7 @@ def date_corrected_components(result) -> Tuple[Any, Any, Any]:
     return year, month, day
 
 
+# הפונקציה מתקנת רק שנות לידה דו־ספרתיות לפי רוב הגיליון ומסירה תגיות פנימיות.
 def apply_birth_year_majority_correction(pipeline: Any, rows: List[JsonRow]) -> List[JsonRow]:
     """One-way list-level majority correction for birth years in the web/JSON path."""
 

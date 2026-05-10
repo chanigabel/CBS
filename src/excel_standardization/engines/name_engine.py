@@ -13,7 +13,9 @@ from ..data_types import FatherNamePattern
 logger = logging.getLogger(__name__)
 
 
+# המנוע אחראי לניקוי שמות ולזיהוי דפוסי שם משפחה בשדות שם.
 class NameEngine:
+    # הפונקציה מקבלת TextProcessor כדי לרכז את כל ניקויי הטקסט במקום אחד.
     def __init__(self, text_processor: TextProcessor):
         self.text_processor = text_processor
 
@@ -21,9 +23,11 @@ class NameEngine:
     # בסיס
     # ------------------------------------------------------------------
 
+    # הפונקציה מנרמלת שם יחיד דרך מנגנון ניקוי הטקסט.
     def normalize_name(self, name) -> str:
         return self.text_processor.clean_name(name)
 
+    # הפונקציה מנרמלת מטריצת שמות עבור עיבוד batch והתאמה להתנהגות legacy.
     def normalize_names(self, input_data: Sequence[Sequence]) -> List[List[str]]:
         result: List[List[str]] = []
 
@@ -37,6 +41,7 @@ class NameEngine:
     # שם פרטי (🔥 ללא pattern)
     # ------------------------------------------------------------------
 
+    # הפונקציה מנרמלת שמות פרטיים ומסירה שם משפחה כאשר זוהה דפוס מתאים.
     def normalize_first_names(
         self,
         first_name_data: Sequence[Sequence],
@@ -64,6 +69,7 @@ class NameEngine:
 
         return result
 
+    # הפונקציה מסירה שם משפחה מתוך שם פרטי לפי דפוס הגיליון שנבחר.
     def remove_last_name_from_first_name(
         self,
         first_name: str,
@@ -139,6 +145,7 @@ class NameEngine:
     # שם אב (🔥 עם pattern)
     # ------------------------------------------------------------------
 
+    # הפונקציה מנרמלת שמות אב ומחילה הסרת שם משפחה בהתאם לדפוס שזוהה.
     def normalize_father_names(
         self,
         father_data: Sequence[Sequence],
@@ -163,6 +170,7 @@ class NameEngine:
 
         return result
 
+    # הפונקציה מסירה שם משפחה משם האב לפי כללי ההתאמה של המערכת.
     def remove_last_name_from_father(
         self,
         father_name: str,
@@ -234,6 +242,7 @@ class NameEngine:
     # זיהוי pattern
     # ------------------------------------------------------------------
 
+    # הפונקציה מזהה אם שם האב כולל את שם המשפחה כדי להפעיל תיקון עקבי בגיליון.
     def detect_father_name_pattern(
         self,
         father_sample: Sequence[Sequence],
@@ -275,6 +284,7 @@ class NameEngine:
 
         return FatherNamePattern.NONE
 
+    # הפונקציה מזהה אם השם הפרטי כולל שם משפחה כדי לקבוע אסטרטגיית הסרה.
     def detect_first_name_pattern(
         self,
         first_name_sample: Sequence[Sequence],

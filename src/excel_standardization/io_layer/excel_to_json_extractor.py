@@ -32,6 +32,7 @@ from .excel_reader import ExcelReader
 logger = logging.getLogger(__name__)
 
 
+# המחלקה ממירה גיליונות Excel למבני Dataset שעליהם עובדת שכבת הסטנדרטיזציה.
 class ExcelToJsonExtractor:
     """Extracts data from Excel worksheets and converts to JSON format.
     
@@ -68,6 +69,7 @@ class ExcelToJsonExtractor:
         - Validates: Requirements 10.1, 20.2
     """
     
+    # הפונקציה מקבלת ExcelReader והגדרות חילוץ שמשפיעות על כל קריאת workbook.
     def __init__(
         self,
         excel_reader: ExcelReader,
@@ -91,6 +93,7 @@ class ExcelToJsonExtractor:
         self.preserve_types = preserve_types
         self.max_scan_rows = max_scan_rows
     
+    # הפונקציה מחלצת שורת Excel אחת למילון שדות לפי מיפוי העמודות שזוהה.
     def extract_row_to_json(
         self,
         worksheet: Worksheet,
@@ -176,6 +179,7 @@ class ExcelToJsonExtractor:
         
         return json_row
     
+    # הפונקציה מחלצת גיליון שלם ל־SheetDataset לפני הרצת ה־pipeline.
     def extract_sheet_to_json(
         self,
         worksheet: Worksheet,
@@ -317,6 +321,7 @@ class ExcelToJsonExtractor:
                 },
             )
     
+    # הפונקציה מחלצת workbook מלא ל־WorkbookDataset עבור הזרימה הפעילה ב־Web וב־CLI.
     def extract_workbook_to_json(self, workbook_path: str) -> WorkbookDataset:
         """Extract all worksheets from a workbook to JSON format.
         

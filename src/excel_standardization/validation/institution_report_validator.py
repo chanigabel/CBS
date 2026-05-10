@@ -83,6 +83,7 @@ MSG_YOM_KNISA_RANGE = "יום כניסה לא תקין לחודש ולשנה ש�
 # Data classes
 # ---------------------------------------------------------------------------
 
+# המחלקה מייצגת ממצא validation יחיד בשדה אחד בשורת דיווח.
 @dataclass
 class ValidationResult:
     """A single validation finding for one field in one row."""
@@ -90,10 +91,12 @@ class ValidationResult:
     message: str
     severity: str = "error"   # "error" | "warning"
 
+    # הפונקציה מציגה ממצא validation בפורמט קריא ללוגים ודוחות.
     def __str__(self) -> str:
         return f"[{self.severity.upper()}] {self.field_name}: {self.message}"
 
 
+# המחלקה אוספת את כל ממצאי ה־validation עבור שורה אחת.
 @dataclass
 class RowValidationResult:
     """Aggregated validation results for a single data row."""
@@ -102,16 +105,20 @@ class RowValidationResult:
     findings: List[ValidationResult] = field(default_factory=list)
 
     @property
+    # הפונקציה מחזירה האם לשורה אין שגיאות חסומות.
     def is_valid(self) -> bool:
         return not any(f.severity == "error" for f in self.findings)
 
     @property
+    # הפונקציה מחזירה האם לשורה יש אזהרות שאינן חוסמות.
     def has_warnings(self) -> bool:
         return any(f.severity == "warning" for f in self.findings)
 
+    # הפונקציה מוסיפה ממצא validation לשורה במהלך בדיקת החוקים.
     def add(self, field_name: str, message: str, severity: str = "error") -> None:
         self.findings.append(ValidationResult(field_name=field_name, message=message, severity=severity))
 
+    # הפונקציה מאחדת הודעות validation לטקסט קצר שנשמר על השורה.
     def status_summary(self) -> str:
         """Return a pipe-separated summary of all messages, or empty string."""
         return " | ".join(f.message for f in self.findings)
@@ -121,6 +128,7 @@ class RowValidationResult:
 # Helpers
 # ---------------------------------------------------------------------------
 
+# הפונקציה ממירה ערך לטקסט אחיד לפני בדיקות חובה וטווחים.
 def _to_str(value: Any) -> str:
     """Safely convert any value to a stripped string."""
     if value is None:
@@ -128,11 +136,13 @@ def _to_str(value: Any) -> str:
     return str(value).strip()
 
 
+# הפונקציה בודקת אם ערך טקסטואלי מורכב מספרות בלבד.
 def _is_numeric_str(value: str) -> bool:
     """Return True if the stripped string is all digits (non-empty)."""
     return bool(value) and value.isdigit()
 
 
+# הפונקציה ממירה ערך למספר שלם בלי להפיל את תהליך ה־validation.
 def _to_int_safe(value: Any) -> Optional[int]:
     """Convert value to int, return None on failure."""
     try:
@@ -141,6 +151,7 @@ def _to_int_safe(value: Any) -> Optional[int]:
         return None
 
 
+# הפונקציה קוראת את הערך הראשון שקיים מבין כמה שמות שדה אפשריים.
 def _get_field(row: Dict[str, Any], *keys: str) -> Any:
     """Return the first non-None, non-empty value found among the given keys."""
     for k in keys:
@@ -150,6 +161,7 @@ def _get_field(row: Dict[str, Any], *keys: str) -> Any:
     return None
 
 
+# הפונקציה מעדיפה ערך corrected אך נופלת לערך מקור כשאין תיקון.
 def _get_corrected_or_original(row: Dict[str, Any], base_name: str) -> Any:
     """Return corrected value if present, else original."""
     corrected = row.get(f"{base_name}_corrected")
@@ -162,6 +174,7 @@ def _get_corrected_or_original(row: Dict[str, Any], base_name: str) -> Any:
 # Main validator
 # ---------------------------------------------------------------------------
 
+# המחלקה מייצגת שכבת validation עסקית שרצה אחרי סטנדרטיזציה על גיליונות מוסד מוכרים.
 class InstitutionReportValidator:
     """Validates institution-report rows against mandatory field requirements.
 
@@ -182,6 +195,7 @@ class InstitutionReportValidator:
     # Minimum birth year per requirements
     MIN_BIRTH_YEAR = 1906
 
+    # הפונקציה מאתחלת הקשר validation, כולל שם גיליון ושנת דיווח.
     def __init__(
         self,
         sheet_name: Optional[str] = None,
@@ -217,6 +231,7 @@ class InstitutionReportValidator:
     # Public API
     # ------------------------------------------------------------------
 
+    # הפונקציה מריצה validation על כל הגיליונות ומאפשרת בדיקות רוחביות כמו כפילויות.
     def validate_workbook(
         self,
         sheets: Dict[str, List[Dict[str, Any]]],
@@ -260,6 +275,7 @@ class InstitutionReportValidator:
 
         return results
 
+    # הפונקציה מריצה validation על גיליון אחד ומעדכנת סטטוס בכל שורה.
     def validate_sheet(
         self,
         rows: List[Dict[str, Any]],
@@ -330,6 +346,7 @@ class InstitutionReportValidator:
 
         return results
 
+    # הפונקציה מריצה את כל בדיקות השורה ומחזירה אוסף ממצאים.
     def validate_row(
         self,
         row: Dict[str, Any],
@@ -376,12 +393,14 @@ class InstitutionReportValidator:
     # Field validators
     # ------------------------------------------------------------------
 
+    # הפונקציה בודקת שמספר מוסד קיים בשורה או במטא־דאטה של הגיליון.
     def _validate_mosad_id(self, row: Dict[str, Any], result: RowValidationResult) -> None:
         """MosadID: required in export only; missing values are reported."""
         val = _to_str(_get_field(row, "MosadID", "mosad_id"))
         if not val:
             result.add("MosadID", MSG_MOSAD_ID_MISSING)
 
+    # הפונקציה בודקת שסוג מוסד קיים ותקין לפני יצוא.
     def _validate_sug_mosad(self, row: Dict[str, Any], result: RowValidationResult) -> None:
         """SugMosad is required, numeric, and at least three digits long.
 
@@ -398,6 +417,7 @@ class InstitutionReportValidator:
         if len(val) < 3:
             result.add("SugMosad", MSG_SUG_MOSAD_TOO_SHORT)
 
+    # הפונקציה בודקת מספר דירה בגיליונות שבהם השדה נדרש.
     def _validate_mispar_dira(self, row: Dict[str, Any], result: RowValidationResult) -> None:
         """MisparDiraBeMosad: optional; if provided must be numeric.
 
@@ -412,6 +432,7 @@ class InstitutionReportValidator:
         if not _is_numeric_str(val):
             result.add("MisparDiraBeMosad", MSG_DIRA_NOT_NUMERIC)
 
+    # הפונקציה בודקת ששדה שם פרטי קיים לאחר נרמול.
     def _validate_shem_prati(self, row: Dict[str, Any], result: RowValidationResult) -> None:
         """ShemPrati: required, must not be empty after normalization."""
         # Prefer corrected value; fall back to original.
@@ -419,12 +440,14 @@ class InstitutionReportValidator:
         if not val:
             result.add("ShemPrati", MSG_SHEM_PRATI_MISSING)
 
+    # הפונקציה בודקת ששדה שם משפחה קיים לאחר נרמול.
     def _validate_shem_mishpaha(self, row: Dict[str, Any], result: RowValidationResult) -> None:
         """ShemMishpaha: required, must not be empty after normalization."""
         val = _to_str(_get_corrected_or_original(row, "last_name"))
         if not val:
             result.add("ShemMishpaha", MSG_SHEM_MISHPAHA_MISSING)
 
+    # הפונקציה בודקת מספר זהות, כולל כפילויות בגיליון וב־workbook.
     def _validate_mispar_zehut(
         self,
         row: Dict[str, Any],
@@ -461,6 +484,7 @@ class InstitutionReportValidator:
                 result.add("MisparZehut", MSG_MISPAR_ZEHUT_DUPLICATE_WORKBOOK, severity="warning")
 
 
+    # הפונקציה בודקת שקוד המגדר המתוקן הוא אחד מהערכים המותרים.
     def _validate_min(self, row: Dict[str, Any], result: RowValidationResult) -> None:
         """Min (gender): if present, must be 1 or 2.
 
@@ -491,6 +515,7 @@ class InstitutionReportValidator:
         except (TypeError, ValueError):
             result.add("Min", MSG_MIN_INVALID)
 
+    # הפונקציה בודקת רכיבי תאריך לידה, חובה וטווחים עסקיים.
     def _validate_birth_date(self, row: Dict[str, Any], result: RowValidationResult) -> None:
         """Birth date is checked for required values, numeric input, range, and
         the 1906 minimum year.
@@ -538,6 +563,7 @@ class InstitutionReportValidator:
             if dy is not None and not (1 <= dy <= 31):
                 result.add("YomLida", MSG_YOM_LIDA_RANGE)
 
+    # הפונקציה בודקת רכיבי תאריך כניסה מול שנת הדיווח ותאריך הלידה.
     def _validate_entry_date(self, row: Dict[str, Any], result: RowValidationResult) -> None:
         """Entry date is checked for numeric values, range, and the census cutoff.
 

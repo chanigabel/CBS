@@ -321,6 +321,12 @@ class TestApplyIdentifierstandardization:
         assert "id_number_corrected" not in row
         assert "passport_corrected" not in row
 
+    def test_id_with_letters_moved_to_passport_without_source_passport_column(self):
+        row = {"id_number": "ABC123"}
+        self.pipeline.apply_identifier_standardization(row)
+        assert row["id_number_corrected"] == ""
+        assert row["passport_corrected"] == "ABC123"
+
     def test_id_with_letters_moved_to_passport(self):
         # 'ABC123' has no hyphens, so clean_id_number leaves it unchanged.
         # _process_id_value sees 'A' (non-digit/non-dash) and moves the whole
@@ -363,6 +369,15 @@ class TestNormalizeDataset:
         assert engines["gender"] is True
         assert engines["date"] is True
         assert engines["identifier"] is True
+
+    def test_generated_passport_corrected_added_to_field_names_without_source_passport_column(self):
+        ds = make_dataset(
+            [{"id_number": "ABC123"}],
+            field_names=["id_number"],
+        )
+        result = self.pipeline.normalize_dataset(ds)
+        assert result.rows[0]["passport_corrected"] == "ABC123"
+        assert "passport_corrected" in result.field_names
 
     def test_metadata_engine_flags_reflect_missing_engine(self):
         pipeline = StandardizationPipeline(name_engine=None)

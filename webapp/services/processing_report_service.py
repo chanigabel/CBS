@@ -45,13 +45,16 @@ from webapp.services.session_service import SessionService
 logger = logging.getLogger(__name__)
 
 
+# שירות דוחות שמרכז סטטוס, אזהרות ושגיאות לאורך כל ה־Web flow.
 class ProcessingReportService:
     """Maintains non-sensitive processing reports on session records."""
 
+    # מקבל SessionService כדי לשמור את הדוח בתוך רשומת ה־session.
     def __init__(self, session_service: SessionService) -> None:
         self.session_service = session_service
         self._started_at: dict[str, float] = {}
 
+    # פותח דוח עיבוד חדש בתחילת upload או ריצה חדשה.
     def start(self, session_id: str) -> ProcessingReport:
         report = ProcessingReport(session_id=session_id)
         self._started_at[session_id] = time.perf_counter()
@@ -62,6 +65,7 @@ class ProcessingReportService:
         )
         return report
 
+    # מחזיר את דוח העיבוד, עם או בלי פירוט מלא לפי בקשת ה־UI.
     def get(self, session_id: str, include_details: bool = False) -> ProcessingReport:
         record = self.session_service.get(session_id)
         if record.processing_report is None:
@@ -73,6 +77,7 @@ class ProcessingReportService:
         report.invalid_identifier_values = None
         return report
 
+    # מסמן שלב בזרימה כהושלם ומרענן את סטטוס הדוח.
     def complete_stage(self, session_id: str, stage: str) -> ProcessingReport:
         report = self._ensure(session_id)
         if stage not in ["upload", "extract", "standardize", "validate", "export"]:
@@ -94,6 +99,7 @@ class ProcessingReportService:
         )
         return report
 
+    # מעדכן ספירות גיליונות ושורות לאחר חילוץ workbook.
     def update_workbook_counts(self, session_id: str, workbook_dataset) -> ProcessingReport:
         report = self._ensure(session_id)
         report.sheets_processed = len(workbook_dataset.sheets)
@@ -125,6 +131,7 @@ class ProcessingReportService:
         )
         return report
 
+    # מסמן שהיצוא הסתיים ושומר פרטי קובץ ושורות שיוצאו.
     def mark_exported(
         self,
         session_id: str,
@@ -136,6 +143,7 @@ class ProcessingReportService:
         report.output_filename = output_filename
         return self.complete_stage(session_id, "export")
 
+    # אוסף פרטי דוח סופיים אחרי export, כולל חוסרים ואזהרות.
     def finalize_export_details(
         self,
         session_id: str,
@@ -185,6 +193,7 @@ class ProcessingReportService:
         )
         return self.get(session_id)
 
+    # מעדכן בדוח רשימת שדות חובה חסרים שנמצאו במהלך הבדיקות.
     def set_missing_required_fields(
         self,
         session_id: str,
@@ -209,6 +218,7 @@ class ProcessingReportService:
             )
         return report
 
+    # מוסיף אזהרה לא חוסמת לדוח העיבוד.
     def add_warning(self, session_id: str, message: str) -> ProcessingReport:
         report = self._ensure(session_id)
         if message not in report.warnings:
@@ -226,6 +236,7 @@ class ProcessingReportService:
         )
         return report
 
+    # מוסיף שגיאה חוסמת או משמעותית לדוח העיבוד.
     def add_error(self, session_id: str, message: str) -> ProcessingReport:
         report = self._ensure(session_id)
         if message not in report.errors:
@@ -243,36 +254,45 @@ class ProcessingReportService:
         )
         return report
 
+    # אוסף סיכומי שדות חובה חסרים מתוך מצב ה־session.
     def collect_missing_required_fields(self, record) -> list[MissingRequiredFieldSummary]:
         return _aggregate_missing_required_fields(collect_missing_required_export_fields(record))
 
+    # מסכם חוסרי שדות חובה כדי להציג אותם באופן קומפקטי.
     def aggregate_missing_required_fields(
         self,
         fields: Iterable[MissingRequiredExportField],
     ) -> list[MissingRequiredFieldSummary]:
         return _aggregate_missing_required_fields(fields)
 
+    # מסכם הודעות validation חוזרות עבור דוח קריא יותר.
     def aggregate_validation_messages(self, messages: Iterable[str]) -> list[SummaryCount]:
         return _aggregate_validation_messages(messages)
 
+    # מסכם הודעות מזהים חוזרות עבור הצגת בעיות שכיחות.
     def aggregate_identifier_messages(
         self,
         details: Iterable[InvalidIdentifierValue],
     ) -> list[SummaryCount]:
         return _aggregate_identifier_messages(details, is_real_identifier_issue)
 
+    # אוסף שדות יצוא חובה שחסרים אחרי standardization.
     def collect_missing_required_export_fields(self, record) -> list[MissingRequiredExportField]:
         return collect_missing_required_export_fields(record)
 
+    # אוסף עמודות מקור חסרות מה־WorkbookDataset.
     def collect_missing_input_columns(self, workbook_dataset) -> list[MissingInputColumnsBySheet]:
         return collect_missing_input_columns(workbook_dataset)
 
+    # אוסף ערכי תאריך לא תקינים לדוח הפירוט.
     def collect_invalid_date_values(self, record) -> list[InvalidDateValue]:
         return collect_invalid_date_values(record)
 
+    # אוסף ערכי מזהה לא תקינים לדוח הפירוט.
     def collect_invalid_identifier_values(self, record) -> list[InvalidIdentifierValue]:
         return collect_invalid_identifier_values(record, is_real_identifier_issue)
 
+    # בונה רשימת אזהרות מרוכזת לכל גיליון בדוח.
     def build_per_sheet_warnings(
         self,
         record,
@@ -281,20 +301,24 @@ class ProcessingReportService:
     ) -> list[PerSheetProcessingReport]:
         return build_per_sheet_warnings(record, rows_exported_by_sheet, report)
 
+    # מבטיח שקיים דוח עבור session לפני עדכון שלו.
     def _ensure(self, session_id: str) -> ProcessingReport:
         record = self.session_service.get(session_id)
         if record.processing_report is None:
             return self.start(session_id)
         return record.processing_report
 
+    # שומר את דוח העיבוד חזרה ברשומת ה־session.
     def _save(self, session_id: str, report: ProcessingReport) -> None:
         self.session_service.update(session_id, processing_report=report)
 
+    # מעדכן משך ריצה משוער בדוח לפי זמן ההתחלה.
     def _touch_duration(self, session_id: str, report: ProcessingReport) -> None:
         started_at = self._started_at.get(session_id)
         if started_at is not None:
             report.duration = round(time.perf_counter() - started_at, 3)
 
+    # מאחד נתוני דוח לפי גיליון בלי למחוק מידע קיים.
     def _merge_per_sheet_reports(self, existing: list[PerSheetProcessingReport], updates: dict):
         by_name = {item.sheet_name: item for item in existing}
         for sheet_name, values in updates.items():
@@ -313,4 +337,3 @@ class ProcessingReportService:
 aggregate_missing_required_fields = _aggregate_missing_required_fields
 aggregate_validation_messages = _aggregate_validation_messages
 aggregate_identifier_messages = _aggregate_identifier_messages
-

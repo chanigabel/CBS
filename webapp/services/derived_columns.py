@@ -53,6 +53,7 @@ _SERIAL_FRAGMENTS = [
 _SERIAL_EXACT_ONLY = {"מספר", "#", "מס'"}
 
 
+# מנרמל כותרת כדי לזהות עמודות נגזרות גם כששם המקור משתנה מעט.
 def _norm(s: str) -> str:
     """NFC-normalise, lower-case, collapse whitespace, strip punctuation."""
     s = unicodedata.normalize("NFC", s)
@@ -62,11 +63,13 @@ def _norm(s: str) -> str:
     return s
 
 
+# ממיר שם שדה פנימי לכותרת קריאה עבור עמודות UI.
 def _key_to_readable(key: str) -> str:
     """Convert a sanitised field key back to a human-readable form."""
     return key.replace("_", " ").strip()
 
 
+# מזהה עמודת מספר סידורי קיימת כדי לא ליצור כפילות בתצוגה.
 def detect_serial_field(field_names: List[str]) -> Optional[str]:
     """Return the field_name that is the serial-number column, or None.
 
@@ -90,6 +93,7 @@ SYNTHETIC_SERIAL_KEY = "_serial"
 MOSAD_ID_KEY = "MosadID"
 
 
+# מוסיף עמודות נגזרות לתצוגה בלי לשנות את ערכי המקור של ה־Dataset.
 def apply_derived_columns(
     rows: List[Dict[str, Any]],
     field_names: List[str],

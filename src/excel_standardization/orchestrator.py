@@ -28,6 +28,7 @@ LEGACY_DISABLED_MESSAGE = (
 )
 
 
+# המחלקה משמשת Facade לנתיב הפעיל: קריאות JSON/export וחסימת נתיבי legacy ישירים.
 class StandardizationOrchestrator:
     """Coordinates workbook extraction, dataset normalization, and export.
 
@@ -36,6 +37,7 @@ class StandardizationOrchestrator:
     historical reference only.
     """
 
+    # הפונקציה מאתחלת את קורא ה־Excel והמנועים העסקיים המשמשים את ה־Dataset pipeline.
     def __init__(self) -> None:
         self.logger = logging.getLogger(__name__)
         self.reader = ExcelReader()
@@ -46,6 +48,7 @@ class StandardizationOrchestrator:
         self.date_engine = DateEngine()
         self.identifier_engine = IdentifierEngine()
 
+    # הפונקציה חוסמת שימוש בנתיב legacy ישיר כדי לשמור על נתיב runtime יחיד.
     def normalize_workbook(self, file_path: str) -> None:
         """Disabled legacy direct Excel path.
 
@@ -55,6 +58,7 @@ class StandardizationOrchestrator:
         """
         raise RuntimeError(LEGACY_DISABLED_MESSAGE)
 
+    # הפונקציה חוסמת entry point ישן שעיבד workbook ישירות דרך worksheet processors.
     def process_workbook_json(self, input_excel_path: str, output_excel_path: str) -> None:
         """Disabled legacy direct Excel path.
 
@@ -64,6 +68,7 @@ class StandardizationOrchestrator:
         """
         raise RuntimeError(LEGACY_DISABLED_MESSAGE)
 
+    # הפונקציה חוסמת יצוא ישן מתוך processors ומכוונת לנתיב JSON הפעיל.
     def export_vba_parity_workbook_from_processors(
         self, input_excel_path: str, output_excel_path: Optional[str] = None
     ) -> str:
@@ -74,15 +79,18 @@ class StandardizationOrchestrator:
         """
         raise RuntimeError(LEGACY_DISABLED_MESSAGE)
 
+    # הפונקציה שומרת שם helper ישן לתאימות, אך אינה חלק מהזרימה הפעילה.
     def process_worksheet(self, worksheet: object) -> None:
         """Retained legacy helper name; no active public entry point calls it."""
         raise RuntimeError(LEGACY_DISABLED_MESSAGE)
 
+    # הפונקציה מפעילה חילוץ גולמי ל־JSON דרך ה־facade לצורכי בדיקה.
     def export_raw_json(self, input_excel_path: str, output_json_path: str) -> None:
         """Export a raw WorkbookDataset JSON representation from an Excel file."""
         self.logger.info("Exporting raw JSON: %s -> %s", input_excel_path, output_json_path)
         export_raw_json_flow(self.reader, input_excel_path, output_json_path)
 
+    # הפונקציה מפעילה חילוץ וסטנדרטיזציה ומייצאת את ה־Dataset המנורמל ל־JSON.
     def export_normalized_json(self, input_excel_path: str, output_json_path: str) -> None:
         """Extract, normalize, and export a WorkbookDataset JSON file."""
         self.logger.info(
@@ -100,6 +108,7 @@ class StandardizationOrchestrator:
             output_json_path,
         )
 
+    # הפונקציה היא entry point פעיל ליצירת קובץ Excel מתוקנן מנתיב ה־Dataset.
     def export_vba_parity_workbook_from_json(
         self,
         input_excel_path: str,

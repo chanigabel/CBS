@@ -8,6 +8,7 @@ flag them.
 from typing import Any
 
 
+# המנוע ממיר ייצוגי מגדר שונים לקוד היצוא התקני.
 class GenderEngine:
     """
     Pure business logic for gender standardization.
@@ -26,6 +27,7 @@ class GenderEngine:
     # accidentally matched by the "m" inside it.
     MALE_PATTERNS = {"1", "male", "ז", "זכר", "בן", "m", "man", "boy"}
 
+    # הפונקציה מנרמלת ערך מגדר בודד ומחזירה קוד או סטטוס כשל ל־pipeline.
     def normalize_gender(self, value: Any):
         """
         Normalize gender value to 1 (male), 2 (female), or "" (unrecognized).

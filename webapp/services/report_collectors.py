@@ -17,6 +17,7 @@ from webapp.services.export_rows import resolve_sug_mosad_for_sheet, visible_row
 from webapp.services.report_status_builder import is_invalid_date_component, row_number
 
 
+# אוסף עמודות קלט חסרות לפי גיליון לצורך דוח סקירת העיבוד.
 def collect_missing_input_columns(workbook_dataset) -> list[MissingInputColumnsBySheet]:
     """Collect expected input columns that are missing from each sheet."""
     if workbook_dataset is None:
@@ -47,6 +48,7 @@ def collect_missing_input_columns(workbook_dataset) -> list[MissingInputColumnsB
     return result
 
 
+# אוסף שדות יצוא חובה שחסרים לאחר סטנדרטיזציה.
 def collect_missing_required_export_fields(record) -> list[MissingRequiredExportField]:
     """Collect export fields that are still empty after session injection."""
     if record.workbook_dataset is None:
@@ -94,6 +96,7 @@ def collect_missing_required_export_fields(record) -> list[MissingRequiredExport
     ]
 
 
+# אוסף ערכי תאריך בעייתיים מתוך סטטוסי השורות.
 def collect_invalid_date_values(record) -> list[InvalidDateValue]:
     """Collect invalid birth and entry date components for the report."""
     if record.workbook_dataset is None:
@@ -127,6 +130,7 @@ def collect_invalid_date_values(record) -> list[InvalidDateValue]:
     return invalid
 
 
+# אוסף בעיות מזהים אמיתיות לדוח לפי מסנן הסטטוס.
 def collect_invalid_identifier_values(record, is_real_identifier_issue) -> list[InvalidIdentifierValue]:
     """Collect identifier rows whose status represents a real problem."""
     if record.workbook_dataset is None:
@@ -158,6 +162,7 @@ def collect_invalid_identifier_values(record, is_real_identifier_issue) -> list[
     return invalid
 
 
+# מסכם הודעות פירוט לפי גיליון כדי לצמצם עומס בדוח.
 def aggregate_detail_messages_by_sheet(details) -> dict[str, list[tuple[str, int]]]:
     """Group per-sheet validation messages into compact counts."""
     counts = defaultdict(Counter)
@@ -170,6 +175,7 @@ def aggregate_detail_messages_by_sheet(details) -> dict[str, list[tuple[str, int
     }
 
 
+# מסכם הודעות מזהים לפי גיליון לצורך תצוגת אזהרות.
 def aggregate_identifier_messages_by_sheet(details) -> dict[str, list[tuple[str, int]]]:
     """Group identifier validation messages by sheet and count."""
     counts = defaultdict(Counter)
@@ -189,6 +195,7 @@ def aggregate_identifier_messages_by_sheet(details) -> dict[str, list[tuple[str,
     }
 
 
+# בונה הודעת אזהרה כאשר עמודות חובה ריקות או חסרות בגיליון.
 def empty_required_columns_message_for_sheet(
     export_name: str,
     details: list[MissingRequiredExportField],
@@ -211,6 +218,7 @@ def empty_required_columns_message_for_sheet(
     return f"עמודות חובה ריקות: {', '.join(ordered_fields)}"
 
 
+# יוצר אזהרות לפי גיליון עבור דוח העיבוד הסופי.
 def build_per_sheet_warnings(
     record,
     rows_exported_by_sheet: dict[str, int],

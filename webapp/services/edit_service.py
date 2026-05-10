@@ -11,6 +11,7 @@ from webapp.services.session_service import SessionService
 logger = logging.getLogger(__name__)
 
 
+# ממיר ערך ערוך מה־UI לסוג המקורי של התא ככל האפשר.
 def _coerce_to_original_type(new_value: str, original_value: Any) -> Any:
     """F-07: Coerce *new_value* (always a str from the API) to the type of *original_value*.
 
@@ -36,12 +37,15 @@ def _coerce_to_original_type(new_value: str, original_value: Any) -> Any:
     return new_value
 
 
+# שירות עריכה שמעדכן את ה־Dataset ואת עותק העבודה לפי פעולות המשתמש.
 class EditService:
     """Mutates in-memory SheetDataset cells and records edits in the session."""
 
+    # מקבל SessionService כדי לשמור שינויים על ה־session הפעיל.
     def __init__(self, session_service: SessionService) -> None:
         self.session_service = session_service
 
+    # מעדכן תא אחד בשורת Dataset ובקובץ העבודה לפני ריצה חוזרת.
     def edit_cell(
         self,
         session_id: str,
@@ -122,6 +126,7 @@ class EditService:
         }
         return CellEditResponse(row_uid=req.row_uid, updated_row=updated_row)
 
+    # מסמן או מסיר שורות שנמחקו כדי שלא יופיעו בתצוגה וביצוא.
     def delete_rows(
         self,
         session_id: str,

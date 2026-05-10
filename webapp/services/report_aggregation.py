@@ -13,6 +13,7 @@ from webapp.models.processing_report import (
 )
 
 
+# מסכם חוסרי שדות חובה לפי גיליון עבור דוח העיבוד.
 def aggregate_missing_required_fields(
     fields: Iterable[MissingRequiredExportField],
 ) -> list[MissingRequiredFieldSummary]:
@@ -25,6 +26,7 @@ def aggregate_missing_required_fields(
     ]
 
 
+# מאחד הודעות validation זהות ומחזיר ספירה להצגה.
 def aggregate_validation_messages(messages: Iterable[str]) -> list[SummaryCount]:
     counts = Counter(message for message in messages if message)
     return [
@@ -33,6 +35,7 @@ def aggregate_validation_messages(messages: Iterable[str]) -> list[SummaryCount]
     ]
 
 
+# מסכם הודעות מזהים כדי להציג בעיות חוזרות בצורה תמציתית.
 def aggregate_identifier_messages(
     details: Iterable[InvalidIdentifierValue],
     is_real_identifier_issue,
@@ -52,4 +55,3 @@ def aggregate_identifier_messages(
         SummaryCount(message=message, count=count)
         for message, count in sorted(counts.items())
     ]
-

@@ -55,6 +55,7 @@ Requirements:
 """
 
 
+# מייצג גיליון אחד לאחר חילוץ, לפני ואחרי הסטנדרטיזציה.
 @dataclass
 class SheetDataset:
     """Dataset for a single worksheet containing extracted JSON rows and metadata.
@@ -106,6 +107,7 @@ class SheetDataset:
     rows: List[JsonRow]
     metadata: Dict[str, Any] = field(default_factory=dict)
     
+    # מחזיר את שמות השדות שזוהו ומשמשים את ה־pipeline.
     def get_field_names(self) -> List[str]:
         """Get the list of field names for this dataset.
         
@@ -114,6 +116,7 @@ class SheetDataset:
         """
         return self.field_names
     
+    # מחזיר מספר שורות נתונים לצורכי דוחות וסטטיסטיקות.
     def get_row_count(self) -> int:
         """Get the number of data rows in this dataset.
         
@@ -122,6 +125,7 @@ class SheetDataset:
         """
         return len(self.rows)
     
+    # בודק שה־SheetDataset תקין לפני שימוש בזרימה הפעילה.
     def validate(self) -> bool:
         """Validate the dataset structure.
         
@@ -157,6 +161,7 @@ class SheetDataset:
         
         return True
     
+    # קורא ערך מטא־דאטה שנוצר בשלבי חילוץ, נרמול או validation.
     def get_metadata(self, key: str, default: Any = None) -> Any:
         """Get a metadata value by key.
         
@@ -169,6 +174,7 @@ class SheetDataset:
         """
         return self.metadata.get(key, default)
     
+    # שומר מטא־דאטה כדי להעביר מידע בין שכבות הזרימה.
     def set_metadata(self, key: str, value: Any) -> None:
         """Set a metadata value.
         
@@ -179,6 +185,7 @@ class SheetDataset:
         self.metadata[key] = value
 
 
+# מייצג workbook מלא עם כל הגיליונות שנקראו מהקובץ.
 @dataclass
 class WorkbookDataset:
     """Dataset for an entire workbook containing multiple SheetDataset instances.
@@ -235,6 +242,7 @@ class WorkbookDataset:
     sheets: List[SheetDataset]
     metadata: Dict[str, Any] = field(default_factory=dict)
     
+    # מאתר גיליון לפי שם כדי לעדכן אותו לאחר standardization או עריכה.
     def get_sheet_by_name(self, sheet_name: str) -> Optional[SheetDataset]:
         """Get a sheet dataset by name.
         
@@ -249,6 +257,7 @@ class WorkbookDataset:
                 return sheet
         return None
     
+    # מחזיר רשימת גיליונות להצגה ב־UI ולבחירת המשתמש.
     def get_sheet_names(self) -> List[str]:
         """Get list of all sheet names in the workbook.
         
@@ -257,6 +266,7 @@ class WorkbookDataset:
         """
         return [sheet.sheet_name for sheet in self.sheets]
     
+    # מחזיר מספר גיליונות לצורכי סיכום ודיווח.
     def get_sheet_count(self) -> int:
         """Get the number of sheets in this workbook dataset.
         
@@ -265,6 +275,7 @@ class WorkbookDataset:
         """
         return len(self.sheets)
     
+    # בודק שמבנה ה־WorkbookDataset תקין לפני המשך עיבוד.
     def validate(self) -> bool:
         """Validate the workbook dataset structure.
         
@@ -301,6 +312,7 @@ class WorkbookDataset:
         
         return True
     
+    # קורא מטא־דאטה ברמת workbook שנאסף לאורך הזרימה.
     def get_metadata(self, key: str, default: Any = None) -> Any:
         """Get a metadata value by key.
         
@@ -313,6 +325,7 @@ class WorkbookDataset:
         """
         return self.metadata.get(key, default)
     
+    # שומר מטא־דאטה ברמת workbook עבור דוחות ויצוא.
     def set_metadata(self, key: str, value: Any) -> None:
         """Set a metadata value.
         
@@ -322,6 +335,7 @@ class WorkbookDataset:
         """
         self.metadata[key] = value
     
+    # בודק האם גיליון קיים כדי למנוע גישה לשם לא תקין.
     def has_sheet(self, sheet_name: str) -> bool:
         """Check if a sheet with the given name exists.
         
@@ -339,6 +353,7 @@ class WorkbookDataset:
 # ============================================================================
 
 
+# מתאר מיקום כותרת שדה ב־Excel לאחר זיהוי עמודות.
 @dataclass
 class ColumnHeaderInfo:
     """Information about a found column header.
@@ -356,6 +371,7 @@ class ColumnHeaderInfo:
     header_text: str
 
 
+# מתאר את גבולות הטבלה שנמצאה בגיליון.
 @dataclass
 class TableRegion:
     """Information about a detected table region in a worksheet.
@@ -377,6 +393,7 @@ class TableRegion:
     data_start_row: int
 
 
+# מתאר קבוצת עמודות תאריך מפוצלת שנמצאה בגיליון.
 @dataclass
 class DateGroup:
     """Deterministic description of a split date group (Year/Month/Day).
@@ -392,6 +409,7 @@ class DateGroup:
     field_type: "DateFieldType"
 
 
+# תוצאת parsing של תאריך שמועברת מה־DateEngine ל־pipeline.
 @dataclass
 class DateParseResult:
     """Result of date parsing operation.
@@ -416,6 +434,7 @@ class DateParseResult:
     year_was_auto_completed: bool = False
 
 
+# תוצאת נרמול מזהים שמועברת מה־IdentifierEngine ל־pipeline.
 @dataclass
 class IdentifierResult:
     """Result of identifier processing.

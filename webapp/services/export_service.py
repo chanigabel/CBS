@@ -21,9 +21,11 @@ from webapp.services.session_service import SessionService
 logger = logging.getLogger(__name__)
 
 
+# שירות יצוא שמייצר קובץ Excel להורדה מתוך ה־WorkbookDataset שב־session.
 class ExportService:
     """Writes the current in-memory WorkbookDataset to an Excel file for download."""
 
+    # מקבל session/output/report כדי לכתוב קובץ ולעדכן דוח עיבוד.
     def __init__(
         self,
         session_service: SessionService,
@@ -36,6 +38,7 @@ class ExportService:
             processing_report_service or ProcessingReportService(session_service)
         )
 
+    # מוודא שיש Dataset, כותב קובץ יצוא ומחזיר את נתיב ההורדה.
     def export(self, session_id: str) -> Path:
         """Export the session's workbook using the fixed export schema."""
         record = self.session_service.get(session_id)

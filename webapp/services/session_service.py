@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 _registry: Dict[str, SessionRecord] = {}
 
 
+# מנהל את מצב ה־session בזיכרון עבור הקובץ הפעיל של המשתמש.
 class SessionService:
     """CRUD operations on the in-memory session registry.
 
@@ -19,6 +20,7 @@ class SessionService:
     This matches the design requirement for a single process-lifetime store.
     """
 
+    # שומר session חדש שנוצר בשלב upload.
     def create(self, record: SessionRecord) -> None:
         """Store a new session record.
 
@@ -28,6 +30,7 @@ class SessionService:
         _registry[record.session_id] = record
         logger.info(f"Session created: {record.session_id}")
 
+    # מחזיר session קיים עבור פעולות workbook/standardize/export.
     def get(self, session_id: str) -> SessionRecord:
         """Retrieve a session record by ID.
 
@@ -49,6 +52,7 @@ class SessionService:
             )
         return record
 
+    # מעדכן שדות session לאחר חילוץ, עריכה או סטנדרטיזציה.
     def update(self, session_id: str, **kwargs) -> None:
         """Update fields on an existing session record.
 
@@ -67,6 +71,7 @@ class SessionService:
                 logger.warning(f"SessionRecord has no attribute '{key}' — skipping")
         logger.debug(f"Session updated: {session_id}, fields: {list(kwargs.keys())}")
 
+    # מוחק session ואת קבצי העבודה שלו כשאין בהם צורך.
     def delete(self, session_id: str) -> None:
         """Remove a session record from the registry.
 
@@ -77,6 +82,7 @@ class SessionService:
             del _registry[session_id]
             logger.info(f"Session deleted: {session_id}")
 
+    # מנקה את כל ה־sessions, בעיקר לשימושי בדיקה או איפוס מקומי.
     def clear_all(self) -> None:
         """Remove all sessions (used in tests)."""
         _registry.clear()

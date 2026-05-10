@@ -17,9 +17,11 @@ logger = logging.getLogger(__name__)
 ALLOWED_EXTENSIONS = {".xlsx", ".xlsm", ".xls"}
 
 
+# שירות העלאה שמייצר session ועותק עבודה לקובץ ה־Excel.
 class UploadService:
     """Handles file upload: validation, saving to disk, and session creation."""
 
+    # מקבל תיקיית העלאות ושירותי session/report הנדרשים לזרימה.
     def __init__(
         self,
         session_service: SessionService,
@@ -34,6 +36,7 @@ class UploadService:
             processing_report_service or ProcessingReportService(session_service)
         )
 
+    # שומר את הקובץ, מחלץ שמות גיליונות ופותח רשומת session חדשה.
     def handle_upload(self, filename: str, file_bytes: bytes) -> UploadResponse:
         """Process an uploaded file and create a new session.
 

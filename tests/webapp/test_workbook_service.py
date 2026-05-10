@@ -89,6 +89,38 @@ def test_get_sheet_data_returns_rows_for_valid_sheet(session_with_workbook):
     assert response.rows[0]["first_name"] == "Alice"
 
 
+def test_get_sheet_data_shows_generated_passport_corrected_without_source_passport_column():
+    svc = SessionService()
+    sheet = SheetDataset(
+        sheet_name="Sheet1",
+        header_row=1,
+        header_rows_count=1,
+        field_names=["id_number", "passport_corrected"],
+        rows=[
+            {
+                "id_number": "ABC123",
+                "id_number_corrected": "",
+                "passport_corrected": "ABC123",
+                "identifier_status": "moved",
+            }
+        ],
+    )
+    record = SessionRecord(
+        session_id="passport-ui-session",
+        source_file_path="uploads/passport-ui-session.xlsx",
+        working_copy_path="work/passport-ui-session.xlsx",
+        original_filename="test.xlsx",
+        status="standardized",
+        workbook_dataset=WorkbookDataset(source_file="test.xlsx", sheets=[sheet]),
+    )
+    svc.create(record)
+
+    response = WorkbookService(svc).get_sheet_data("passport-ui-session", "Sheet1")
+
+    assert "passport_corrected" in response.field_names
+    assert response.rows[0]["passport_corrected"] == "ABC123"
+
+
 def test_get_sheet_data_raises_404_for_unknown_sheet(session_with_workbook):
     _, wb_svc = session_with_workbook
     with pytest.raises(HTTPException) as exc_info:

@@ -16,11 +16,13 @@ _SHEET_NAME_PATTERNS = [
 ]
 
 
+# מנרמל שם גיליון לפני התאמתו לסכמת היצוא.
 def _normalize_text(text: str) -> str:
     """Strip, collapse whitespace, and apply Unicode NFC normalization."""
     return unicodedata.normalize("NFC", " ".join(text.split()))
 
 
+# מחזיר שם גיליון קנוני שמכתיב מיפוי וכותרות יצוא.
 def canonical_sheet_name(source_name: str) -> str:
     """Map a source sheet name to its canonical export name."""
     normalized = _normalize_text(source_name)
@@ -60,6 +62,7 @@ _SCHEMA_BY_CANONICAL: Dict[str, List[str]] = {
 }
 
 
+# מחזיר את כותרות היצוא התקניות לפי סוג גיליון.
 def headers_for_sheet(canonical_name: str) -> List[str]:
     """Return the ordered column list for the given canonical sheet name."""
     return _SCHEMA_BY_CANONICAL.get(canonical_name, _HEADERS_DEFAULT)

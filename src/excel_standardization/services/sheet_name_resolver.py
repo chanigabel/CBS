@@ -20,10 +20,12 @@ _SHEET_NAME_PATTERNS = [
 ]
 
 
+# מנרמל שם גיליון כדי לזהות אותו גם כשיש רווחים או סימנים שונים.
 def _normalize_text(s: str) -> str:
     return unicodedata.normalize("NFC", " ".join(s.split()))
 
 
+# ממפה שם גיליון מהקובץ לשם קנוני המשמש validation ו־export.
 def resolve_canonical_sheet_name(source_name: str) -> str:
     """Map a source sheet name to its canonical institution-report name.
 

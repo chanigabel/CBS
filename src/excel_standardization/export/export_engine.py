@@ -22,6 +22,7 @@ from ..data_types import WorkbookDataset, SheetDataset, JsonRow
 CorrectedColumnsBySheet = Dict[str, Dict[str, int]]
 
 
+# מתאר התאמה בין גיליון מקור לגיליון יעד בקובץ היצוא.
 @dataclass(frozen=True)
 class ExportSheetSpec:
     source_sheet_name: str
@@ -29,9 +30,11 @@ class ExportSheetSpec:
     include_dira: bool
 
 
+# מנוע יצוא שמייצר Workbook יעד בסכמה קבועה מנתוני Dataset מנורמלים.
 class ExportEngine:
     """Create and populate the export workbook with VBA-parity layout."""
 
+    # מאתחל cache פנימי לזיהוי כותרות ומעקב דיבוג בזמן יצוא.
     def __init__(self) -> None:
         # Cache header detection results to avoid repeated scanning on large workbooks.
         # Keys are based on worksheet identity and header_row argument.
@@ -90,6 +93,7 @@ class ExportEngine:
     # VBA helper functions (worksheet-based)
     # ------------------------------------------------------------------
 
+    # מזהה שורת כותרות corrected בקובץ שעבר עיבוד.
     def detect_header_row(self, ws: Worksheet) -> int:
         """DetectHeaderRow: scan rows 1–20 for row with >= 3 '*- מתוקן*' cells."""
         ws_id = id(ws)
@@ -114,6 +118,7 @@ class ExportEngine:
         self._header_row_cache_by_ws[ws_id] = 0
         return 0
 
+    # ממפה עמודות corrected לשמות היצוא הקבועים.
     def detect_corrected_columns(self, ws: Worksheet, header_row: int) -> Dict[str, int]:
         """DetectCorrectedColumns: fallback mapping based on header text patterns."""
         cache_key = (id(ws), header_row)
@@ -211,6 +216,7 @@ class ExportEngine:
         self._corrected_columns_cache_by_ws_and_header[cache_key] = dict(mapping)
         return mapping
 
+    # קובע עד איזו שורה לייצא לפי העמודות שמופו.
     def determine_last_row_from_mapped_columns(self, ws: Worksheet, source_dict: Dict[str, int]) -> int:
         """DetermineLastRowFromMappedColumns: max last-used row across mapped columns."""
         max_row = 0
@@ -218,6 +224,7 @@ class ExportEngine:
             max_row = max(max_row, self._last_used_row_in_column(ws, col))
         return max_row
 
+    # מסנן שורות ריקות או לא רלוונטיות לפני כתיבה ליעד.
     def is_valid_data_row(self, ws: Worksheet, source_dict: Dict[str, int], row_num: int) -> bool:
         """IsValidDataRow: export if ANY one of key personal fields is non-empty."""
         for key in ["ShemPrati", "ShemMishpaha", "ShemHaAv", "MisparZehut", "Darkon"]:
@@ -229,6 +236,7 @@ class ExportEngine:
                 return True
         return False
 
+    # מוצא עמודת יעד לפי שם כותרת בקובץ היצוא.
     def find_target_column(self, ws: Worksheet, header_name: str) -> int:
         """FindTargetColumn: locate exact header name in row 1."""
         max_col = ws.max_column or 0
@@ -237,6 +245,7 @@ class ExportEngine:
                 return c
         return 0
 
+    # מוצא את השורה האחרונה עם ערך בעמודה נתונה.
     def _last_used_row_in_column(self, ws: Worksheet, col: int) -> int:
         for r in range(ws.max_row or 0, 0, -1):
             v = ws.cell(row=r, column=col).value
@@ -248,11 +257,13 @@ class ExportEngine:
     # Workbook creation and JSON-based export (Step 6 pipeline target)
     # ------------------------------------------------------------------
 
+    # כותב את כותרות היעד התקניות לגיליון יצוא.
     def write_headers(self, ws: Worksheet, include_dira: bool) -> None:
         headers = self.HEADERS_WITH_DIRA if include_dira else self.HEADERS_NO_DIRA
         for idx, name in enumerate(headers, start=1):
             ws.cell(row=1, column=idx).value = name
 
+    # יוצר Workbook יצוא עם כל גיליונות היעד הנדרשים.
     def create_export_workbook(self) -> Workbook:
         wb = Workbook()
         # Remove default sheet
@@ -269,6 +280,7 @@ class ExportEngine:
     # Worksheet-based export (VBA parity with tracking dictionary)
     # ------------------------------------------------------------------
 
+    # נתיב יצוא מתאימות legacy מתוך workbook מועשר בעמודות corrected.
     def export_from_augmented_workbook(
         self,
         wb_source,
@@ -320,6 +332,7 @@ class ExportEngine:
         wb_export.save(output_path)
         return output_path
 
+    # מעתיק נתוני גיליון worksheet לקובץ היעד לפי מיפוי corrected.
     def _export_sheet_from_worksheet(
         self,
         ws_source: Worksheet,
@@ -401,6 +414,7 @@ class ExportEngine:
 
             out_row += 1
 
+    # נתיב היצוא הפעיל: כותב Workbook מתוך WorkbookDataset מנורמל.
     def export_from_normalized_dataset(
         self,
         workbook_dataset: WorkbookDataset,
@@ -450,6 +464,7 @@ class ExportEngine:
         wb.save(output_path)
         return output_path
 
+    # כותב גיליון יעד אחד מתוך rows שכבר עברו standardization.
     def _export_sheet_from_json(
         self,
         source: SheetDataset,
@@ -487,12 +502,14 @@ class ExportEngine:
 
             out_row += 1
 
+    # בודק אם שורת יצוא מכילה מספיק מידע כדי להיכתב לקובץ.
     def _is_valid_export_row(self, export_row: Dict[str, Any]) -> bool:
         for key in ["ShemPrati", "ShemMishpaha", "ShemHaAv", "MisparZehut", "Darkon"]:
             if str(export_row.get(key, "") or "").strip() != "":
                 return True
         return False
 
+    # ממפה שורת Dataset לשמות השדות והעמודות של קובץ היצוא.
     def _map_row_to_export_fields(
         self,
         row: JsonRow,

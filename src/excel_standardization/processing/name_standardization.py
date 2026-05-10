@@ -10,6 +10,7 @@ from ..data_types import FatherNamePattern, JsonRow
 logger = logging.getLogger(__name__)
 
 
+# הפונקציה מעדכנת שדות שם corrected תוך שימוש בדפוסי הסרת שם משפחה שזוהו בגיליון.
 def apply_name_standardization(
     pipeline: Any,
     json_row: JsonRow,
