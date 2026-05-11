@@ -135,10 +135,11 @@ class DateEngine:
             if date_input.source_is_excel_date_serial:
                 result = self._parse_excel_serial_date(date_input.raw_value, reference_date=ref)
             else:
-                result = self._blank_result(source_kind="single_numeric", reference_date=ref)
-                result.status_text = STATUS_NUMERIC_DATE_UNRECOGNIZED
-                result.status_code = "unrecognized_numeric_date"
-                result.severity = "error"
+                result = self.parse_from_main_value(
+                    date_input.raw_value,
+                    pattern,
+                    reference_date=ref,
+                )
         elif date_input.source_kind == "missing":
             result = self._blank_result(source_kind="missing", reference_date=ref)
             result.status_text = STATUS_EMPTY_CELL
@@ -294,11 +295,9 @@ class DateEngine:
             result.status_code = "ok"
             return result
 
-        if isinstance(raw_value, int):
-            result.status_text = STATUS_NUMERIC_DATE_UNRECOGNIZED
-            result.status_code = "unrecognized_numeric_date"
-            result.severity = "error"
-            return result
+        if isinstance(raw_value, float) and raw_value.is_integer():
+            raw_value = int(raw_value)
+            txt = str(raw_value)
 
         if self._contains_month_name(txt):
             return self._parse_mixed_month_numeric(txt, reference_date=ref)

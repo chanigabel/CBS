@@ -164,6 +164,15 @@ class ExcelToJsonExtractor:
                     # openpyxl automatically returns the value from the top-left cell
                     # of a merged range, so we can use cell_value as-is
                 
+                # Handle merged cells - check if this cell is part of a merged range
+                if cell.coordinate in worksheet.merged_cells:
+                    logger.debug(
+                        f"Merged cell detected in sheet '{worksheet.title}', "
+                        f"row {row_num}, column {col_info.col}, field '{field_name}'"
+                    )
+                    # openpyxl automatically returns the value from the top-left cell
+                    # of a merged range, so we can use cell_value as-is
+                
                 # Store value in JSON row
                 # Empty cells are stored as None
                 json_row[field_name] = cell_value
@@ -176,6 +185,18 @@ class ExcelToJsonExtractor:
                     )
                     if is_date_serial:
                         json_row[source_flag_key] = True
+
+                    # Debug runtime extraction details for compact date candidate fields.
+                    logger.debug(
+                        "Extracted compact date field '%s' at %s: value=%r type=%s number_format=%r data_type=%r is_date=%s",
+                        field_name,
+                        cell.coordinate,
+                        cell_value,
+                        type(cell_value).__name__,
+                        getattr(cell, "number_format", None),
+                        getattr(cell, "data_type", None),
+                        getattr(cell, "is_date", False),
+                    )
                 
             except Exception as e:
                 # Handle any unexpected errors during cell extraction
