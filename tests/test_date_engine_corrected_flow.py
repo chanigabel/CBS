@@ -215,3 +215,48 @@ def test_excel_serial_status_survives_business_warning():
 
     assert "פורק מתאריך סידורי" in result.status_text
     assert "גיל מעל 100" in result.status_text
+
+
+def test_statuses_do_not_erase_parsed_components_in_pipeline():
+    pipeline = _pipeline()
+
+    year_only = pipeline.normalize_row({"birth_date": "2020"})
+    calendar_invalid = pipeline.normalize_row({"birth_date": "31022020"})
+    future_birth = pipeline.normalize_row({"birth_date": "12/05/2026"})
+    before_1906 = pipeline.normalize_row({"birth_date": "01/01/1900"})
+    late_entry = pipeline.normalize_row({"entry_date": "01/01/2026"})
+
+    assert (
+        year_only["birth_year_corrected"],
+        year_only["birth_month_corrected"],
+        year_only["birth_day_corrected"],
+    ) == (2020, "", "")
+    assert year_only["birth_date_status"] != ""
+
+    assert (
+        calendar_invalid["birth_year_corrected"],
+        calendar_invalid["birth_month_corrected"],
+        calendar_invalid["birth_day_corrected"],
+    ) == (2020, 2, "")
+    assert calendar_invalid["birth_date_status"] != ""
+
+    assert (
+        future_birth["birth_year_corrected"],
+        future_birth["birth_month_corrected"],
+        future_birth["birth_day_corrected"],
+    ) == (2026, 5, 12)
+    assert future_birth["birth_date_status"] != ""
+
+    assert (
+        before_1906["birth_year_corrected"],
+        before_1906["birth_month_corrected"],
+        before_1906["birth_day_corrected"],
+    ) == (1900, 1, 1)
+    assert before_1906["birth_date_status"] != ""
+
+    assert (
+        late_entry["entry_year_corrected"],
+        late_entry["entry_month_corrected"],
+        late_entry["entry_day_corrected"],
+    ) == (2026, 1, 1)
+    assert late_entry["entry_date_status"] != ""

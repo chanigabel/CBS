@@ -239,20 +239,10 @@ def date_corrected_components(result) -> Tuple[Any, Any, Any]:
         # Impossible / out-of-range dates must never populate corrected fields.
         # These are business-domain rejections where the entire date is meaningless.
         "impossible_year",
-        "future_birth",
-        "future_entry",
-        "late_entry",
-        "year_before_1906",
         "unrecognized_numeric_date",
     }:
         # Force-blank ALL components — these status codes mean the date is
         # invalid or impossible and must not appear in corrected output fields.
-        return ("", "", "")
-
-    if (
-        getattr(result, "source_kind", "") == "single_numeric"
-        and not getattr(result, "is_calendar_valid", False)
-    ):
         return ("", "", "")
 
     return (

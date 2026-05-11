@@ -409,6 +409,11 @@ class DateEngine:
                 if mmdd.is_calendar_valid:
                     return mmdd
 
+                if ddmm.status_code == "date_not_exists":
+                    return ddmm
+                if mmdd.status_code == "date_not_exists":
+                    return mmdd
+
                 return self._invalid_numeric_result(ddmm.status_text, ddmm.status_code, ref)
 
             elif len(txt) == 6:
@@ -446,6 +451,10 @@ class DateEngine:
                 self._mark_auto_completed_year(mmdd, mmdd_auto_year, ref)
                 if mmdd.is_calendar_valid:
                     return mmdd
+
+                for candidate in (parsed, fallback, mmdd):
+                    if candidate.status_code == "date_not_exists":
+                        return candidate
                 return self._invalid_numeric_result(parsed.status_text, parsed.status_code, ref)
 
             elif len(txt) == 4:
