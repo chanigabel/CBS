@@ -3,7 +3,7 @@
 import pytest
 from datetime import datetime, date
 from src.excel_standardization.engines.date_engine import DateEngine
-from src.excel_standardization.data_types import DateFormatPattern
+from src.excel_standardization.data_types import DateFormatPattern, DateFieldType, DateInput
 
 
 class TestExpandTwoDigitYear:
@@ -147,9 +147,125 @@ class TestParseFromSplitColumns:
         assert result.month == 2
         assert result.day == 29
 
+    def test_full_date_recovered_from_year_column_gets_status(self):
+        """Full date fallback from the year column must be visible in status."""
+        engine = DateEngine()
+
+        result = engine.parse_from_split_columns("11.06.1997", None, None)
+
+        assert result.year == 1997
+        assert result.month == 6
+        assert result.day == 11
+        assert result.status_code == "full_date_from_year_column"
+        assert result.status_text == "תאריך מלא פורק מעמודת שנה"
+
+    def test_full_date_recovered_from_month_column_gets_status(self):
+        """Full date fallback from the month column must identify its source."""
+        engine = DateEngine()
+
+        result = engine.parse_from_split_columns(None, "11.06.1997", None)
+
+        assert result.year == 1997
+        assert result.month == 6
+        assert result.day == 11
+        assert result.status_code == "full_date_from_month_column"
+        assert result.status_text == "תאריך מלא פורק מעמודת חודש"
+
+    def test_full_date_recovered_from_day_column_gets_status(self):
+        """Full date fallback from the day column must identify its source."""
+        engine = DateEngine()
+
+        result = engine.parse_from_split_columns(None, None, "11.06.1997")
+
+        assert result.year == 1997
+        assert result.month == 6
+        assert result.day == 11
+        assert result.status_code == "full_date_from_day_column"
+        assert result.status_text == "תאריך מלא פורק מעמודת יום"
+
+    def test_full_date_split_conflict_is_not_silently_chosen(self):
+        """A full date plus another split component is a conflict."""
+        engine = DateEngine()
+
+        result = engine.parse_from_split_columns("11.06.1997", 6, None)
+
+        assert result.is_valid is False
+        assert result.status_code == "split_full_date_conflict"
+        assert result.status_text == "ערכים סותרים בעמודות תאריך מפוצלות"
+
 
 class TestParseNumericDateString:
     """Tests for parse_numeric_date_string method."""
+
+    def test_excel_serial_integer_parses_and_writes_components(self):
+        """Excel serial integers should parse into structured date components."""
+        engine = DateEngine(reference_date=date(2026, 5, 11))
+
+        cases = {
+            36525: (1999, 12, 31),
+            38353: (2005, 1, 1),
+            45657: (2024, 12, 31),
+        }
+
+        for serial, expected in cases.items():
+            result = engine.parse_input(
+                DateInput(
+                    source_kind="single",
+                    field_type=DateFieldType.BIRTH_DATE,
+                    raw_value=serial,
+                    pattern=DateFormatPattern.DDMM,
+                    reference_date=date(2026, 5, 11),
+                    source_is_excel_date_serial=True,
+                )
+            )
+
+            assert (result.year, result.month, result.day) == expected
+            assert result.is_valid is True
+            assert result.status_code == "excel_serial_parsed"
+            assert result.status_text == "פורק מתאריך סידורי"
+
+    def test_numeric_string_still_parses_as_compact_date(self):
+        """Numeric strings keep the existing compact-date behavior."""
+        engine = DateEngine(reference_date=date(2026, 5, 11))
+
+        result = engine.parse_input(
+            DateInput(
+                source_kind="single",
+                field_type=DateFieldType.BIRTH_DATE,
+                raw_value="25121990",
+                pattern=DateFormatPattern.DDMM,
+                reference_date=date(2026, 5, 11),
+            )
+        )
+
+        assert result.year == 1990
+        assert result.month == 12
+        assert result.day == 25
+        assert result.is_valid is True
+        assert result.status_text == ""
+
+    def test_non_serial_integer_returns_visible_status(self):
+        """Plain integers that are not Excel serials should stay visible as invalid."""
+        engine = DateEngine(reference_date=date(2026, 5, 11))
+
+        for value in [1234567, 120201, 9999999, 99999, 888888, 2024]:
+            result = engine.parse_input(
+                DateInput(
+                    source_kind="single",
+                    field_type=DateFieldType.BIRTH_DATE,
+                    raw_value=value,
+                    pattern=DateFormatPattern.DDMM,
+                    reference_date=date(2026, 5, 11),
+                    source_is_excel_date_serial=False,
+                )
+            )
+
+            assert result.year is None
+            assert result.month is None
+            assert result.day is None
+            assert result.is_valid is False
+            assert result.status_code == "unrecognized_numeric_date"
+            assert result.status_text == "מספר לא הוכר כתאריך"
     
     def test_8_digit_format(self):
         """8-digit DDMMYYYY format should parse correctly."""
@@ -160,26 +276,75 @@ class TestParseNumericDateString:
         assert result.month == 12
         assert result.day == 25
         assert result.is_valid is True
+
+    def test_8_digit_leading_zero_format(self):
+        """01022024 should parse as 01/02/2024."""
+        engine = DateEngine(reference_date=date(2026, 5, 11))
+
+        result = engine.parse_numeric_date_string("01022024")
+
+        assert result.year == 2024
+        assert result.month == 2
+        assert result.day == 1
+        assert result.is_valid is True
     
     def test_6_digit_format(self):
         """6-digit DDMMYY format should parse correctly."""
-        engine = DateEngine()
+        engine = DateEngine(reference_date=date(2026, 5, 11))
         
-        result = engine.parse_numeric_date_string("251290")
-        assert result.year == 1990
-        assert result.month == 12
-        assert result.day == 25
+        result = engine.parse_numeric_date_string("010224")
+        assert result.year == 2024
+        assert result.month == 2
+        assert result.day == 1
         assert result.is_valid is True
+
+    def test_6_digit_falls_back_to_d_m_yyyy(self):
+        """112024 should fall back from invalid DDMMYY to D/M/YYYY."""
+        engine = DateEngine(reference_date=date(2026, 5, 11))
+
+        result = engine.parse_numeric_date_string("112024")
+
+        assert result.year == 2024
+        assert result.month == 1
+        assert result.day == 1
+        assert result.is_valid is True
+        assert result.status_text == ""
+
+    def test_6_digit_returns_ddmmyy_invalid_result_when_fallback_invalid(self):
+        """If both 6-digit patterns fail, keep the original DDMMYY invalid status."""
+        engine = DateEngine(reference_date=date(2026, 5, 11))
+
+        result = engine.parse_numeric_date_string("001399")
+
+        assert result.year == 1999
+        assert result.month == 13
+        assert result.day == 0
+        assert result.is_valid is False
+        assert result.status_code == "invalid_day"
+        assert result.status_text == "יום לא תקין"
     
     def test_4_digit_format(self):
         """4-digit DMYY format should parse correctly."""
-        engine = DateEngine()
+        engine = DateEngine(reference_date=date(2026, 5, 11))
         
-        result = engine.parse_numeric_date_string("5190")
-        assert result.year == 1990
+        result = engine.parse_numeric_date_string("1124")
+        assert result.year == 2024
         assert result.month == 1
-        assert result.day == 5
+        assert result.day == 1
         assert result.is_valid is True
+
+    def test_4_digit_standalone_year_returns_year_only(self):
+        """2024 should be treated as year only with missing month/day status."""
+        engine = DateEngine(reference_date=date(2026, 5, 11))
+
+        result = engine.parse_numeric_date_string("2024")
+
+        assert result.year == 2024
+        assert result.month is None
+        assert result.day is None
+        assert result.is_valid is False
+        assert result.status_code == "missing_month_day"
+        assert result.status_text == "חסר חודש ויום"
     
     def test_invalid_length(self):
         """Invalid length should return error."""
@@ -231,15 +396,18 @@ class TestParseSeparatedDateString:
         assert result.day == 25
         assert result.is_valid is True
     
-    def test_two_part_date_uses_current_year(self):
-        """Two-part date should use current year."""
-        engine = DateEngine()
+    def test_two_part_date_uses_reference_year_with_visible_status(self):
+        """Two-part date may default the year, but status must be visible."""
+        engine = DateEngine(reference_date=date(2026, 5, 11))
         
         result = engine.parse_separated_date_string("25/12", DateFormatPattern.DDMM)
-        assert result.year == datetime.now().year
+        assert result.year == 2026
         assert result.month == 12
         assert result.day == 25
         assert result.is_valid is True
+        assert result.year_was_defaulted is True
+        assert result.status_code == "missing_year_defaulted"
+        assert result.status_text == "שנה חסרה והושלמה"
     
     def test_no_separator(self):
         """String without separator should return error."""

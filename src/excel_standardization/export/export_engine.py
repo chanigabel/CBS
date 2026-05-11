@@ -538,12 +538,12 @@ class ExportEngine:
             "MisparZehut": pick("id_number_corrected", "id_number"),
             "Darkon": pick("passport_corrected", "passport"),
             "Min": pick("gender_corrected", "gender"),
-            "ShnatLida": pick("birth_year_corrected", "birth_year"),
-            "HodeshLida": pick("birth_month_corrected", "birth_month"),
-            "YomLida": pick("birth_day_corrected", "birth_day"),
-            "shnatknisa": pick("entry_year_corrected", "entry_year"),
-            "Hodeshknisa": pick("entry_month_corrected", "entry_month"),
-            "YomKnisa": pick("entry_day_corrected", "entry_day"),
+            "ShnatLida": pick("birth_year_corrected"),
+            "HodeshLida": pick("birth_month_corrected"),
+            "YomLida": pick("birth_day_corrected"),
+            "shnatknisa": pick("entry_year_corrected"),
+            "Hodeshknisa": pick("entry_month_corrected"),
+            "YomKnisa": pick("entry_day_corrected"),
         }
 
         if include_dira:

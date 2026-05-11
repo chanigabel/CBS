@@ -160,6 +160,35 @@ class TestPipelinePlainBirthDate:
         assert row["birth_day_corrected"] == 11
         assert row.get("birth_date_status") == ""
 
+    def test_excel_serial_birth_date_corrected(self):
+        """Plain integer without serial metadata must NOT convert.
+        The extractor sets _birth_date_source_is_excel_date_serial=True for
+        real Excel date cells; without it, the integer is safely rejected.
+        """
+        pipeline = _make_pipeline()
+        # Without metadata flag — must be rejected
+        ds = _make_dataset([{"birth_date": 36525}], ["birth_date"])
+        result = pipeline.normalize_dataset(ds)
+        row = result.rows[0]
+        assert row["birth_year_corrected"] == ""
+        assert row["birth_month_corrected"] == ""
+        assert row["birth_day_corrected"] == ""
+        assert row.get("birth_date_status") == "מספר לא הוכר כתאריך"
+
+    def test_excel_serial_birth_date_with_metadata_corrected(self):
+        """With source_is_excel_date_serial=True, the serial converts correctly."""
+        pipeline = _make_pipeline()
+        ds = _make_dataset(
+            [{"birth_date": 36525, "_birth_date_source_is_excel_date_serial": True}],
+            ["birth_date"],
+        )
+        result = pipeline.normalize_dataset(ds)
+        row = result.rows[0]
+        assert row["birth_year_corrected"] == 1999
+        assert row["birth_month_corrected"] == 12
+        assert row["birth_day_corrected"] == 31
+        assert row.get("birth_date_status") == "פורק מתאריך סידורי"
+
     def test_invalid_date_gets_status(self):
         pipeline = _make_pipeline()
         ds = _make_dataset([{"birth_date": "32/13/1990"}], ["birth_date"])

@@ -5,6 +5,7 @@ date parsing, identifier validation, failure fallback, and metadata statistics.
 """
 
 import pytest
+from datetime import date
 from src.excel_standardization.processing.standardization_pipeline import StandardizationPipeline
 from src.excel_standardization.engines.name_engine import NameEngine
 from src.excel_standardization.engines.gender_engine import GenderEngine
@@ -225,6 +226,22 @@ class TestApplyDatestandardization:
         assert row["birth_month_corrected"] == 5
         assert row["birth_day_corrected"] == 15
 
+    def test_single_birth_date_compact_string(self):
+        row = {"birth_date": "1124"}
+        self.pipeline.apply_date_standardization(row)
+        assert row["birth_year_corrected"] == 2024
+        assert row["birth_month_corrected"] == 1
+        assert row["birth_day_corrected"] == 1
+        assert row["birth_date_status"] == ""
+
+    def test_single_entry_date_compact_string(self):
+        row = {"entry_date": "010224"}
+        self.pipeline.apply_date_standardization(row)
+        assert row["entry_year_corrected"] == 2024
+        assert row["entry_month_corrected"] == 2
+        assert row["entry_day_corrected"] == 1
+        assert row["entry_date_status"] == ""
+
     def test_single_birth_date_none_preserved(self):
         row = {"birth_date": None}
         self.pipeline.apply_date_standardization(row)
@@ -243,6 +260,44 @@ class TestApplyDatestandardization:
         self.pipeline.apply_date_standardization(row)
         assert row["birth_year_corrected"] == 1990
 
+    def test_split_birth_year_zero_is_missing(self):
+        row = {"birth_year": 0, "birth_month": 2, "birth_day": 1}
+
+        self.pipeline.apply_date_standardization(row)
+
+        assert row["birth_year_corrected"] == ""
+        assert row["birth_month_corrected"] == 2
+        assert row["birth_day_corrected"] == 1
+        assert row["birth_date_status"] == "חסר שנה"
+
+    def test_split_entry_year_zero_is_missing(self):
+        row = {"entry_year": 0, "entry_month": 2, "entry_day": 1}
+
+        self.pipeline.apply_date_standardization(row)
+
+        assert row["entry_year_corrected"] == ""
+        assert row["entry_month_corrected"] == 2
+        assert row["entry_day_corrected"] == 1
+        assert row["entry_date_status"] == "חסר שנה"
+
+    def test_split_birth_year_string_zero_is_missing(self):
+        row = {"birth_year": "0", "birth_month": 2, "birth_day": 1}
+
+        self.pipeline.apply_date_standardization(row)
+
+        assert row["birth_year_corrected"] == ""
+        assert row["birth_month_corrected"] == 2
+        assert row["birth_day_corrected"] == 1
+        assert row["birth_date_status"] == "חסר שנה"
+
+    def test_split_year_zero_does_not_create_year_2000(self):
+        row = {"birth_year": 0, "birth_month": 2, "birth_day": 1}
+
+        self.pipeline.apply_date_standardization(row)
+
+        assert row["birth_year_corrected"] != 2000
+        assert row["birth_year_corrected"] == ""
+
     def test_iso_datetime_string_in_birth_year_column(self):
         # Real-world case: openpyxl reads a date cell as ISO string into birth_year
         # when birth_month/birth_day are null (merged date cell scenario)
@@ -251,6 +306,7 @@ class TestApplyDatestandardization:
         assert row["birth_year_corrected"] == 1997
         assert row["birth_month_corrected"] == 9
         assert row["birth_day_corrected"] == 4
+        assert row["birth_date_status"] == "תאריך מלא פורק מעמודת שנה"
 
     def test_dot_separated_date_in_birth_year_column(self):
         # Real-world case: "11.06.1997" stored in birth_year column
@@ -259,6 +315,7 @@ class TestApplyDatestandardization:
         assert row["birth_year_corrected"] == 1997
         assert row["birth_month_corrected"] == 6
         assert row["birth_day_corrected"] == 11
+        assert row["birth_date_status"] == "תאריך מלא פורק מעמודת שנה"
 
     def test_slash_separated_date_in_birth_year_column(self):
         # Real-world case: "04/02/2011" stored in birth_year column
@@ -267,6 +324,143 @@ class TestApplyDatestandardization:
         assert row["birth_year_corrected"] == 2011
         assert row["birth_month_corrected"] == 2
         assert row["birth_day_corrected"] == 4
+        assert row["birth_date_status"] == "תאריך מלא פורק מעמודת שנה"
+
+    def test_two_part_birth_date_writes_defaulted_year_status(self):
+        pipeline = make_pipeline(reference_date=date(2026, 5, 11))
+        row = {"birth_date": "1/2"}
+
+        pipeline.apply_date_standardization(row)
+
+        assert row["birth_year_corrected"] == 2026
+        assert row["birth_month_corrected"] == 2
+        assert row["birth_day_corrected"] == 1
+        assert row["birth_date_status"] == "שנה חסרה והושלמה"
+
+    def test_two_part_entry_date_writes_defaulted_year_status(self):
+        pipeline = make_pipeline(reference_date=date(2026, 5, 11))
+        row = {"entry_date": "1/2"}
+
+        pipeline.apply_date_standardization(row)
+
+        assert row["entry_year_corrected"] == 2026
+        assert row["entry_month_corrected"] == 2
+        assert row["entry_day_corrected"] == 1
+        assert row["entry_date_status"] == "שנה חסרה והושלמה"
+
+    def test_numeric_birth_date_excel_serial_writes_corrected_fields(self):
+        """Plain integer without serial metadata must NOT convert to a date.
+        The source_is_excel_date_serial flag must be set by the extractor for
+        conversion to happen. Without it, the integer is rejected safely.
+        """
+        pipeline = make_pipeline(reference_date=date(2026, 5, 11))
+        row = {"birth_date": 36525}
+
+        pipeline.apply_date_standardization(row)
+
+        # Without metadata flag, plain int must be rejected
+        assert row["birth_year_corrected"] == ""
+        assert row["birth_month_corrected"] == ""
+        assert row["birth_day_corrected"] == ""
+        assert row["birth_date_status"] == "מספר לא הוכר כתאריך"
+
+    def test_numeric_birth_date_original_value_preserved_on_reject(self):
+        pipeline = make_pipeline(reference_date=date(2026, 5, 11))
+        row = {"birth_date": 1234567}
+
+        pipeline.apply_date_standardization(row)
+
+        assert row["birth_date"] == 1234567
+        assert row["birth_year_corrected"] == ""
+        assert row["birth_month_corrected"] == ""
+        assert row["birth_day_corrected"] == ""
+        assert row["birth_date_status"] == "מספר לא הוכר כתאריך"
+
+    def test_numeric_birth_date_excel_serial_with_metadata_writes_corrected_fields(self):
+        """With source_is_excel_date_serial=True, the serial converts correctly."""
+        pipeline = make_pipeline(reference_date=date(2026, 5, 11))
+        row = {
+            "birth_date": 36525,
+            "_birth_date_source_is_excel_date_serial": True,
+        }
+
+        pipeline.apply_date_standardization(row)
+
+        assert row["birth_year_corrected"] == 1999
+        assert row["birth_month_corrected"] == 12
+        assert row["birth_day_corrected"] == 31
+        assert row["birth_date_status"] == "פורק מתאריך סידורי"
+
+    def test_numeric_entry_date_excel_serial_writes_corrected_fields(self):
+        """Plain integer without serial metadata must NOT convert to a date."""
+        pipeline = make_pipeline(reference_date=date(2026, 5, 11))
+        row = {"entry_date": 38353}
+
+        pipeline.apply_date_standardization(row)
+
+        # Without metadata flag, plain int must be rejected
+        assert row["entry_year_corrected"] == ""
+        assert row["entry_month_corrected"] == ""
+        assert row["entry_day_corrected"] == ""
+        assert row["entry_date_status"] == "מספר לא הוכר כתאריך"
+
+    def test_invalid_numeric_entry_date_does_not_leak_partial_fields(self):
+        pipeline = make_pipeline(reference_date=date(2026, 5, 11))
+        row = {"entry_date": 120201}
+
+        pipeline.apply_date_standardization(row)
+
+        assert row["entry_date"] == 120201
+        assert row["entry_year_corrected"] == ""
+        assert row["entry_month_corrected"] == ""
+        assert row["entry_day_corrected"] == ""
+        assert row["entry_date_status"] == "מספר לא הוכר כתאריך"
+
+    def test_numeric_entry_date_excel_serial_with_metadata_writes_corrected_fields(self):
+        """With source_is_excel_date_serial=True, the serial converts correctly."""
+        pipeline = make_pipeline(reference_date=date(2026, 5, 11))
+        row = {
+            "entry_date": 38353,
+            "_entry_date_source_is_excel_date_serial": True,
+        }
+
+        pipeline.apply_date_standardization(row)
+
+        assert row["entry_year_corrected"] == 2005
+        assert row["entry_month_corrected"] == 1
+        assert row["entry_day_corrected"] == 1
+        assert row["entry_date_status"] == "פורק מתאריך סידורי"
+
+    def test_invalid_numeric_birth_date_stays_visible(self):
+        pipeline = make_pipeline(reference_date=date(2026, 5, 11))
+        row = {"birth_date": 2024}
+
+        pipeline.apply_date_standardization(row)
+
+        assert row["birth_year_corrected"] == ""
+        assert row["birth_month_corrected"] == ""
+        assert row["birth_day_corrected"] == ""
+        assert row["birth_date_status"] == "מספר לא הוכר כתאריך"
+
+    def test_full_date_in_split_month_column_writes_source_status(self):
+        row = {"birth_year": None, "birth_month": "11.06.1997", "birth_day": None}
+
+        self.pipeline.apply_date_standardization(row)
+
+        assert row["birth_year_corrected"] == 1997
+        assert row["birth_month_corrected"] == 6
+        assert row["birth_day_corrected"] == 11
+        assert row["birth_date_status"] == "תאריך מלא פורק מעמודת חודש"
+
+    def test_full_date_in_split_columns_conflict_writes_status(self):
+        row = {"birth_year": "11.06.1997", "birth_month": 6, "birth_day": None}
+
+        self.pipeline.apply_date_standardization(row)
+
+        assert row["birth_year_corrected"] == ""
+        assert row["birth_month_corrected"] == ""
+        assert row["birth_day_corrected"] == ""
+        assert row["birth_date_status"] == "ערכים סותרים בעמודות תאריך מפוצלות"
 
     def test_two_digit_entry_year_expanded(self):
         # Real-world case: entry_year=25 should expand to 2025

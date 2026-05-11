@@ -409,6 +409,26 @@ class DateGroup:
     field_type: "DateFieldType"
 
 
+@dataclass
+class DateInput:
+    """Structured input for DateEngine.
+
+    The active pipeline can pass this model to avoid fragile positional
+    arguments while legacy callers can continue using the existing DateEngine
+    method signatures.
+    """
+
+    source_kind: str
+    field_type: "DateFieldType"
+    raw_value: Any = None
+    raw_year: Any = None
+    raw_month: Any = None
+    raw_day: Any = None
+    pattern: Optional["DateFormatPattern"] = None
+    reference_date: Any = None
+    source_is_excel_date_serial: bool = False
+
+
 # תוצאת parsing של תאריך שמועברת מה־DateEngine ל־pipeline.
 @dataclass
 class DateParseResult:
@@ -432,6 +452,17 @@ class DateParseResult:
     is_valid: bool
     status_text: str
     year_was_auto_completed: bool = False
+    severity: str = "error"
+    status_code: str = ""
+    missing_components: List[str] = field(default_factory=list)
+    invalid_components: List[str] = field(default_factory=list)
+    original_year_value: Optional[int] = None
+    original_year_digits: Optional[int] = None
+    reference_year: Optional[int] = None
+    year_was_defaulted: bool = False
+    is_calendar_valid: bool = False
+    is_business_valid: bool = False
+    source_kind: str = ""
 
 
 # תוצאת נרמול מזהים שמועברת מה־IdentifierEngine ל־pipeline.

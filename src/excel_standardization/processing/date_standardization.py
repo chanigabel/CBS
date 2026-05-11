@@ -3,10 +3,9 @@
 from __future__ import annotations
 
 import logging
-from datetime import date as _date, datetime as _dt
 from typing import Any, List, Optional, Tuple
 
-from ..data_types import DateFieldType, DateFormatPattern, JsonRow
+from ..data_types import DateFieldType, DateFormatPattern, DateInput, JsonRow
 
 logger = logging.getLogger(__name__)
 
@@ -115,30 +114,17 @@ def normalize_date_field(
         month_val = json_row.get(month_field)
         day_val = json_row.get(day_field)
 
-        if year_val is not None and month_val is None and day_val is None:
-            main_val_for_engine = year_val
-            year_val_for_engine = None
-            month_val_for_engine = None
-            day_val_for_engine = None
-        elif isinstance(year_val, (_dt, _date)):
-            main_val_for_engine = year_val
-            year_val_for_engine = None
-            month_val_for_engine = None
-            day_val_for_engine = None
-        else:
-            main_val_for_engine = None
-            year_val_for_engine = year_val
-            month_val_for_engine = month_val
-            day_val_for_engine = day_val
-
         try:
-            result = pipeline.date_engine.parse_date(
-                year_val_for_engine,
-                month_val_for_engine,
-                day_val_for_engine,
-                main_val_for_engine,
-                pattern,
-                field_type,
+            result = pipeline.date_engine.parse_input(
+                DateInput(
+                    source_kind="split",
+                    field_type=field_type,
+                    raw_year=year_val,
+                    raw_month=month_val,
+                    raw_day=day_val,
+                    pattern=pattern,
+                    reference_date=getattr(pipeline, "_reference_date", None),
+                )
             )
             date_result = result
 
@@ -148,6 +134,9 @@ def normalize_date_field(
             json_row[f"{day_field}_corrected"] = corrected_day
             json_row[f"{prefix}_date_status"] = result.status_text
             json_row[f"_{prefix}_year_auto_completed"] = result.year_was_auto_completed
+            if result.original_year_value is not None:
+                json_row[f"_{prefix}_year_original_two_digit"] = result.original_year_value
+                json_row[f"_{prefix}_year_reference_year"] = result.reference_year
 
         except Exception as e:
             json_row[f"{year_field}_corrected"] = ""
@@ -168,6 +157,8 @@ def normalize_date_field(
         year_field = f"{prefix}_year"
         month_field = f"{prefix}_month"
         day_field = f"{prefix}_day"
+        source_serial_field = f"_{date_field}_source_is_excel_date_serial"
+        legacy_source_serial_field = f"_{prefix}_source_is_excel_date_serial"
 
         if date_val is None or date_val == "":
             json_row[f"{year_field}_corrected"] = None
@@ -178,21 +169,30 @@ def normalize_date_field(
             return failed_fields, date_result
 
         try:
-            result = pipeline.date_engine.parse_date(
-                None,
-                None,
-                None,
-                date_val,
-                pattern,
-                field_type,
+            result = pipeline.date_engine.parse_input(
+                DateInput(
+                    source_kind="single",
+                    field_type=field_type,
+                    raw_value=date_val,
+                    pattern=pattern,
+                    reference_date=getattr(pipeline, "_reference_date", None),
+                    source_is_excel_date_serial=bool(
+                        json_row.get(source_serial_field, False)
+                        or json_row.get(legacy_source_serial_field, False)
+                    ),
+                )
             )
             date_result = result
 
-            json_row[f"{year_field}_corrected"] = result.year
-            json_row[f"{month_field}_corrected"] = result.month
-            json_row[f"{day_field}_corrected"] = result.day
+            corrected_year, corrected_month, corrected_day = date_corrected_components(result)
+            json_row[f"{year_field}_corrected"] = corrected_year
+            json_row[f"{month_field}_corrected"] = corrected_month
+            json_row[f"{day_field}_corrected"] = corrected_day
             json_row[f"{prefix}_date_status"] = result.status_text
             json_row[f"_{prefix}_year_auto_completed"] = result.year_was_auto_completed
+            if result.original_year_value is not None:
+                json_row[f"_{prefix}_year_original_two_digit"] = result.original_year_value
+                json_row[f"_{prefix}_year_reference_year"] = result.reference_year
 
         except Exception as e:
             json_row[f"{year_field}_corrected"] = None
@@ -217,23 +217,49 @@ def date_corrected_components(result) -> Tuple[Any, Any, Any]:
     year = result.year
     month = result.month
     day = result.day
-    status = result.status_text or ""
+    invalid_components = set(getattr(result, "invalid_components", []) or [])
+    missing_components = set(getattr(result, "missing_components", []) or [])
+    status_code = getattr(result, "status_code", "") or ""
 
-    if status == "ערך תאריך לא תקין":
-        return (
-            year if year is not None else "",
-            month if month is not None else "",
-            day if day is not None else "",
-        )
-
-    if status == "שנה לא תקינה":
+    if "year" in invalid_components or "year" in missing_components:
         year = ""
-    if status == "חודש לא תקין":
+    if "month" in invalid_components or "month" in missing_components:
         month = ""
-    if status == "יום לא תקין":
+    if "day" in invalid_components or "day" in missing_components:
         day = ""
 
-    return year, month, day
+    if status_code in {
+        "empty_cell",
+        "empty_optional_entry",
+        "unrecognized_format",
+        "invalid_format",
+        "invalid_length",
+        "unclear_date",
+        "unparseable",
+        # Impossible / out-of-range dates must never populate corrected fields.
+        # These are business-domain rejections where the entire date is meaningless.
+        "impossible_year",
+        "future_birth",
+        "future_entry",
+        "late_entry",
+        "year_before_1906",
+        "unrecognized_numeric_date",
+    }:
+        # Force-blank ALL components — these status codes mean the date is
+        # invalid or impossible and must not appear in corrected output fields.
+        return ("", "", "")
+
+    if (
+        getattr(result, "source_kind", "") == "single_numeric"
+        and not getattr(result, "is_calendar_valid", False)
+    ):
+        return ("", "", "")
+
+    return (
+        year if year is not None else "",
+        month if month is not None else "",
+        day if day is not None else "",
+    )
 
 
 # הפונקציה מתקנת רק שנות לידה דו־ספרתיות לפי רוב הגיליון ומסירה תגיות פנימיות.
@@ -279,20 +305,36 @@ def apply_birth_year_majority_correction(pipeline: Any, rows: List[JsonRow]) -> 
                 mo = row.get("birth_month_corrected")
                 dy = row.get("birth_day_corrected")
                 try:
-                    new_result = pipeline.date_engine._validate_date(new_yr, mo, dy)
-                    new_result.year_was_auto_completed = True
-                    new_result = pipeline.date_engine.validate_business_rules(
-                        new_result, DateFieldType.BIRTH_DATE
+                    new_result = pipeline.date_engine._validate_date(
+                        new_yr,
+                        mo,
+                        dy,
+                        source_kind="majority_correction",
+                        reference_date=getattr(pipeline, "_reference_date", None),
                     )
-                    row["birth_year_corrected"] = new_result.year if new_result.year is not None else new_yr
-                    row["birth_month_corrected"] = new_result.month if new_result.month is not None else mo
-                    row["birth_day_corrected"] = new_result.day if new_result.day is not None else dy
+                    new_result.year_was_auto_completed = True
+                    new_result.original_year_value = row.get("_birth_year_original_two_digit")
+                    new_result.reference_year = row.get("_birth_year_reference_year")
+                    new_result = pipeline.date_engine.validate_business_rules(
+                        new_result,
+                        DateFieldType.BIRTH_DATE,
+                        reference_date=getattr(pipeline, "_reference_date", None),
+                    )
+                    cy, cm, cd = date_corrected_components(new_result)
+                    row["birth_year_corrected"] = cy if cy != "" else new_yr
+                    row["birth_month_corrected"] = cm
+                    row["birth_day_corrected"] = cd
                     row["birth_date_status"] = new_result.status_text
+                    row["_birth_year_majority_corrected"] = True
                 except Exception:
                     row["birth_year_corrected"] = new_yr
 
         row.pop("_birth_year_auto_completed", None)
         row.pop("_entry_year_auto_completed", None)
+        row.pop("_birth_year_original_two_digit", None)
+        row.pop("_entry_year_original_two_digit", None)
+        row.pop("_birth_year_reference_year", None)
+        row.pop("_entry_year_reference_year", None)
         corrected_rows.append(row)
 
     return corrected_rows

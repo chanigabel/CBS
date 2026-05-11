@@ -10,6 +10,7 @@ creating corrected fields with the "_corrected" suffix.
 """
 
 import logging
+from datetime import date
 from typing import Optional, Dict, Any, List, Tuple
 from ..data_types import JsonRow, SheetDataset
 from ..engines.name_engine import NameEngine
@@ -90,7 +91,8 @@ class StandardizationPipeline:
         apply_name_standardization_enabled: bool = True,
         apply_gender_standardization_enabled: bool = True,
         apply_date_standardization_enabled: bool = True,
-        apply_identifier_standardization_enabled: bool = True
+        apply_identifier_standardization_enabled: bool = True,
+        reference_date: Optional[date] = None,
     ):
         """Initialize StandardizationPipeline with engine dependencies.
         
@@ -116,6 +118,9 @@ class StandardizationPipeline:
         self.gender_engine = gender_engine
         self.date_engine = date_engine
         self.identifier_engine = identifier_engine
+        self._reference_date = reference_date or date.today()
+        if self.date_engine is not None:
+            self.date_engine.reference_date = self._reference_date
         
         # Configuration flags for which engines to apply
         self.apply_name_standardization_enabled = apply_name_standardization_enabled
@@ -478,6 +483,8 @@ class StandardizationPipeline:
             "date": self.apply_date_standardization_enabled and self.date_engine is not None,
             "identifier": self.apply_identifier_standardization_enabled and self.identifier_engine is not None
         }
+        corrected_dataset.metadata["processing_date"] = self._reference_date.isoformat()
+        corrected_dataset.metadata["processing_year"] = self._reference_date.year
         
         # Add failure statistics to metadata
         corrected_dataset.metadata["standardization_statistics"] = {

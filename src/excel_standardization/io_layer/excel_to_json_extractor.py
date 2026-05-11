@@ -167,6 +167,15 @@ class ExcelToJsonExtractor:
                 # Store value in JSON row
                 # Empty cells are stored as None
                 json_row[field_name] = cell_value
+
+                if field_name in {"birth_date", "entry_date"}:
+                    source_flag_key = f"_{field_name}_source_is_excel_date_serial"
+                    is_date_serial = bool(getattr(cell, "is_date", False)) and isinstance(
+                        cell_value,
+                        (int, float),
+                    )
+                    if is_date_serial:
+                        json_row[source_flag_key] = True
                 
             except Exception as e:
                 # Handle any unexpected errors during cell extraction

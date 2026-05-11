@@ -184,6 +184,51 @@ def test_extract_row_with_date_values(extractor, worksheet):
     assert len(result) == 2
 
 
+def test_extract_row_marks_date_formatted_birth_serial(extractor, worksheet):
+    """Date-formatted numeric date cells must carry Excel serial metadata."""
+    worksheet['A2'] = 36525
+    worksheet['A2'].number_format = 'dd/mm/yyyy'
+
+    column_mapping = {
+        'birth_date': ColumnHeaderInfo(col=1, header_row=1, last_row=10, header_text='Birth Date'),
+    }
+
+    result = extractor.extract_row_to_json(worksheet, 2, column_mapping)
+
+    assert result['birth_date'] == 36525
+    assert result['_birth_date_source_is_excel_date_serial'] is True
+
+
+def test_extract_row_does_not_mark_plain_birth_number_as_date_serial(extractor, worksheet):
+    """Plain numeric date columns must not get serial metadata."""
+    worksheet['A2'] = 36525
+    worksheet['A2'].number_format = 'General'
+
+    column_mapping = {
+        'birth_date': ColumnHeaderInfo(col=1, header_row=1, last_row=10, header_text='Birth Date'),
+    }
+
+    result = extractor.extract_row_to_json(worksheet, 2, column_mapping)
+
+    assert result['birth_date'] == 36525
+    assert '_birth_date_source_is_excel_date_serial' not in result
+
+
+def test_extract_row_marks_date_formatted_entry_serial(extractor, worksheet):
+    """Entry date serial metadata uses the entry_date field name."""
+    worksheet['A2'] = 38353
+    worksheet['A2'].number_format = 'm/d/yy'
+
+    column_mapping = {
+        'entry_date': ColumnHeaderInfo(col=1, header_row=1, last_row=10, header_text='Entry Date'),
+    }
+
+    result = extractor.extract_row_to_json(worksheet, 2, column_mapping)
+
+    assert result['entry_date'] == 38353
+    assert result['_entry_date_source_is_excel_date_serial'] is True
+
+
 def test_extract_row_with_boolean_values(extractor, worksheet):
     """Test extracting a row with boolean values."""
     # Setup: Create a row with boolean values

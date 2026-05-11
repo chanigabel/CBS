@@ -1,6 +1,7 @@
 """Service layer that runs the standardization pipeline for a session."""
 
 import logging
+from datetime import date
 from typing import List, Optional
 
 from fastapi import HTTPException
@@ -324,15 +325,17 @@ class StandardizationService:
     def _build_pipeline(self) -> StandardizationPipeline:
         """Build a StandardizationPipeline with the active engines."""
         tp = TextProcessor()
+        reference_date = date.today()
         return StandardizationPipeline(
             name_engine=NameEngine(tp),
             gender_engine=GenderEngine(),
-            date_engine=DateEngine(),
+            date_engine=DateEngine(reference_date=reference_date),
             identifier_engine=IdentifierEngine(),
             apply_name_standardization_enabled=True,
             apply_gender_standardization_enabled=True,
             apply_date_standardization_enabled=True,
             apply_identifier_standardization_enabled=True,
+            reference_date=reference_date,
         )
 
 

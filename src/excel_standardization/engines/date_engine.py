@@ -10,17 +10,68 @@ import logging
 import re
 from typing import Optional
 
-from ..data_types import DateParseResult, DateFormatPattern, DateFieldType
+from ..data_types import DateInput, DateParseResult, DateFormatPattern, DateFieldType
 
 
 logger = logging.getLogger(__name__)
 
 
+STATUS_EMPTY_CELL = "תא ריק"
+STATUS_INVALID_DATE_VALUE = "ערך תאריך לא תקין"
+STATUS_UNPARSEABLE = "תוכן לא ניתן לפריקה"
+STATUS_INVALID_DAY = "יום לא תקין"
+STATUS_INVALID_MONTH = "חודש לא תקין"
+STATUS_INVALID_YEAR = "שנה לא תקינה"
+STATUS_DATE_NOT_EXISTS = "תאריך לא קיים"
+STATUS_BEFORE_1906 = "שנה לפני 1906"
+STATUS_LATE_ENTRY = "תאריך כניסה מאוחר מהתאריך שנקבע"
+STATUS_FUTURE_BIRTH = "תאריך לידה עתידי"
+STATUS_FUTURE_ENTRY = "תאריך כניסה עתידי"
+STATUS_MISSING_MONTH_DAY = "חסר חודש ויום"
+STATUS_INVALID_LENGTH = "אורך תאריך לא תקין"
+STATUS_UNCLEAR_DATE = "תאריך לא ברור"
+STATUS_INVALID_FORMAT = "פורמט תאריך לא תקין"
+STATUS_UNRECOGNIZED_FORMAT = "פורמט תאריך לא מזוהה"
+STATUS_NO_SEPARATOR = "אין מפריד בתאריך"
+STATUS_MISSING_YEAR = "חסר שנה"
+STATUS_MISSING_MONTH = "חסר חודש"
+STATUS_MISSING_DAY = "חסר יום"
+STATUS_MISSING_YEAR_DEFAULTED = "שנה חסרה והושלמה"
+STATUS_EXCEL_SERIAL_PARSED = "פורק מתאריך סידורי"
+STATUS_NUMERIC_DATE_UNRECOGNIZED = "מספר לא הוכר כתאריך"
+STATUS_IMPOSSIBLE_YEAR = "שנה לא סבירה"
+STATUS_SPLIT_FULL_DATE_CONFLICT = "ערכים סותרים בעמודות תאריך מפוצלות"
+STATUS_SPLIT_FULL_DATE_FROM_DAY = "תאריך מלא פורק מעמודת יום"
+STATUS_SPLIT_FULL_DATE_FROM_MONTH = "תאריך מלא פורק מעמודת חודש"
+STATUS_SPLIT_FULL_DATE_FROM_YEAR = "תאריך מלא פורק מעמודת שנה"
+
+
 # המנוע אחראי לפענוח תאריכים, תיקון רכיבים והרצת חוקי תאריך.
 class DateEngine:
+    def __init__(self, reference_date: Optional[date] = None) -> None:
+        self.reference_date = reference_date or date.today()
+
     # הפונקציה יוצרת תוצאת תאריך ריקה כאשר אין ערך קלט לעיבוד.
-    def _blank_result(self) -> DateParseResult:
-        return DateParseResult(year=None, month=None, day=None, is_valid=False, status_text="")
+    def _blank_result(
+        self,
+        *,
+        source_kind: str = "",
+        reference_date: Optional[date] = None,
+    ) -> DateParseResult:
+        ref = self._get_reference_date(reference_date)
+        return DateParseResult(
+            year=None,
+            month=None,
+            day=None,
+            is_valid=False,
+            status_text="",
+            severity="error",
+            status_code="",
+            reference_year=ref.year,
+            is_calendar_valid=False,
+            is_business_valid=False,
+            source_kind=source_kind,
+        )
 
     # ----------------------------------------------------
     # MAIN ENTRY
@@ -35,54 +86,166 @@ class DateEngine:
         main_val,
         pattern: DateFormatPattern,
         field_type: DateFieldType,
+        source_kind: Optional[str] = None,
+        reference_date: Optional[date] = None,
     ) -> DateParseResult:
+        ref = self._get_reference_date(reference_date)
 
-        if self._has_split_date(year_val, month_val, day_val):
-            result = self.parse_from_split_columns(year_val, month_val, day_val)
+        if source_kind is None:
+            if (
+                self._has_any_split_component(year_val, month_val, day_val)
+                and not (
+                    main_val is not None
+                    and self._is_empty(month_val)
+                    and self._is_empty(day_val)
+                )
+            ):
+                source_kind = "split"
+            elif self._is_empty(main_val):
+                source_kind = "missing"
+            else:
+                source_kind = "single"
+
+        date_input = DateInput(
+            source_kind=source_kind,
+            field_type=field_type,
+            raw_value=main_val,
+            raw_year=year_val,
+            raw_month=month_val,
+            raw_day=day_val,
+            pattern=pattern,
+            reference_date=ref,
+            source_is_excel_date_serial=False,
+        )
+        return self.parse_input(date_input)
+
+    # הפונקציה מפעילה parsing לפי מודל קלט מובנה ושומרת על תאימות לממשק הישן.
+    def parse_input(self, date_input: DateInput) -> DateParseResult:
+        pattern = date_input.pattern or DateFormatPattern.DDMM
+        ref = self._get_reference_date(date_input.reference_date)
+
+        if date_input.source_kind == "split":
+            result = self.parse_from_split_columns(
+                date_input.raw_year,
+                date_input.raw_month,
+                date_input.raw_day,
+                reference_date=ref,
+            )
+        elif date_input.source_kind == "single" and isinstance(date_input.raw_value, int):
+            if date_input.source_is_excel_date_serial:
+                result = self._parse_excel_serial_date(date_input.raw_value, reference_date=ref)
+            else:
+                result = self._blank_result(source_kind="single_numeric", reference_date=ref)
+                result.status_text = STATUS_NUMERIC_DATE_UNRECOGNIZED
+                result.status_code = "unrecognized_numeric_date"
+                result.severity = "error"
+        elif date_input.source_kind == "missing":
+            result = self._blank_result(source_kind="missing", reference_date=ref)
+            result.status_text = STATUS_EMPTY_CELL
+            result.status_code = "empty_cell"
         else:
-            result = self.parse_from_main_value(main_val, pattern)
+            result = self.parse_from_main_value(
+                date_input.raw_value,
+                pattern,
+                reference_date=ref,
+            )
 
-        return self.validate_business_rules(result, field_type)
+        result.source_kind = date_input.source_kind
+        return self.validate_business_rules(result, date_input.field_type, reference_date=ref)
 
     # ----------------------------------------------------
     # SPLIT COLUMNS
     # ----------------------------------------------------
 
     # הפונקציה מפענחת תאריך שמגיע משלוש עמודות נפרדות בגיליון.
-    def parse_from_split_columns(self, year_val, month_val, day_val) -> DateParseResult:
-        result = self._blank_result()
+    def parse_from_split_columns(
+        self,
+        year_val,
+        month_val,
+        day_val,
+        reference_date: Optional[date] = None,
+    ) -> DateParseResult:
+        ref = self._get_reference_date(reference_date)
+        result = self._blank_result(source_kind="split", reference_date=ref)
 
-        yr, year_ok = self._coerce_split_component(year_val)
-        mo, month_ok = self._coerce_split_component(month_val)
-        dy, day_ok = self._coerce_split_component(day_val)
+        split_values = {"year": year_val, "month": month_val, "day": day_val}
+        full_date_columns = [
+            column
+            for column, value in split_values.items()
+            if not self._is_empty(value) and self._looks_like_full_date_value(value)
+        ]
+        if full_date_columns:
+            if len(full_date_columns) == 1:
+                source_column = full_date_columns[0]
+                other_values = [
+                    value
+                    for column, value in split_values.items()
+                    if column != source_column
+                ]
+                if all(self._is_empty(value) for value in other_values):
+                    parsed = self.parse_date_value(
+                        split_values[source_column],
+                        DateFormatPattern.DDMM,
+                        reference_date=ref,
+                    )
+                    parsed.source_kind = "split"
+                    parsed.status_code = f"full_date_from_{source_column}_column"
+                    parsed.status_text = self._split_full_date_status(source_column)
+                    return parsed
+
+            result.status_text = STATUS_SPLIT_FULL_DATE_CONFLICT
+            result.status_code = "split_full_date_conflict"
+            return result
+
+        yr, year_ok, year_missing = self._coerce_split_component(year_val, zero_is_missing=True)
+        mo, month_ok, month_missing = self._coerce_split_component(month_val)
+        dy, day_ok, day_missing = self._coerce_split_component(day_val)
 
         result.year = yr
         result.month = mo
         result.day = dy
 
-        if not (year_ok and month_ok and day_ok):
-            result.status_text = "ערך תאריך לא תקין"
+        if year_missing:
+            result.missing_components.append("year")
+        elif not year_ok:
+            result.invalid_components.append("year")
+
+        if month_missing:
+            result.missing_components.append("month")
+        elif not month_ok:
+            result.invalid_components.append("month")
+
+        if day_missing:
+            result.missing_components.append("day")
+        elif not day_ok:
+            result.invalid_components.append("day")
+
+        if result.invalid_components:
+            result.status_text = STATUS_INVALID_DATE_VALUE
+            result.status_code = "invalid_split_component"
             return result
 
-        try:
-            yr = int(float(str(year_val).strip()))
-            mo = int(float(str(month_val).strip()))
-            dy = int(float(str(day_val).strip()))
-        except Exception:
-            result.status_text = "תוכן לא ניתן לפריקה"
+        if result.missing_components:
+            result.status_text = self._missing_components_status(result.missing_components)
+            result.status_code = "missing_" + "_".join(result.missing_components)
             return result
 
-        # Track whether the year was auto-completed from a shortened (< 100)
-        # value.  The list-level majority correction in DateFieldProcessor
-        # uses this flag to distinguish auto-completed years from explicitly
-        # written 4-digit years.
-        year_was_auto_completed = 0 <= yr < 100
+        assert yr is not None
+        assert mo is not None
+        assert dy is not None
 
-        if year_was_auto_completed:
-            yr = self._expand_two_digit_year(yr)
+        auto_year: Optional[int] = None
+        if 0 <= yr < 100:
+            auto_year = yr
+            result.year_was_auto_completed = True
+            result.original_year_value = yr
+            result.original_year_digits = 1 if yr < 10 else 2
+            result.reference_year = ref.year
+            yr = self._expand_two_digit_year(yr, reference_date=ref)
 
-        result = self._validate_date(yr, mo, dy)
-        result.year_was_auto_completed = year_was_auto_completed
+        result = self._validate_date(yr, mo, dy, source_kind="split", reference_date=ref)
+        if auto_year is not None:
+            self._mark_auto_completed_year(result, auto_year, ref)
         return result
 
     # ----------------------------------------------------
@@ -94,76 +257,71 @@ class DateEngine:
         self,
         raw_value,
         pattern: DateFormatPattern,
+        reference_date: Optional[date] = None,
     ) -> DateParseResult:
-        """Backward-compatible wrapper that now delegates to parse_date_value."""
-        return self.parse_date_value(raw_value, pattern)
+        return self.parse_date_value(raw_value, pattern, reference_date=reference_date)
 
     # הפונקציה בוחרת אסטרטגיית parsing לפי סוג הערך ודפוס התאריך שזוהה.
-    def parse_date_value(self, raw_value, pattern: DateFormatPattern) -> DateParseResult:
-        """Parse a date from a single cell value following VBA rules."""
-        result = self._blank_result()
+    def parse_date_value(
+        self,
+        raw_value,
+        pattern: DateFormatPattern,
+        reference_date: Optional[date] = None,
+    ) -> DateParseResult:
+        ref = self._get_reference_date(reference_date)
+        result = self._blank_result(source_kind="single", reference_date=ref)
 
         if raw_value is None:
-            result.status_text = "תא ריק"
+            result.status_text = STATUS_EMPTY_CELL
+            result.status_code = "empty_cell"
             return result
 
         txt = str(raw_value).strip()
         if txt == "":
-            result.status_text = "תא ריק"
+            result.status_text = STATUS_EMPTY_CELL
+            result.status_code = "empty_cell"
             return result
 
-        # Excel date/datetime
         if isinstance(raw_value, (datetime, date)):
-            dt = raw_value if isinstance(raw_value, date) else raw_value.date()
+            dt = raw_value.date() if isinstance(raw_value, datetime) else raw_value
             result.year = dt.year
             result.month = dt.month
             result.day = dt.day
             result.is_valid = True
+            result.is_calendar_valid = True
+            result.is_business_valid = True
+            result.severity = "ok"
+            result.status_code = "ok"
             return result
 
-        # Excel serial date number (integer, e.g. 36526 = 2000-01-01)
-        # openpyxl with data_only=True sometimes returns these as integers
-        if isinstance(raw_value, int) and 1 <= raw_value <= 2958465:
-            try:
-                from openpyxl.utils.datetime import from_excel
-                dt = from_excel(raw_value)
-                if isinstance(dt, datetime):
-                    dt = dt.date()
-                result.year = dt.year
-                result.month = dt.month
-                result.day = dt.day
-                result.is_valid = True
-                return result
-            except Exception:
-                pass  # Fall through to numeric string parsing
+        if isinstance(raw_value, int):
+            result.status_text = STATUS_NUMERIC_DATE_UNRECOGNIZED
+            result.status_code = "unrecognized_numeric_date"
+            result.severity = "error"
+            return result
 
-        # Contains month name (English or Hebrew)
         if self._contains_month_name(txt):
-            return self._parse_mixed_month_numeric(txt)
+            return self._parse_mixed_month_numeric(txt, reference_date=ref)
 
-        # All digits
         if txt.isdigit():
-            return self._parse_numeric_date_string(txt)
+            return self._parse_numeric_date_string(txt, reference_date=ref)
 
-        # ISO-like date string (common when merged date cells get stringified)
-        # Example: "1997-09-04T00:00:00"
         m = re.match(r"^(\d{4})-(\d{2})-(\d{2})", txt)
         if m:
             try:
                 yr = int(m.group(1))
                 mo = int(m.group(2))
                 dy = int(m.group(3))
-                return self._validate_date(yr, mo, dy)
+                return self._validate_date(yr, mo, dy, source_kind="single", reference_date=ref)
             except Exception:
-                # Fall through to standard parsing
                 pass
 
-        # Separated by "/" or "."
         if "/" in txt or "." in txt:
             txt2 = txt.replace(".", "/")
-            return self._parse_separated_date_string(txt2, pattern)
+            return self._parse_separated_date_string(txt2, pattern, reference_date=ref)
 
-        result.status_text = "פורמט תאריך לא מזוהה"
+        result.status_text = STATUS_UNRECOGNIZED_FORMAT
+        result.status_code = "unrecognized_format"
         return result
 
     # ------------------------------------------------------------------
@@ -177,43 +335,41 @@ class DateEngine:
     # הפונקציה מפענחת מחרוזת תאריך ספרתית ללא מפרידים.
     def parse_numeric_date_string(self, txt: str) -> DateParseResult:
         if txt is None:
-            r = self._blank_result()
-            r.status_text = "פורמט תאריך לא תקין"
+            r = self._blank_result(source_kind="single")
+            r.status_text = STATUS_INVALID_FORMAT
+            r.status_code = "invalid_format"
             return r
         s = str(txt).strip()
         if not s.isdigit():
-            r = self._blank_result()
-            r.status_text = "פורמט תאריך לא תקין"
+            r = self._blank_result(source_kind="single")
+            r.status_text = STATUS_INVALID_FORMAT
+            r.status_code = "invalid_format"
             return r
         return self._parse_numeric_date_string(s)
 
     # הפונקציה מפענחת מחרוזת תאריך עם מפרידים לפי DD/MM או MM/DD.
     def parse_separated_date_string(self, txt: str, pattern: DateFormatPattern) -> DateParseResult:
         if txt is None:
-            r = self._blank_result()
-            r.status_text = "אין מפריד בתאריך"
+            r = self._blank_result(source_kind="single")
+            r.status_text = STATUS_NO_SEPARATOR
+            r.status_code = "no_separator"
             return r
         s = str(txt).strip()
         if "/" not in s and "." not in s:
-            r = self._blank_result()
-            r.status_text = "אין מפריד בתאריך"
+            r = self._blank_result(source_kind="single")
+            r.status_text = STATUS_NO_SEPARATOR
+            r.status_code = "no_separator"
             return r
         s2 = s.replace(".", "/")
         return self._parse_separated_date_string(s2, pattern)
 
     # הפונקציה מחשבת גיל לצורך בדיקות עסקיות של תאריך לידה וכניסה.
     def calculate_age(self, *args) -> int:
-        """Compatibility wrapper.
-
-        Supports:
-        - calculate_age(birth: date, today: date)
-        - calculate_age(birth_year: int, birth_month: int, birth_day: int)
-        """
         if len(args) == 2 and isinstance(args[0], date) and isinstance(args[1], date):
             return self._calculate_age(args[0], args[1])
         if len(args) == 3:
             birth = date(int(args[0]), int(args[1]), int(args[2]))
-            return self._calculate_age(birth, date.today())
+            return self._calculate_age(birth, self._get_reference_date(None))
         raise TypeError("calculate_age expects (birth, today) or (year, month, day)")
 
     # ----------------------------------------------------
@@ -221,46 +377,76 @@ class DateEngine:
     # ----------------------------------------------------
 
     # הפונקציה מיישמת את parsing הספרות הפנימי ומחזירה רכיבי תאריך.
-    def _parse_numeric_date_string(self, txt: str) -> DateParseResult:
-        result = self._blank_result()
+    def _parse_numeric_date_string(
+        self,
+        txt: str,
+        reference_date: Optional[date] = None,
+    ) -> DateParseResult:
+        ref = self._get_reference_date(reference_date)
+        result = self._blank_result(source_kind="single_numeric", reference_date=ref)
 
         try:
+            auto_year: Optional[int] = None
 
             if len(txt) == 8:
-
                 dy = int(txt[0:2])
                 mo = int(txt[2:4])
                 yr = int(txt[4:8])
 
             elif len(txt) == 6:
-
                 dy = int(txt[0:2])
                 mo = int(txt[2:4])
-                yr = self._expand_two_digit_year(int(txt[4:6]))
+                auto_year = int(txt[4:6])
+                yr = self._expand_two_digit_year(auto_year, reference_date=ref)
+                parsed = self._validate_date(yr, mo, dy, source_kind="single_numeric", reference_date=ref)
+                self._mark_auto_completed_year(parsed, auto_year, ref)
+                if parsed.is_calendar_valid:
+                    return parsed
+
+                fallback_dy = int(txt[0:1])
+                fallback_mo = int(txt[1:2])
+                fallback_yr = int(txt[2:6])
+                fallback = self._validate_date(
+                    fallback_yr,
+                    fallback_mo,
+                    fallback_dy,
+                    source_kind="single_numeric",
+                    reference_date=ref,
+                )
+                if fallback.is_calendar_valid:
+                    return fallback
+                return parsed
 
             elif len(txt) == 4:
-                # Either a 4-digit year (YYYY) or DMYY (d m yy) VBA-style.
                 yr_int = int(txt)
                 if 1900 <= yr_int <= 2100:
                     result.year = yr_int
-                    result.month = 0
-                    result.day = 0
+                    result.month = None
+                    result.day = None
                     result.is_valid = False
-                    result.status_text = "חסר חודש ויום"
+                    result.status_text = STATUS_MISSING_MONTH_DAY
+                    result.status_code = "missing_month_day"
+                    result.missing_components = ["month", "day"]
                     return result
 
                 dy = int(txt[0:1])
                 mo = int(txt[1:2])
-                yr = self._expand_two_digit_year(int(txt[2:4]))
+                auto_year = int(txt[2:4])
+                yr = self._expand_two_digit_year(auto_year, reference_date=ref)
 
             else:
-                result.status_text = "אורך תאריך לא תקין"
+                result.status_text = STATUS_INVALID_LENGTH
+                result.status_code = "invalid_length"
                 return result
 
-            return self._validate_date(yr, mo, dy)
+            parsed = self._validate_date(yr, mo, dy, source_kind="single_numeric", reference_date=ref)
+            if auto_year is not None:
+                self._mark_auto_completed_year(parsed, auto_year, ref)
+            return parsed
 
         except Exception:
-            result.status_text = "תאריך לא ברור"
+            result.status_text = STATUS_UNCLEAR_DATE
+            result.status_code = "unclear_date"
             return result
 
     # ----------------------------------------------------
@@ -272,68 +458,84 @@ class DateEngine:
         self,
         txt: str,
         pattern: DateFormatPattern,
+        reference_date: Optional[date] = None,
     ) -> DateParseResult:
-
-        result = self._blank_result()
+        ref = self._get_reference_date(reference_date)
+        result = self._blank_result(source_kind="single_separated", reference_date=ref)
 
         parts = txt.split("/")
 
-        # Two-part date: assume current year (common in forms)
+        year_was_defaulted = False
         if len(parts) == 2 and all(p.isdigit() for p in parts):
-            parts = [parts[0], parts[1], str(date.today().year)]
+            parts = [parts[0], parts[1], str(ref.year)]
+            year_was_defaulted = True
 
         if len(parts) != 3 or not all(p.isdigit() for p in parts):
-            result.status_text = "פורמט תאריך לא תקין"
+            result.status_text = STATUS_INVALID_FORMAT
+            result.status_code = "invalid_format"
             return result
 
         try:
-
             if pattern == DateFormatPattern.MMDD:
-
                 mo = int(parts[0])
                 dy = int(parts[1])
-
             else:
-
                 dy = int(parts[0])
                 mo = int(parts[1])
 
-            yr = int(parts[2])
-
+            raw_year = int(parts[2])
+            yr = raw_year
+            auto_year: Optional[int] = None
             if yr < 100:
-                yr = self._expand_two_digit_year(yr)
+                auto_year = yr
+                yr = self._expand_two_digit_year(yr, reference_date=ref)
 
-            return self._validate_date(yr, mo, dy)
+            parsed = self._validate_date(yr, mo, dy, source_kind="single_separated", reference_date=ref)
+            if auto_year is not None:
+                self._mark_auto_completed_year(parsed, auto_year, ref)
+            if year_was_defaulted:
+                parsed.year_was_defaulted = True
+                parsed.status_text = STATUS_MISSING_YEAR_DEFAULTED
+                parsed.status_code = "missing_year_defaulted"
+            return parsed
 
         except Exception:
-
-            result.status_text = "תאריך לא ברור"
+            result.status_text = STATUS_UNCLEAR_DATE
+            result.status_code = "unclear_date"
             return result
 
     # ----------------------------------------------------
-    # MIXED MONTH-NUMERIC (e.g., "12 January 2005", "ינואר 12 2005")
+    # MIXED MONTH-NUMERIC
     # ----------------------------------------------------
 
     # הפונקציה מטפלת בתאריכים הכוללים שם חודש וטקסט מספרי מעורב.
-    def _parse_mixed_month_numeric(self, txt: str) -> DateParseResult:
-        result = self._blank_result()
+    def _parse_mixed_month_numeric(
+        self,
+        txt: str,
+        reference_date: Optional[date] = None,
+    ) -> DateParseResult:
+        ref = self._get_reference_date(reference_date)
+        result = self._blank_result(source_kind="single_month_name", reference_date=ref)
 
         month_num = self._extract_month_number(txt)
         if month_num == 0:
-            result.status_text = "תוכן לא ניתן לפריקה"
+            result.status_text = STATUS_UNPARSEABLE
+            result.status_code = "unparseable"
             return result
 
         tokens = re.split(r"[^\d]+", txt)
         nums = [int(t) for t in tokens if t.isdigit()]
 
         if len(nums) < 2:
-            result.status_text = "חסר יום"
+            result.status_text = STATUS_MISSING_DAY
+            result.status_code = "missing_day"
+            result.missing_components = ["day"]
             return result
 
         yr = 0
         dy = 0
+        auto_year: Optional[int] = None
 
-        # Prefer a 4-digit number as year
         for n in nums:
             if 1000 <= n <= 9999:
                 yr = n
@@ -341,27 +543,31 @@ class DateEngine:
 
         remaining = [n for n in nums if n != yr]
         if not remaining:
-            result.status_text = "תוכן לא ניתן לפריקה"
+            result.status_text = STATUS_UNPARSEABLE
+            result.status_code = "unparseable"
             return result
 
-        # Choose day from remaining numbers: >12 preferred
         big = [n for n in remaining if n > 12]
         if big:
             dy = big[0]
         else:
             dy = remaining[0]
 
-        # If year still 0, look for 2-digit year candidate
         if yr == 0:
             two_digits = [n for n in remaining if 0 <= n <= 99 and n != dy]
             if two_digits:
-                yr = self._expand_two_digit_year(two_digits[0])
+                auto_year = two_digits[0]
+                yr = self._expand_two_digit_year(auto_year, reference_date=ref)
 
         if yr == 0 or dy == 0:
-            result.status_text = "תוכן לא ניתן לפריקה"
+            result.status_text = STATUS_UNPARSEABLE
+            result.status_code = "unparseable"
             return result
 
-        return self._validate_date(yr, month_num, dy)
+        parsed = self._validate_date(yr, month_num, dy, source_kind="single_month_name", reference_date=ref)
+        if auto_year is not None:
+            self._mark_auto_completed_year(parsed, auto_year, ref)
+        return parsed
 
     # הפונקציה מזהה האם הטקסט כולל שם חודש במקום מספר חודש.
     def _contains_month_name(self, txt: str) -> bool:
@@ -369,33 +575,21 @@ class DateEngine:
 
     # הפונקציה ממירה שם חודש או וריאציה טקסטואלית למספר חודש.
     def _extract_month_number(self, txt: str) -> int:
-        """Extract month number from text containing a month name."""
         t = txt.lower()
 
         english_months = {
-            "january": 1,
-            "jan": 1,
-            "february": 2,
-            "feb": 2,
-            "march": 3,
-            "mar": 3,
-            "april": 4,
-            "apr": 4,
+            "january": 1, "jan": 1,
+            "february": 2, "feb": 2,
+            "march": 3, "mar": 3,
+            "april": 4, "apr": 4,
             "may": 5,
-            "june": 6,
-            "jun": 6,
-            "july": 7,
-            "jul": 7,
-            "august": 8,
-            "aug": 8,
-            "september": 9,
-            "sep": 9,
-            "october": 10,
-            "oct": 10,
-            "november": 11,
-            "nov": 11,
-            "december": 12,
-            "dec": 12,
+            "june": 6, "jun": 6,
+            "july": 7, "jul": 7,
+            "august": 8, "aug": 8,
+            "september": 9, "sep": 9,
+            "october": 10, "oct": 10,
+            "november": 11, "nov": 11,
+            "december": 12, "dec": 12,
         }
         for key, val in english_months.items():
             if key in t:
@@ -427,50 +621,73 @@ class DateEngine:
     # ----------------------------------------------------
 
     # הפונקציה מאמתת רכיבי שנה/חודש/יום ומחזירה תוצאה תקנית או שגיאה.
-    def _validate_date(self, yr, mo, dy) -> DateParseResult:
+    def _validate_date(
+        self,
+        yr,
+        mo,
+        dy,
+        *,
+        source_kind: str = "",
+        reference_date: Optional[date] = None,
+    ) -> DateParseResult:
+        result = self._blank_result(source_kind=source_kind, reference_date=reference_date)
 
-        result = self._blank_result()
-
-        # Coerce to int safely
         try:
             yr = int(yr)
             mo = int(mo)
             dy = int(dy)
         except (TypeError, ValueError):
-            result.status_text = "תוכן לא ניתן לפריקה"
+            result.status_text = STATUS_UNPARSEABLE
+            result.status_code = "unparseable"
             return result
 
-        # Always store the parsed components so callers can display them
-        # even when the date is invalid.  is_valid stays False and
-        # status_text carries the error description.
         result.year = yr
         result.month = mo
         result.day = dy
 
         if dy < 1 or dy > 31:
-            result.status_text = "יום לא תקין"
+            result.status_text = STATUS_INVALID_DAY
+            result.status_code = "invalid_day"
+            result.invalid_components = ["day"]
             return result
 
         if mo < 1 or mo > 12:
-            result.status_text = "חודש לא תקין"
+            result.status_text = STATUS_INVALID_MONTH
+            result.status_code = "invalid_month"
+            result.invalid_components = ["month"]
             return result
 
         if yr < 1:
-            result.status_text = "שנה לא תקינה"
+            result.status_text = STATUS_INVALID_YEAR
+            result.status_code = "invalid_year"
+            result.invalid_components = ["year"]
+            return result
+
+        # Reject years that are clearly outside any plausible business domain.
+        # Python's datetime supports years 1–9999, but years beyond the
+        # reference year + 1 are impossible for birth/entry dates.
+        # We use 9999 as the hard ceiling to avoid datetime() raising ValueError
+        # for astronomically large values (e.g. 1234567).
+        ref = self._get_reference_date(reference_date)
+        if yr > 9999 or yr > ref.year + 1:
+            result.status_text = STATUS_IMPOSSIBLE_YEAR
+            result.status_code = "impossible_year"
+            result.invalid_components = ["year"]
             return result
 
         try:
             _ = datetime(yr, mo, dy)
-
-        except ValueError:
-            result.status_text = "תאריך לא קיים"
-            return result
         except Exception:
-            result.status_text = "תאריך לא קיים"
+            result.status_text = STATUS_DATE_NOT_EXISTS
+            result.status_code = "date_not_exists"
+            result.invalid_components = ["day"]
             return result
 
         result.is_valid = True
-
+        result.is_calendar_valid = True
+        result.is_business_valid = True
+        result.severity = "ok"
+        result.status_code = "ok"
         return result
 
     # ----------------------------------------------------
@@ -481,68 +698,101 @@ class DateEngine:
     def validate_business_rules(
         self,
         result: DateParseResult,
-        field_type: DateFieldType
+        field_type: DateFieldType,
+        reference_date: Optional[date] = None,
     ) -> DateParseResult:
+        ref = self._get_reference_date(reference_date)
+        result.reference_year = ref.year
 
-        if field_type == DateFieldType.ENTRY_DATE and result.status_text == "תא ריק":
-            # Empty entry date is considered valid and status must be cleared
+        if result.is_valid and not result.is_calendar_valid:
+            result.is_calendar_valid = True
+            result.is_business_valid = True
+
+        if field_type == DateFieldType.ENTRY_DATE and result.status_text == STATUS_EMPTY_CELL:
             result.status_text = ""
+            result.status_code = "empty_optional_entry"
             result.is_valid = False
+            result.is_calendar_valid = False
+            result.is_business_valid = False
+            result.severity = "ok"
             return result
 
-        if not result.is_valid:
+        if not result.is_calendar_valid:
+            result.is_valid = False
+            result.is_business_valid = False
             return result
 
-        today = date.today()
+        if result.year is None or result.month is None or result.day is None:
+            result.is_valid = False
+            result.is_business_valid = False
+            return result
 
-        # Minimum birth year is 1906 per institution-report requirements.
-        # The status message says "שנה לפני 1906" for the validator-level check.
-        # The DateEngine itself enforces 1906 here so that ALL paths (Excel/CLI,
-        # web/JSON) produce the correct status without requiring the validator.
+        if result.status_code == "missing_year_defaulted":
+            result.is_valid = True
+            result.is_business_valid = True
+            result.severity = "warning"
+            return result
+
         if result.year < 1906:
-
             result.is_valid = False
-            result.status_text = "שנה לפני 1906"
+            result.is_business_valid = False
+            result.severity = "error"
+            result.status_text = STATUS_BEFORE_1906
+            result.status_code = "year_before_1906"
+            return result
+
+        # Hard sanity check: reject years that are clearly impossible in any
+        # business domain (far future, astronomical values, etc.).
+        # This catches values like 5280, 2229, 9999 that pass calendar
+        # validation but are nonsensical as birth or entry years.
+        if result.year > ref.year + 1:
+            result.is_valid = False
+            result.is_business_valid = False
+            result.severity = "error"
+            result.status_text = STATUS_IMPOSSIBLE_YEAR
+            result.status_code = "impossible_year"
             return result
 
         try:
-
             date_val = date(result.year, result.month, result.day)
-
         except Exception:
-
             return result
 
-        if field_type == DateFieldType.ENTRY_DATE:
-            # Cutoff rule: entry_date.year must be <= current_year - 1.
-            # This check takes priority over the generic "future date" check
-            # because it is stricter: any date in the current year or later
-            # is considered too late, even if it has already passed within
-            # the current year (e.g. a January 2026 date checked in April 2026).
-            if result.year >= today.year:
-                result.is_valid = False
-                result.status_text = "תאריך כניסה מאוחר מהתאריך שנקבע"
-                return result
-
-        if date_val > today:
-
+        if field_type == DateFieldType.ENTRY_DATE and result.year >= ref.year:
             result.is_valid = False
+            result.is_business_valid = False
+            result.severity = "error"
+            result.status_text = STATUS_LATE_ENTRY
+            result.status_code = "late_entry"
+            return result
 
+        if date_val > ref:
+            result.is_valid = False
+            result.is_business_valid = False
+            result.severity = "error"
             if field_type == DateFieldType.BIRTH_DATE:
-                result.status_text = "תאריך לידה עתידי"
+                result.status_text = STATUS_FUTURE_BIRTH
+                result.status_code = "future_birth"
             else:
-                result.status_text = "תאריך כניסה עתידי"
-
+                result.status_text = STATUS_FUTURE_ENTRY
+                result.status_code = "future_entry"
             return result
 
         if field_type == DateFieldType.BIRTH_DATE:
-
-            # Exact age with birthday check
-            age = self._calculate_age(date_val, today)
-
+            age = self._calculate_age(date_val, ref)
             if age > 100:
                 result.status_text = f"גיל מעל 100 ({age} שנים)"
+                result.status_code = "age_over_100"
+                result.severity = "warning"
+                result.is_valid = True
+                result.is_business_valid = True
+                return result
 
+        result.is_valid = True
+        result.is_business_valid = True
+        if not result.status_text:
+            result.severity = "ok"
+            result.status_code = "ok"
         return result
 
     # ----------------------------------------------------
@@ -555,33 +805,28 @@ class DateEngine:
         birth: DateParseResult,
         entry: DateParseResult
     ) -> bool:
-
-        if not birth.is_valid or not entry.is_valid:
+        if not birth.is_calendar_valid or not entry.is_calendar_valid:
             return True
 
-        if not birth.year or not birth.month or not birth.day:
+        if birth.year is None or birth.month is None or birth.day is None:
             return True
 
-        if not entry.year or not entry.month or not entry.day:
+        if entry.year is None or entry.month is None or entry.day is None:
             return True
 
         try:
-
             birth_date = datetime(birth.year, birth.month, birth.day)
             entry_date = datetime(entry.year, entry.month, entry.day)
-
         except Exception:
             return True
 
         if entry_date < birth_date:
-
             logger.error(
                 "Logical error: Entry date before birth date "
                 "(Birth: %s, Entry: %s)",
                 birth_date.date(),
                 entry_date.date(),
             )
-
             return False
 
         return True
@@ -591,41 +836,46 @@ class DateEngine:
     # ----------------------------------------------------
 
     # הפונקציה היא helper פנימי להרחבת שנה דו־ספרתית עם טיפול בערכים ריקים.
-    def _expand_two_digit_year(self, yr):
-
-        current = date.today().year
-        current_two = current % 100
+    def _expand_two_digit_year(self, yr, reference_date: Optional[date] = None):
+        ref = self._get_reference_date(reference_date)
+        current_two = ref.year % 100
+        yr = int(yr)
 
         if yr <= current_two:
-            return (current // 100) * 100 + yr
-        else:
-            return ((current // 100) - 1) * 100 + yr
+            return (ref.year // 100) * 100 + yr
+        return ((ref.year // 100) - 1) * 100 + yr
 
     # הפונקציה בודקת האם לפחות אחד מרכיבי התאריך המפוצל קיים.
-    def _has_split_date(self, y, m, d):
+    def _has_any_split_component(self, y, m, d) -> bool:
+        return not (self._is_empty(y) and self._is_empty(m) and self._is_empty(d))
 
-        return (
-            not self._is_empty(y)
-            and not self._is_empty(m)
-            and not self._is_empty(d)
-        )
+    # הפונקציה משמרת תאימות לשם הישן ובודקת האם תאריך מפוצל מלא.
+    def _has_split_date(self, y, m, d):
+        return self._has_any_split_component(y, m, d)
 
     # הפונקציה מזהה ערך ריק בצורה אחידה עבור רכיבי תאריך.
     def _is_empty(self, value) -> bool:
         return value is None or str(value).strip() == ""
 
     # הפונקציה ממירה רכיב תאריך מפוצל למספר ומסמנת אם ההמרה הצליחה.
-    def _coerce_split_component(self, value) -> tuple[Optional[int], bool]:
+    def _coerce_split_component(
+        self,
+        value,
+        *,
+        zero_is_missing: bool = False,
+    ) -> tuple[Optional[int], bool, bool]:
         if self._is_empty(value):
-            return None, False
+            return None, False, True
         try:
-            return int(float(str(value).strip())), True
+            coerced = int(float(str(value).strip()))
+            if zero_is_missing and coerced == 0:
+                return None, False, True
+            return coerced, True, False
         except Exception:
-            return None, False
+            return None, False, False
 
     # הפונקציה מחשבת גיל מדויק לפי תאריך לידה ותאריך ייחוס.
     def _calculate_age(self, birth: date, today: date) -> int:
-        """Exact age calculation equivalent to VBA DateDiff('yyyy') with birthday check."""
         age = today.year - birth.year
         try:
             birthday_this_year = date(today.year, birth.month, birth.day)
@@ -635,3 +885,95 @@ class DateEngine:
         if birthday_this_year > today:
             age -= 1
         return age
+
+    def _get_reference_date(self, reference_date: Optional[date]) -> date:
+        if reference_date is not None:
+            return reference_date
+        return self.reference_date
+
+    def _mark_auto_completed_year(self, result: DateParseResult, original_year: int, ref: date) -> None:
+        result.year_was_auto_completed = True
+        result.original_year_value = int(original_year)
+        result.original_year_digits = 1 if int(original_year) < 10 else 2
+        result.reference_year = ref.year
+
+    def _missing_components_status(self, components: list[str]) -> str:
+        if components == ["year"]:
+            return STATUS_MISSING_YEAR
+        if components == ["month"]:
+            return STATUS_MISSING_MONTH
+        if components == ["day"]:
+            return STATUS_MISSING_DAY
+        if components == ["month", "day"]:
+            return STATUS_MISSING_MONTH_DAY
+        translated = {
+            "year": STATUS_MISSING_YEAR,
+            "month": STATUS_MISSING_MONTH,
+            "day": STATUS_MISSING_DAY,
+        }
+        return " | ".join(translated[c] for c in components if c in translated)
+
+    def _looks_like_excel_serial(self, value: int) -> bool:
+        # Avoid treating common explicit years as serial dates unless future
+        # extraction metadata later confirms the cell was date-formatted.
+        if 1900 <= value <= 2100:
+            return False
+        return 1 <= value <= 2958465
+
+    def _parse_excel_serial_date(
+        self,
+        raw_value: int,
+        reference_date: Optional[date] = None,
+    ) -> DateParseResult:
+        ref = self._get_reference_date(reference_date)
+        result = self._blank_result(source_kind="single_numeric", reference_date=ref)
+
+        try:
+            from openpyxl.utils.datetime import from_excel
+
+            dt = from_excel(raw_value)
+            if isinstance(dt, datetime):
+                dt = dt.date()
+        except Exception:
+            result.status_text = STATUS_NUMERIC_DATE_UNRECOGNIZED
+            result.status_code = "unrecognized_numeric_date"
+            result.severity = "error"
+            return result
+
+        if not isinstance(dt, date):
+            result.status_text = STATUS_NUMERIC_DATE_UNRECOGNIZED
+            result.status_code = "unrecognized_numeric_date"
+            result.severity = "error"
+            return result
+
+        if dt.year < 1900 or dt.year > ref.year + 1:
+            result.status_text = STATUS_NUMERIC_DATE_UNRECOGNIZED
+            result.status_code = "unrecognized_numeric_date"
+            result.severity = "error"
+            return result
+
+        result.year = dt.year
+        result.month = dt.month
+        result.day = dt.day
+        result.is_valid = True
+        result.is_calendar_valid = True
+        result.is_business_valid = True
+        result.severity = "ok"
+        result.status_code = "excel_serial_parsed"
+        result.status_text = STATUS_EXCEL_SERIAL_PARSED
+        return result
+
+    def _looks_like_full_date_value(self, value) -> bool:
+        if isinstance(value, (datetime, date)):
+            return True
+        if value is None:
+            return False
+        text = str(value).strip()
+        return "/" in text or "." in text or bool(re.match(r"^\d{4}-\d{2}-\d{2}", text))
+
+    def _split_full_date_status(self, column: str) -> str:
+        if column == "day":
+            return STATUS_SPLIT_FULL_DATE_FROM_DAY
+        if column == "month":
+            return STATUS_SPLIT_FULL_DATE_FROM_MONTH
+        return STATUS_SPLIT_FULL_DATE_FROM_YEAR
