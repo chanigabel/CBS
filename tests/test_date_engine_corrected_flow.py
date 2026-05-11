@@ -3,6 +3,7 @@
 from datetime import date
 
 from src.excel_standardization.data_types import (
+    DateInput,
     DateFieldType,
     DateFormatPattern,
     SheetDataset,
@@ -151,3 +152,66 @@ def test_dataset_export_uses_corrected_dates_only_without_original_fallback():
     assert mapped["ShnatLida"] == ""
     assert mapped["HodeshLida"] == ""
     assert mapped["YomLida"] == ""
+
+
+def test_compact_numeric_mmdd_fallbacks_and_invalid_values_blank_components():
+    engine = DateEngine(reference_date=REFERENCE_DATE)
+
+    eight_digit = engine.parse_date(
+        None, None, None, "12312024", DateFormatPattern.DDMM, DateFieldType.BIRTH_DATE
+    )
+    six_digit = engine.parse_date(
+        None, None, None, "123124", DateFormatPattern.DDMM, DateFieldType.BIRTH_DATE
+    )
+    invalid = _pipeline().normalize_row({"birth_date": "999999"})
+
+    assert (eight_digit.year, eight_digit.month, eight_digit.day) == (2024, 12, 31)
+    assert (six_digit.year, six_digit.month, six_digit.day) == (2024, 12, 31)
+    assert invalid["birth_year_corrected"] == ""
+    assert invalid["birth_month_corrected"] == ""
+    assert invalid["birth_day_corrected"] == ""
+    assert invalid["birth_date_status"] != ""
+
+
+def test_separator_normalization_trailing_text_and_split_zero_recovery():
+    pipeline = _pipeline()
+
+    repeated = pipeline.normalize_row({"birth_date": "01//02//2024"})
+    trailing = pipeline.normalize_row({"birth_date": "01/02/2024abc"})
+    split = pipeline.normalize_row(
+        {"birth_year": 0, "birth_month": "", "birth_day": "11.06.1997"}
+    )
+
+    assert (
+        repeated["birth_year_corrected"],
+        repeated["birth_month_corrected"],
+        repeated["birth_day_corrected"],
+    ) == (2024, 2, 1)
+    assert (
+        trailing["birth_year_corrected"],
+        trailing["birth_month_corrected"],
+        trailing["birth_day_corrected"],
+    ) == (2024, 2, 1)
+    assert trailing["birth_date_status"] != ""
+    assert (
+        split["birth_year_corrected"],
+        split["birth_month_corrected"],
+        split["birth_day_corrected"],
+    ) == (1997, 6, 11)
+    assert split["birth_date_status"] != ""
+
+
+def test_excel_serial_status_survives_business_warning():
+    result = DateEngine(reference_date=REFERENCE_DATE).parse_input(
+        DateInput(
+            source_kind="single",
+            field_type=DateFieldType.BIRTH_DATE,
+            raw_value=3000,
+            pattern=DateFormatPattern.DDMM,
+            reference_date=REFERENCE_DATE,
+            source_is_excel_date_serial=True,
+        )
+    )
+
+    assert "פורק מתאריך סידורי" in result.status_text
+    assert "גיל מעל 100" in result.status_text

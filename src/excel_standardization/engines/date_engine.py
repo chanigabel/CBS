@@ -151,7 +151,8 @@ class DateEngine:
                 reference_date=ref,
             )
 
-        result.source_kind = date_input.source_kind
+        if not result.source_kind:
+            result.source_kind = date_input.source_kind
         return self.validate_business_rules(result, date_input.field_type, reference_date=ref)
 
     # ----------------------------------------------------
@@ -179,7 +180,7 @@ class DateEngine:
             if len(full_date_columns) == 1:
                 source_column = full_date_columns[0]
                 other_values = [
-                    value
+                    (None if column == "year" and self._is_split_year_zero(value) else value)
                     for column, value in split_values.items()
                     if column != source_column
                 ]
@@ -315,8 +316,8 @@ class DateEngine:
             except Exception:
                 pass
 
-        if "/" in txt or "." in txt:
-            txt2 = txt.replace(".", "/")
+        if "/" in txt or "." in txt or "-" in txt:
+            txt2 = self._normalize_date_separators(txt)
             return self._parse_separated_date_string(txt2, pattern, reference_date=ref)
 
         result.status_text = STATUS_UNRECOGNIZED_FORMAT
@@ -388,9 +389,27 @@ class DateEngine:
             auto_year: Optional[int] = None
 
             if len(txt) == 8:
-                dy = int(txt[0:2])
-                mo = int(txt[2:4])
-                yr = int(txt[4:8])
+                ddmm = self._validate_date(
+                    int(txt[4:8]),
+                    int(txt[2:4]),
+                    int(txt[0:2]),
+                    source_kind="single_numeric",
+                    reference_date=ref,
+                )
+                if ddmm.is_calendar_valid:
+                    return ddmm
+
+                mmdd = self._validate_date(
+                    int(txt[4:8]),
+                    int(txt[0:2]),
+                    int(txt[2:4]),
+                    source_kind="single_numeric",
+                    reference_date=ref,
+                )
+                if mmdd.is_calendar_valid:
+                    return mmdd
+
+                return self._invalid_numeric_result(ddmm.status_text, ddmm.status_code, ref)
 
             elif len(txt) == 6:
                 dy = int(txt[0:2])
@@ -414,7 +433,20 @@ class DateEngine:
                 )
                 if fallback.is_calendar_valid:
                     return fallback
-                return parsed
+
+                mmdd_auto_year = int(txt[4:6])
+                mmdd_yr = self._expand_two_digit_year(mmdd_auto_year, reference_date=ref)
+                mmdd = self._validate_date(
+                    mmdd_yr,
+                    int(txt[0:2]),
+                    int(txt[2:4]),
+                    source_kind="single_numeric",
+                    reference_date=ref,
+                )
+                self._mark_auto_completed_year(mmdd, mmdd_auto_year, ref)
+                if mmdd.is_calendar_valid:
+                    return mmdd
+                return self._invalid_numeric_result(parsed.status_text, parsed.status_code, ref)
 
             elif len(txt) == 4:
                 yr_int = int(txt)
@@ -432,21 +464,69 @@ class DateEngine:
                 mo = int(txt[1:2])
                 auto_year = int(txt[2:4])
                 yr = self._expand_two_digit_year(auto_year, reference_date=ref)
+                parsed = self._validate_date(yr, mo, dy, source_kind="single_numeric", reference_date=ref)
+                self._mark_auto_completed_year(parsed, auto_year, ref)
+                if parsed.is_calendar_valid:
+                    return parsed
+
+                fallback_auto_year = int(txt[2:4])
+                fallback_yr = self._expand_two_digit_year(fallback_auto_year, reference_date=ref)
+                fallback = self._validate_date(
+                    fallback_yr,
+                    int(txt[0:1]),
+                    int(txt[1:2]),
+                    source_kind="single_numeric",
+                    reference_date=ref,
+                )
+                self._mark_auto_completed_year(fallback, fallback_auto_year, ref)
+                if fallback.is_calendar_valid:
+                    return fallback
+                return self._invalid_numeric_result(parsed.status_text, parsed.status_code, ref)
 
             else:
                 result.status_text = STATUS_INVALID_LENGTH
                 result.status_code = "invalid_length"
                 return result
 
-            parsed = self._validate_date(yr, mo, dy, source_kind="single_numeric", reference_date=ref)
-            if auto_year is not None:
-                self._mark_auto_completed_year(parsed, auto_year, ref)
-            return parsed
-
         except Exception:
             result.status_text = STATUS_UNCLEAR_DATE
             result.status_code = "unclear_date"
             return result
+
+    def _invalid_numeric_result(
+        self,
+        status_text: str,
+        status_code: str,
+        reference_date: Optional[date] = None,
+    ) -> DateParseResult:
+        result = self._blank_result(source_kind="single_numeric", reference_date=reference_date)
+        result.status_text = status_text or STATUS_UNCLEAR_DATE
+        result.status_code = status_code or "unclear_date"
+        return result
+
+    def _normalize_date_separators(self, txt: str) -> str:
+        text = str(txt).strip()
+        text = re.sub(r"([./-])\1+", r"\1", text)
+        return text.replace(".", "/").replace("-", "/")
+
+    def _recover_trailing_text_date(
+        self,
+        txt: str,
+        pattern: DateFormatPattern,
+        reference_date: date,
+    ) -> Optional[DateParseResult]:
+        match = re.match(r"^\s*(\d{1,4}[./-]+\d{1,2}(?:[./-]+\d{2,4})?)([^\d./-].*)$", txt)
+        if not match:
+            return None
+
+        candidate = self._normalize_date_separators(match.group(1))
+        parsed = self._parse_separated_date_string(candidate, pattern, reference_date=reference_date)
+        if parsed.is_calendar_valid:
+            parsed.status_text = "טקסט נוסף הוסר מהתאריך"
+            parsed.status_code = "trailing_text_ignored"
+            parsed.severity = "warning"
+            return parsed
+        return None
 
     # ----------------------------------------------------
     # SEPARATED DATE
@@ -461,6 +541,10 @@ class DateEngine:
     ) -> DateParseResult:
         ref = self._get_reference_date(reference_date)
         result = self._blank_result(source_kind="single_separated", reference_date=ref)
+
+        trailing_recovered = self._recover_trailing_text_date(txt, pattern, ref)
+        if trailing_recovered is not None:
+            return trailing_recovered
 
         parts = txt.split("/")
 
@@ -702,6 +786,7 @@ class DateEngine:
     ) -> DateParseResult:
         ref = self._get_reference_date(reference_date)
         result.reference_year = ref.year
+        status_before_business = result.status_text
 
         if result.is_valid and not result.is_calendar_valid:
             result.is_calendar_valid = True
@@ -736,7 +821,7 @@ class DateEngine:
             result.is_valid = False
             result.is_business_valid = False
             result.severity = "error"
-            result.status_text = STATUS_BEFORE_1906
+            self._set_status_preserving_existing(result, STATUS_BEFORE_1906)
             result.status_code = "year_before_1906"
             return result
 
@@ -748,7 +833,7 @@ class DateEngine:
             result.is_valid = False
             result.is_business_valid = False
             result.severity = "error"
-            result.status_text = STATUS_IMPOSSIBLE_YEAR
+            self._set_status_preserving_existing(result, STATUS_IMPOSSIBLE_YEAR)
             result.status_code = "impossible_year"
             return result
 
@@ -761,7 +846,7 @@ class DateEngine:
             result.is_valid = False
             result.is_business_valid = False
             result.severity = "error"
-            result.status_text = STATUS_LATE_ENTRY
+            self._set_status_preserving_existing(result, STATUS_LATE_ENTRY)
             result.status_code = "late_entry"
             return result
 
@@ -770,10 +855,10 @@ class DateEngine:
             result.is_business_valid = False
             result.severity = "error"
             if field_type == DateFieldType.BIRTH_DATE:
-                result.status_text = STATUS_FUTURE_BIRTH
+                self._set_status_preserving_existing(result, STATUS_FUTURE_BIRTH)
                 result.status_code = "future_birth"
             else:
-                result.status_text = STATUS_FUTURE_ENTRY
+                self._set_status_preserving_existing(result, STATUS_FUTURE_ENTRY)
                 result.status_code = "future_entry"
             return result
 
@@ -781,6 +866,8 @@ class DateEngine:
             age = self._calculate_age(date_val, ref)
             if age > 100:
                 result.status_text = f"גיל מעל 100 ({age} שנים)"
+                if status_before_business and status_before_business not in result.status_text:
+                    result.status_text = f"{status_before_business} | {result.status_text}"
                 result.status_code = "age_over_100"
                 result.severity = "warning"
                 result.is_valid = True
@@ -856,6 +943,14 @@ class DateEngine:
     def _is_empty(self, value) -> bool:
         return value is None or str(value).strip() == ""
 
+    def _is_split_year_zero(self, value) -> bool:
+        if self._is_empty(value):
+            return False
+        try:
+            return int(float(str(value).strip())) == 0
+        except Exception:
+            return False
+
     # הפונקציה ממירה רכיב תאריך מפוצל למספר ומסמנת אם ההמרה הצליחה.
     def _coerce_split_component(
         self,
@@ -889,6 +984,13 @@ class DateEngine:
         if reference_date is not None:
             return reference_date
         return self.reference_date
+
+    def _set_status_preserving_existing(self, result: DateParseResult, status_text: str) -> None:
+        existing = (result.status_text or "").strip()
+        if existing and status_text and status_text not in existing:
+            result.status_text = f"{existing} | {status_text}"
+        else:
+            result.status_text = status_text
 
     def _mark_auto_completed_year(self, result: DateParseResult, original_year: int, ref: date) -> None:
         result.year_was_auto_completed = True
