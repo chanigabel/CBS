@@ -3,7 +3,10 @@ from datetime import datetime
 
 from openpyxl import Workbook, load_workbook
 
-from src.excel_standardization.engines.date_engine import STATUS_INVALID_LENGTH
+from src.excel_standardization.engines.date_engine import (
+    STATUS_AMBIGUOUS_NUMERIC_DATE,
+    STATUS_EXCEL_SERIAL_PARSED,
+)
 from src.excel_standardization.io_layer.excel_reader import ExcelReader
 from src.excel_standardization.io_layer.excel_to_json_extractor import ExcelToJsonExtractor
 from webapp.models.session import SessionRecord
@@ -163,22 +166,23 @@ def test_numeric_compact_date_cells_arrive_as_expected_and_parse_safely(tmp_path
     assert normalized_rows[2]["birth_month_corrected"] == 2
     assert normalized_rows[2]["birth_day_corrected"] == 1
 
-    assert normalized_rows[3]["birth_date_status"] == STATUS_INVALID_LENGTH
+    assert normalized_rows[3]["birth_date_status"] == STATUS_AMBIGUOUS_NUMERIC_DATE
 
     assert normalized_rows[4]["birth_year_corrected"] == 2001
     assert normalized_rows[4]["birth_month_corrected"] == 2
     assert normalized_rows[4]["birth_day_corrected"] == 12
 
-    assert normalized_rows[5]["birth_date_status"] == STATUS_INVALID_LENGTH
+    assert normalized_rows[5]["birth_date_status"] == STATUS_AMBIGUOUS_NUMERIC_DATE
 
     assert normalized_rows[6]["birth_year_corrected"] == 1999
     assert normalized_rows[6]["birth_month_corrected"] == 12
     assert normalized_rows[6]["birth_day_corrected"] == 31
+    assert STATUS_EXCEL_SERIAL_PARSED in normalized_rows[6]["birth_date_status"]
 
     workbook_service = WorkbookService(session_service)
     sheet_data = workbook_service.get_sheet_data(session_id, "Sheet1")
     assert sheet_data.sheet_name == "Sheet1"
     assert "birth_year_corrected" in sheet_data.field_names
     assert len(sheet_data.rows) == 7
-    assert sheet_data.rows[3]["birth_date_status"] == STATUS_INVALID_LENGTH
+    assert sheet_data.rows[3]["birth_date_status"] == STATUS_AMBIGUOUS_NUMERIC_DATE
     assert any(row["first_name"] == "Eve" and row["birth_year_corrected"] == 2001 for row in sheet_data.rows)

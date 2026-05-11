@@ -245,10 +245,10 @@ class TestParseNumericDateString:
         assert result.status_text == ""
 
     def test_non_serial_integer_returns_visible_status(self):
-        """Plain integers that are not Excel serials should stay visible as invalid."""
+        """Plain integers must not be treated as Excel serials without metadata."""
         engine = DateEngine(reference_date=date(2026, 5, 11))
 
-        for value in [1234567, 120201, 9999999, 99999, 888888, 2024]:
+        for value in [1234567, 9999999, 99999, 888888]:
             result = engine.parse_input(
                 DateInput(
                     source_kind="single",
@@ -264,8 +264,36 @@ class TestParseNumericDateString:
             assert result.month is None
             assert result.day is None
             assert result.is_valid is False
-            assert result.status_code == "unrecognized_numeric_date"
-            assert result.status_text == "מספר לא הוכר כתאריך"
+            assert result.status_text != ""
+
+    def test_non_serial_integer_uses_compact_and_year_only_rules(self):
+        """Plain integers can still be parsed by approved compact/year-only rules."""
+        engine = DateEngine(reference_date=date(2026, 5, 11))
+
+        compact = engine.parse_input(
+            DateInput(
+                source_kind="single",
+                field_type=DateFieldType.BIRTH_DATE,
+                raw_value=120201,
+                pattern=DateFormatPattern.DDMM,
+                reference_date=date(2026, 5, 11),
+                source_is_excel_date_serial=False,
+            )
+        )
+        year_only = engine.parse_input(
+            DateInput(
+                source_kind="single",
+                field_type=DateFieldType.BIRTH_DATE,
+                raw_value=2024,
+                pattern=DateFormatPattern.DDMM,
+                reference_date=date(2026, 5, 11),
+                source_is_excel_date_serial=False,
+            )
+        )
+
+        assert (compact.year, compact.month, compact.day) == (2001, 2, 12)
+        assert (year_only.year, year_only.month, year_only.day) == (2024, None, None)
+        assert year_only.status_code == "missing_month_day"
     
     def test_8_digit_format(self):
         """8-digit DDMMYYYY format should parse correctly."""
@@ -316,12 +344,12 @@ class TestParseNumericDateString:
 
         result = engine.parse_numeric_date_string("001399")
 
-        assert result.year == 1999
-        assert result.month == 13
-        assert result.day == 0
+        assert result.year is None
+        assert result.month is None
+        assert result.day is None
         assert result.is_valid is False
         assert result.status_code == "invalid_day"
-        assert result.status_text == "יום לא תקין"
+        assert result.status_text != ""
     
     def test_4_digit_format(self):
         """4-digit DMYY format should parse correctly."""

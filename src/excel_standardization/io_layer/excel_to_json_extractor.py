@@ -179,11 +179,8 @@ class ExcelToJsonExtractor:
 
                 if field_name in {"birth_date", "entry_date"}:
                     source_flag_key = f"_{field_name}_source_is_excel_date_serial"
-                    is_date_serial = bool(getattr(cell, "is_date", False)) and isinstance(
-                        cell_value,
-                        (int, float),
-                    )
-                    if is_date_serial:
+                    is_date_formatted = bool(getattr(cell, "is_date", False)) and cell_value is not None
+                    if is_date_formatted:
                         json_row[source_flag_key] = True
 
                     # Debug runtime extraction details for compact date candidate fields.

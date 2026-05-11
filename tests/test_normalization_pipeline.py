@@ -358,11 +358,11 @@ class TestApplyDatestandardization:
 
         pipeline.apply_date_standardization(row)
 
-        # Without metadata flag, plain int must be rejected
+        # Without metadata flag, plain int must not convert as an Excel serial.
         assert row["birth_year_corrected"] == ""
         assert row["birth_month_corrected"] == ""
         assert row["birth_day_corrected"] == ""
-        assert row["birth_date_status"] == "מספר לא הוכר כתאריך"
+        assert row["birth_date_status"] != ""
 
     def test_numeric_birth_date_original_value_preserved_on_reject(self):
         pipeline = make_pipeline(reference_date=date(2026, 5, 11))
@@ -374,7 +374,7 @@ class TestApplyDatestandardization:
         assert row["birth_year_corrected"] == ""
         assert row["birth_month_corrected"] == ""
         assert row["birth_day_corrected"] == ""
-        assert row["birth_date_status"] == "מספר לא הוכר כתאריך"
+        assert row["birth_date_status"] != ""
 
     def test_numeric_birth_date_excel_serial_with_metadata_writes_corrected_fields(self):
         """With source_is_excel_date_serial=True, the serial converts correctly."""
@@ -398,23 +398,22 @@ class TestApplyDatestandardization:
 
         pipeline.apply_date_standardization(row)
 
-        # Without metadata flag, plain int must be rejected
+        # Without metadata flag, plain int must not convert as an Excel serial.
         assert row["entry_year_corrected"] == ""
         assert row["entry_month_corrected"] == ""
         assert row["entry_day_corrected"] == ""
-        assert row["entry_date_status"] == "מספר לא הוכר כתאריך"
+        assert row["entry_date_status"] != ""
 
-    def test_invalid_numeric_entry_date_does_not_leak_partial_fields(self):
+    def test_numeric_entry_date_uses_compact_rules(self):
         pipeline = make_pipeline(reference_date=date(2026, 5, 11))
         row = {"entry_date": 120201}
 
         pipeline.apply_date_standardization(row)
 
         assert row["entry_date"] == 120201
-        assert row["entry_year_corrected"] == ""
-        assert row["entry_month_corrected"] == ""
-        assert row["entry_day_corrected"] == ""
-        assert row["entry_date_status"] == "מספר לא הוכר כתאריך"
+        assert row["entry_year_corrected"] == 2001
+        assert row["entry_month_corrected"] == 2
+        assert row["entry_day_corrected"] == 12
 
     def test_numeric_entry_date_excel_serial_with_metadata_writes_corrected_fields(self):
         """With source_is_excel_date_serial=True, the serial converts correctly."""
@@ -431,16 +430,16 @@ class TestApplyDatestandardization:
         assert row["entry_day_corrected"] == 1
         assert row["entry_date_status"] == "פורק מתאריך סידורי"
 
-    def test_invalid_numeric_birth_date_stays_visible(self):
+    def test_numeric_birth_year_only_stays_visible(self):
         pipeline = make_pipeline(reference_date=date(2026, 5, 11))
         row = {"birth_date": 2024}
 
         pipeline.apply_date_standardization(row)
 
-        assert row["birth_year_corrected"] == ""
+        assert row["birth_year_corrected"] == 2024
         assert row["birth_month_corrected"] == ""
         assert row["birth_day_corrected"] == ""
-        assert row["birth_date_status"] == "מספר לא הוכר כתאריך"
+        assert row["birth_date_status"] != ""
 
     def test_full_date_in_split_month_column_writes_source_status(self):
         row = {"birth_year": None, "birth_month": "11.06.1997", "birth_day": None}

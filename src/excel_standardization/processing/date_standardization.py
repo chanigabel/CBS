@@ -236,6 +236,7 @@ def date_corrected_components(result) -> Tuple[Any, Any, Any]:
         "invalid_length",
         "unclear_date",
         "unparseable",
+        "ambiguous_numeric_date",
         # Impossible / out-of-range dates must never populate corrected fields.
         # These are business-domain rejections where the entire date is meaningless.
         "impossible_year",

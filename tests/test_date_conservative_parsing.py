@@ -13,7 +13,11 @@ Requirements verified:
 import pytest
 from datetime import date
 
-from src.excel_standardization.engines.date_engine import DateEngine, STATUS_IMPOSSIBLE_YEAR, STATUS_NUMERIC_DATE_UNRECOGNIZED
+from src.excel_standardization.engines.date_engine import (
+    DateEngine,
+    STATUS_AMBIGUOUS_NUMERIC_DATE,
+    STATUS_IMPOSSIBLE_YEAR,
+)
 from src.excel_standardization.data_types import DateFormatPattern, DateFieldType, DateInput
 from src.excel_standardization.processing.date_standardization import date_corrected_components
 
@@ -111,28 +115,31 @@ class TestImpossibleYearsInSplitPath:
 # ---------------------------------------------------------------------------
 
 class TestPlainIntegersWithoutMetadata:
-    """Plain int values must never be converted to dates without metadata."""
+    """Plain int values follow compact/year-only rules, but never Excel serial conversion."""
 
     def test_int_1234567_rejected(self):
         r = _single(1234567, serial=False)
         assert _blank(r)
-        assert r.status_text == STATUS_NUMERIC_DATE_UNRECOGNIZED
+        assert r.status_text == STATUS_AMBIGUOUS_NUMERIC_DATE
+        assert r.status_code == "ambiguous_numeric_date"
 
-    def test_int_120201_rejected(self):
+    def test_int_120201_uses_compact_rules(self):
         r = _single(120201, serial=False)
-        assert _blank(r)
-        assert r.status_text == STATUS_NUMERIC_DATE_UNRECOGNIZED
+        assert _populated(r)
+        assert (r.year, r.month, r.day) == (2001, 2, 12)
 
     def test_int_36525_rejected_without_metadata(self):
         """Valid Excel serial 36525 = 2000-01-01 must be rejected without metadata."""
         r = _single(36525, serial=False)
         assert _blank(r)
-        assert r.status_text == STATUS_NUMERIC_DATE_UNRECOGNIZED
+        assert r.status_text == STATUS_AMBIGUOUS_NUMERIC_DATE
+        assert r.status_code == "ambiguous_numeric_date"
 
     def test_int_45657_rejected_without_metadata(self):
         r = _single(45657, serial=False)
         assert _blank(r)
-        assert r.status_text == STATUS_NUMERIC_DATE_UNRECOGNIZED
+        assert r.status_text == STATUS_AMBIGUOUS_NUMERIC_DATE
+        assert r.status_code == "ambiguous_numeric_date"
 
     def test_int_999999_rejected(self):
         r = _single(999999, serial=False)
@@ -142,11 +149,13 @@ class TestPlainIntegersWithoutMetadata:
         r = _single(888888, serial=False)
         assert _blank(r)
 
-    def test_int_2024_rejected(self):
+    def test_int_2024_is_year_only(self):
         """Plain year integer must not be converted to a serial date."""
         r = _single(2024, serial=False)
-        assert _blank(r)
-        assert r.status_text == STATUS_NUMERIC_DATE_UNRECOGNIZED
+        assert r.year == 2024
+        assert r.month is None
+        assert r.day is None
+        assert r.status_code == "missing_month_day"
 
 
 # ---------------------------------------------------------------------------
@@ -154,31 +163,35 @@ class TestPlainIntegersWithoutMetadata:
 # ---------------------------------------------------------------------------
 
 class TestInvalidLengthNumericStrings:
-    """5-digit and 7+ digit strings must be rejected."""
+    """5/7 digit strings are ambiguous; other unsupported lengths are invalid."""
 
     def test_5_digit_string_rejected(self):
         engine = _engine()
         r = engine.parse_date_value("12345", DateFormatPattern.DDMM)
         assert _blank(r)
-        assert r.status_text != ""
+        assert r.status_text == STATUS_AMBIGUOUS_NUMERIC_DATE
+        assert r.status_code == "ambiguous_numeric_date"
 
     def test_5_digit_string_99999_rejected(self):
         engine = _engine()
         r = engine.parse_date_value("99999", DateFormatPattern.DDMM)
         assert _blank(r)
-        assert r.status_text != ""
+        assert r.status_text == STATUS_AMBIGUOUS_NUMERIC_DATE
+        assert r.status_code == "ambiguous_numeric_date"
 
     def test_7_digit_string_rejected(self):
         engine = _engine()
         r = engine.parse_date_value("1234567", DateFormatPattern.DDMM)
         assert _blank(r)
-        assert r.status_text != ""
+        assert r.status_text == STATUS_AMBIGUOUS_NUMERIC_DATE
+        assert r.status_code == "ambiguous_numeric_date"
 
     def test_7_digit_string_9999999_rejected(self):
         engine = _engine()
         r = engine.parse_date_value("9999999", DateFormatPattern.DDMM)
         assert _blank(r)
-        assert r.status_text != ""
+        assert r.status_text == STATUS_AMBIGUOUS_NUMERIC_DATE
+        assert r.status_code == "ambiguous_numeric_date"
 
     def test_9_digit_string_rejected(self):
         engine = _engine()
@@ -296,17 +309,19 @@ class TestExcelSerialWithMetadata:
 # ---------------------------------------------------------------------------
 
 class TestExcelSerialWithoutMetadata:
-    """Same serial values must be rejected when metadata is absent."""
+    """Same serial-looking values must be rejected when metadata is absent."""
 
     def test_serial_36525_rejected_without_metadata(self):
         r = _single(36525, serial=False)
         assert _blank(r)
-        assert r.status_text == STATUS_NUMERIC_DATE_UNRECOGNIZED
+        assert r.status_text == STATUS_AMBIGUOUS_NUMERIC_DATE
+        assert r.status_code == "ambiguous_numeric_date"
 
     def test_serial_38353_rejected_without_metadata(self):
         r = _single(38353, serial=False)
         assert _blank(r)
-        assert r.status_text == STATUS_NUMERIC_DATE_UNRECOGNIZED
+        assert r.status_text == STATUS_AMBIGUOUS_NUMERIC_DATE
+        assert r.status_code == "ambiguous_numeric_date"
 
 
 # ---------------------------------------------------------------------------

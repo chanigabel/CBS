@@ -1,6 +1,6 @@
 """Corrected DateEngine flow guarantees for the active Dataset/Web path."""
 
-from datetime import date
+from datetime import date, datetime
 
 from src.excel_standardization.data_types import (
     DateInput,
@@ -112,6 +112,16 @@ def test_reference_year_makes_two_digit_expansion_deterministic():
     assert result_2027.year == 2027
 
 
+def test_public_separated_wrapper_matches_active_separator_normalization():
+    engine = DateEngine(reference_date=REFERENCE_DATE)
+
+    dashed = engine.parse_separated_date_string("01--02--2024", DateFormatPattern.DDMM)
+    dotted = engine.parse_separated_date_string("01..02..2024", DateFormatPattern.DDMM)
+
+    assert (dashed.year, dashed.month, dashed.day) == (2024, 2, 1)
+    assert (dotted.year, dotted.month, dotted.day) == (2024, 2, 1)
+
+
 def test_majority_correction_includes_single_numeric_and_separated_dates():
     ds = _dataset(
         [
@@ -215,6 +225,31 @@ def test_excel_serial_status_survives_business_warning():
 
     assert "פורק מתאריך סידורי" in result.status_text
     assert "גיל מעל 100" in result.status_text
+
+
+def test_date_formatted_datetime_source_keeps_excel_status_visible():
+    result = DateEngine(reference_date=REFERENCE_DATE).parse_input(
+        DateInput(
+            source_kind="single",
+            field_type=DateFieldType.BIRTH_DATE,
+            raw_value=datetime(1980, 5, 15),
+            pattern=DateFormatPattern.DDMM,
+            reference_date=REFERENCE_DATE,
+            source_is_excel_date_serial=True,
+        )
+    )
+
+    assert (result.year, result.month, result.day) == (1980, 5, 15)
+    assert "פורק מתאריך סידורי" in result.status_text
+
+
+def test_ambiguous_numeric_lengths_stay_blank_with_visible_status():
+    row = _pipeline().normalize_row({"birth_date": 36525})
+
+    assert row["birth_year_corrected"] == ""
+    assert row["birth_month_corrected"] == ""
+    assert row["birth_day_corrected"] == ""
+    assert row["birth_date_status"] != ""
 
 
 def test_statuses_do_not_erase_parsed_components_in_pipeline():

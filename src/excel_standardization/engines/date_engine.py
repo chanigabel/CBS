@@ -39,6 +39,9 @@ STATUS_MISSING_DAY = "חסר יום"
 STATUS_MISSING_YEAR_DEFAULTED = "שנה חסרה והושלמה"
 STATUS_EXCEL_SERIAL_PARSED = "פורק מתאריך סידורי"
 STATUS_NUMERIC_DATE_UNRECOGNIZED = "מספר לא הוכר כתאריך"
+STATUS_EXCEL_SERIAL_NOT_RECOGNIZED = STATUS_NUMERIC_DATE_UNRECOGNIZED
+STATUS_AMBIGUOUS_NUMERIC_DATE = STATUS_UNCLEAR_DATE
+STATUS_TRAILING_TEXT_IGNORED = "טקסט נוסף הוסר מהתאריך"
 STATUS_IMPOSSIBLE_YEAR = "שנה לא סבירה"
 STATUS_SPLIT_FULL_DATE_CONFLICT = "ערכים סותרים בעמודות תאריך מפוצלות"
 STATUS_SPLIT_FULL_DATE_FROM_DAY = "תאריך מלא פורק מעמודת יום"
@@ -131,7 +134,11 @@ class DateEngine:
                 date_input.raw_day,
                 reference_date=ref,
             )
-        elif date_input.source_kind == "single" and isinstance(date_input.raw_value, int):
+        elif (
+            date_input.source_kind == "single"
+            and isinstance(date_input.raw_value, (int, float))
+            and not isinstance(date_input.raw_value, bool)
+        ):
             if date_input.source_is_excel_date_serial:
                 result = self._parse_excel_serial_date(date_input.raw_value, reference_date=ref)
             else:
@@ -150,6 +157,20 @@ class DateEngine:
                 pattern,
                 reference_date=ref,
             )
+
+        if (
+            date_input.source_is_excel_date_serial
+            and not (
+                isinstance(date_input.raw_value, (int, float))
+                and not isinstance(date_input.raw_value, bool)
+            )
+            and result.is_calendar_valid
+        ):
+            self._set_status_preserving_existing(result, STATUS_EXCEL_SERIAL_PARSED)
+            if result.status_code == "ok":
+                result.status_code = "excel_serial_parsed"
+            if result.severity == "ok":
+                result.severity = "warning"
 
         if not result.source_kind:
             result.source_kind = date_input.source_kind
@@ -316,7 +337,7 @@ class DateEngine:
             except Exception:
                 pass
 
-        if "/" in txt or "." in txt or "-" in txt:
+        if ("/" in txt or "." in txt or "-" in txt) and any(ch.isdigit() for ch in txt):
             txt2 = self._normalize_date_separators(txt)
             return self._parse_separated_date_string(txt2, pattern, reference_date=ref)
 
@@ -355,12 +376,12 @@ class DateEngine:
             r.status_code = "no_separator"
             return r
         s = str(txt).strip()
-        if "/" not in s and "." not in s:
+        if "/" not in s and "." not in s and "-" not in s:
             r = self._blank_result(source_kind="single")
             r.status_text = STATUS_NO_SEPARATOR
             r.status_code = "no_separator"
             return r
-        s2 = s.replace(".", "/")
+        s2 = self._normalize_date_separators(s)
         return self._parse_separated_date_string(s2, pattern)
 
     # הפונקציה מחשבת גיל לצורך בדיקות עסקיות של תאריך לידה וכניסה.
@@ -492,6 +513,11 @@ class DateEngine:
                     return fallback
                 return self._invalid_numeric_result(parsed.status_text, parsed.status_code, ref)
 
+            elif len(txt) in {5, 7}:
+                result.status_text = STATUS_AMBIGUOUS_NUMERIC_DATE
+                result.status_code = "ambiguous_numeric_date"
+                return result
+
             else:
                 result.status_text = STATUS_INVALID_LENGTH
                 result.status_code = "invalid_length"
@@ -531,7 +557,7 @@ class DateEngine:
         candidate = self._normalize_date_separators(match.group(1))
         parsed = self._parse_separated_date_string(candidate, pattern, reference_date=reference_date)
         if parsed.is_calendar_valid:
-            parsed.status_text = "טקסט נוסף הוסר מהתאריך"
+            parsed.status_text = STATUS_TRAILING_TEXT_IGNORED
             parsed.status_code = "trailing_text_ignored"
             parsed.severity = "warning"
             return parsed
@@ -1032,7 +1058,7 @@ class DateEngine:
 
     def _parse_excel_serial_date(
         self,
-        raw_value: int,
+        raw_value: int | float,
         reference_date: Optional[date] = None,
     ) -> DateParseResult:
         ref = self._get_reference_date(reference_date)
@@ -1045,19 +1071,19 @@ class DateEngine:
             if isinstance(dt, datetime):
                 dt = dt.date()
         except Exception:
-            result.status_text = STATUS_NUMERIC_DATE_UNRECOGNIZED
+            result.status_text = STATUS_EXCEL_SERIAL_NOT_RECOGNIZED
             result.status_code = "unrecognized_numeric_date"
             result.severity = "error"
             return result
 
         if not isinstance(dt, date):
-            result.status_text = STATUS_NUMERIC_DATE_UNRECOGNIZED
+            result.status_text = STATUS_EXCEL_SERIAL_NOT_RECOGNIZED
             result.status_code = "unrecognized_numeric_date"
             result.severity = "error"
             return result
 
         if dt.year < 1900 or dt.year > ref.year + 1:
-            result.status_text = STATUS_NUMERIC_DATE_UNRECOGNIZED
+            result.status_text = STATUS_EXCEL_SERIAL_NOT_RECOGNIZED
             result.status_code = "unrecognized_numeric_date"
             result.severity = "error"
             return result

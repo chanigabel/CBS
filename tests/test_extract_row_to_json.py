@@ -181,7 +181,8 @@ def test_extract_row_with_date_values(extractor, worksheet):
     # Verify
     assert result['birth_date'] == test_date
     assert result['first_name'] == 'John'
-    assert len(result) == 2
+    assert result['_birth_date_source_is_excel_date_serial'] is True
+    assert len(result) == 3
 
 
 def test_extract_row_marks_date_formatted_birth_serial(extractor, worksheet):
@@ -288,10 +289,11 @@ def test_extract_row_with_mixed_data_types(extractor, worksheet):
     assert result['birth_month'] == 5
     assert result['birth_day'] == 15
     assert result['entry_date'] == test_date
+    assert result['_entry_date_source_is_excel_date_serial'] is True
     assert result['id_number'] == 123456789
     assert result['passport'] is None
     assert result['is_active'] is True
-    assert len(result) == 9
+    assert len(result) == 10
 
 
 def test_extract_row_with_hebrew_text(extractor, worksheet):
