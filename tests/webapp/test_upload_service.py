@@ -70,6 +70,26 @@ def test_xlsm_extension_is_accepted(upload_svc, tmp_dirs):
     assert response.session_id
 
 
+def test_xls_extension_uses_xls_sheet_name_reader(upload_svc, monkeypatch):
+    svc, session_svc = upload_svc
+
+    def fake_sheet_names(path):
+        assert path.endswith(".xls")
+        return ["גיליון 1", "Data Sheet"]
+
+    monkeypatch.setattr(
+        "src.excel_standardization.io_layer.xls_reader.get_xls_sheet_names",
+        fake_sheet_names,
+    )
+
+    response = svc.handle_upload("שם קובץ ישן.xls", b"legacy-xls-bytes")
+
+    assert response.sheet_names == ["גיליון 1", "Data Sheet"]
+    record = session_svc.get(response.session_id)
+    assert record.original_filename == "שם קובץ ישן.xls"
+    assert record.working_copy_path.endswith(".xls")
+
+
 def test_csv_extension_raises_400(upload_svc):
     svc, _ = upload_svc
     with pytest.raises(HTTPException) as exc_info:

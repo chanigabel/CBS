@@ -45,13 +45,23 @@ class ExportService:
 
         if record.workbook_dataset is None:
             try:
-                extractor = ExcelToJsonExtractor(
-                    ExcelReader(),
-                    skip_empty_rows=False,
-                    handle_formulas=True,
-                    preserve_types=True,
-                )
-                workbook_dataset = extractor.extract_workbook_to_json(record.working_copy_path)
+                suffix = Path(record.working_copy_path).suffix.lower()
+                if suffix == ".xls":
+                    from src.excel_standardization.io_layer.xls_reader import (
+                        extract_xls_to_workbook_dataset,
+                    )
+
+                    workbook_dataset = extract_xls_to_workbook_dataset(
+                        record.working_copy_path
+                    )
+                else:
+                    extractor = ExcelToJsonExtractor(
+                        ExcelReader(),
+                        skip_empty_rows=False,
+                        handle_formulas=True,
+                        preserve_types=True,
+                    )
+                    workbook_dataset = extractor.extract_workbook_to_json(record.working_copy_path)
                 self.session_service.update(session_id, workbook_dataset=workbook_dataset)
                 record = self.session_service.get(session_id)
             except Exception as exc:

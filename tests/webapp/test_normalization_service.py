@@ -92,6 +92,45 @@ def test_standardization_updates_workbook_dataset(session_with_file):
     assert len(record.workbook_dataset.sheets) >= 1
 
 
+def test_standardization_lazy_loads_xls_with_xls_reader(tmp_path, monkeypatch):
+    svc = SessionService()
+    working_path = tmp_path / "work" / "legacy.xls"
+    working_path.parent.mkdir(parents=True, exist_ok=True)
+    working_path.write_bytes(b"legacy bytes")
+    record = SessionRecord(
+        session_id="xls-standardize-session",
+        source_file_path=str(tmp_path / "uploads" / "legacy.xls"),
+        working_copy_path=str(working_path),
+        original_filename="legacy.xls",
+        status="uploaded",
+        workbook_dataset=None,
+    )
+    svc.create(record)
+
+    def fake_extract(path):
+        assert path == str(working_path)
+        sheet = SheetDataset(
+            sheet_name="Sheet1",
+            header_row=1,
+            header_rows_count=1,
+            field_names=["first_name"],
+            rows=[{"first_name": " Alice "}],
+        )
+        return WorkbookDataset(source_file=path, sheets=[sheet])
+
+    monkeypatch.setattr(
+        "src.excel_standardization.io_layer.xls_reader.extract_xls_to_workbook_dataset",
+        fake_extract,
+    )
+
+    response = StandardizationService(svc).normalize("xls-standardize-session")
+
+    assert response.status == "standardized"
+    record = svc.get("xls-standardize-session")
+    assert record.workbook_dataset is not None
+    assert record.workbook_dataset.sheets[0].rows[0]["first_name_corrected"] == "Alice"
+
+
 def test_standardization_raises_404_for_unknown_session(session_with_file):
     _, norm_svc = session_with_file
     with pytest.raises(HTTPException) as exc_info:

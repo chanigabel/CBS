@@ -21,7 +21,7 @@ async def upload_file(
 ) -> UploadResponse:
     """Upload an Excel workbook and create a new session.
 
-    Accepts .xlsx or .xlsm files up to 50 MB.
+    Accepts .xlsx, .xlsm, or .xls files up to 50 MB.
     Returns a session_id and list of sheet names.
     """
     file_bytes = await file.read()

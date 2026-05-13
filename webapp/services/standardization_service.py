@@ -25,6 +25,10 @@ from webapp.services.mosad_id_scanner import scan_mosad_id
 logger = logging.getLogger(__name__)
 
 
+def _is_xls_path(path: str) -> bool:
+    return str(path).lower().endswith(".xls")
+
+
 # שירות runtime שמריץ את StandardizationPipeline על session פעיל.
 class StandardizationService:
     """Runs the standardization pipeline on a session's working copy."""
@@ -62,7 +66,14 @@ class StandardizationService:
         if record.workbook_dataset is None:
             # Load the workbook when no sheet has been accessed yet.
             try:
-                wbd = extractor.extract_workbook_to_json(record.working_copy_path)
+                if _is_xls_path(record.working_copy_path):
+                    from src.excel_standardization.io_layer.xls_reader import (
+                        extract_xls_to_workbook_dataset,
+                    )
+
+                    wbd = extract_xls_to_workbook_dataset(record.working_copy_path)
+                else:
+                    wbd = extractor.extract_workbook_to_json(record.working_copy_path)
                 self.session_service.update(session_id, workbook_dataset=wbd)
                 self.processing_report_service.complete_stage(session_id, "extract")
                 self.processing_report_service.update_workbook_counts(session_id, wbd)
@@ -90,26 +101,41 @@ class StandardizationService:
         if sheet_name is not None:
             # Single-sheet path.
             try:
-                wb = _lw(record.working_copy_path, data_only=True)
-                if sheet_name not in wb.sheetnames:
-                    wb.close()
-                    raise HTTPException(
-                        status_code=404,
-                        detail=f"Sheet '{sheet_name}' not found.",
+                if _is_xls_path(record.working_copy_path):
+                    from src.excel_standardization.io_layer.xls_reader import (
+                        extract_xls_sheet_to_dataset,
                     )
-                ws = wb[sheet_name]
-                fresh = extractor.extract_sheet_to_json(ws)
-                # Preserve MosadID from metadata or re-scan from the sheet.
-                existing = record.workbook_dataset.get_sheet_by_name(sheet_name)
-                mosad_id = (
-                    existing.get_metadata("MosadID")
-                    if existing is not None
-                    else None
-                ) or scan_mosad_id(ws)
-                if mosad_id is not None:
-                    fresh.set_metadata("MosadID", mosad_id)
-                sheets_to_normalize = [fresh]
-                wb.close()
+
+                    fresh = extract_xls_sheet_to_dataset(
+                        record.working_copy_path,
+                        sheet_name,
+                    )
+                    existing = record.workbook_dataset.get_sheet_by_name(sheet_name)
+                    mosad_id = existing.get_metadata("MosadID") if existing is not None else None
+                    if mosad_id is not None:
+                        fresh.set_metadata("MosadID", mosad_id)
+                    sheets_to_normalize = [fresh]
+                else:
+                    wb = _lw(record.working_copy_path, data_only=True)
+                    if sheet_name not in wb.sheetnames:
+                        wb.close()
+                        raise HTTPException(
+                            status_code=404,
+                            detail=f"Sheet '{sheet_name}' not found.",
+                        )
+                    ws = wb[sheet_name]
+                    fresh = extractor.extract_sheet_to_json(ws)
+                    # Preserve MosadID from metadata or re-scan from the sheet.
+                    existing = record.workbook_dataset.get_sheet_by_name(sheet_name)
+                    mosad_id = (
+                        existing.get_metadata("MosadID")
+                        if existing is not None
+                        else None
+                    ) or scan_mosad_id(ws)
+                    if mosad_id is not None:
+                        fresh.set_metadata("MosadID", mosad_id)
+                    sheets_to_normalize = [fresh]
+                    wb.close()
                 self.processing_report_service.complete_stage(session_id, "extract")
             except HTTPException:
                 raise
@@ -135,21 +161,29 @@ class StandardizationService:
         else:
             # Full-workbook path.
             try:
-                wb = _lw(record.working_copy_path, data_only=True)
-                sheets_to_normalize = []
-                for sname in wb.sheetnames:
-                    ws = wb[sname]
-                    fresh = extractor.extract_sheet_to_json(ws)
-                    existing = record.workbook_dataset.get_sheet_by_name(sname)
-                    mosad_id = (
-                        existing.get_metadata("MosadID")
-                        if existing is not None
-                        else None
-                    ) or scan_mosad_id(ws)
-                    if mosad_id is not None:
-                        fresh.set_metadata("MosadID", mosad_id)
-                    sheets_to_normalize.append(fresh)
-                wb.close()
+                if _is_xls_path(record.working_copy_path):
+                    from src.excel_standardization.io_layer.xls_reader import (
+                        extract_xls_to_workbook_dataset,
+                    )
+
+                    fresh_wbd = extract_xls_to_workbook_dataset(record.working_copy_path)
+                    sheets_to_normalize = fresh_wbd.sheets
+                else:
+                    wb = _lw(record.working_copy_path, data_only=True)
+                    sheets_to_normalize = []
+                    for sname in wb.sheetnames:
+                        ws = wb[sname]
+                        fresh = extractor.extract_sheet_to_json(ws)
+                        existing = record.workbook_dataset.get_sheet_by_name(sname)
+                        mosad_id = (
+                            existing.get_metadata("MosadID")
+                            if existing is not None
+                            else None
+                        ) or scan_mosad_id(ws)
+                        if mosad_id is not None:
+                            fresh.set_metadata("MosadID", mosad_id)
+                        sheets_to_normalize.append(fresh)
+                    wb.close()
                 self.processing_report_service.complete_stage(session_id, "extract")
             except Exception as exc:
                 self.processing_report_service.add_error(

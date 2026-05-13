@@ -135,6 +135,47 @@ def test_export_keeps_moved_passport_value_without_source_passport_column(tmp_pa
     wb.close()
 
 
+def test_export_lazy_loads_xls_with_xls_reader(tmp_path, monkeypatch):
+    svc = SessionService()
+    working_path = tmp_path / "work" / "legacy.xls"
+    working_path.parent.mkdir(parents=True, exist_ok=True)
+    working_path.write_bytes(b"legacy bytes")
+    record = SessionRecord(
+        session_id="xls-export-session",
+        source_file_path=str(tmp_path / "uploads" / "legacy.xls"),
+        working_copy_path=str(working_path),
+        original_filename="legacy.xls",
+        status="uploaded",
+        workbook_dataset=None,
+    )
+    svc.create(record)
+
+    def fake_extract(path):
+        assert path == str(working_path)
+        sheet = SheetDataset(
+            sheet_name="DayarimYahidim",
+            header_row=1,
+            header_rows_count=1,
+            field_names=["first_name"],
+            rows=[{"first_name": "Raw", "first_name_corrected": "Corrected"}],
+        )
+        return WorkbookDataset(source_file=path, sheets=[sheet])
+
+    monkeypatch.setattr(
+        "src.excel_standardization.io_layer.xls_reader.extract_xls_to_workbook_dataset",
+        fake_extract,
+    )
+
+    output_path = ExportService(svc, tmp_path / "output").export("xls-export-session")
+
+    wb = load_workbook(output_path)
+    ws = wb["DayarimYahidim"]
+    headers = [cell.value for cell in ws[1]]
+    first_col = headers.index("ShemPrati") + 1
+    assert ws.cell(row=2, column=first_col).value == "Corrected"
+    wb.close()
+
+
 def test_export_keeps_numeric_invalid_length_id_out_of_id_and_passport(tmp_path):
     svc = SessionService()
     sheet = SheetDataset(
@@ -260,3 +301,73 @@ def test_export_uses_corrected_gender_field_only(tmp_path):
     assert ws.cell(row=3, column=gender_col).value is None
     assert ws.cell(row=4, column=gender_col).value is None
     wb.close()
+
+
+def test_export_sanitizes_sheet_names_and_cell_values_for_openable_xlsx(tmp_path):
+    svc = SessionService()
+    sheet = SheetDataset(
+        sheet_name="bad:name/with*chars?and a very very long suffix",
+        header_row=1,
+        header_rows_count=1,
+        field_names=["first_name", "last_name", "father_name"],
+        rows=[
+            {
+                "first_name": "Original",
+                "first_name_corrected": "=NOT_A_REAL_FORMULA(",
+                "last_name": "Original",
+                "last_name_corrected": "Bad\x01Name",
+                "father_name": "Original",
+                "father_name_corrected": {"nested": ["value"]},
+            }
+        ],
+    )
+    record = SessionRecord(
+        session_id="safe-export-session",
+        source_file_path="uploads/safe-export-session.xlsx",
+        working_copy_path="work/safe-export-session.xlsx",
+        original_filename="safe.xlsx",
+        status="standardized",
+        workbook_dataset=WorkbookDataset(source_file="safe.xlsx", sheets=[sheet]),
+    )
+    svc.create(record)
+
+    output_path = ExportService(svc, tmp_path / "output").export("safe-export-session")
+
+    wb = load_workbook(output_path)
+    assert len(wb.sheetnames[0]) <= 31
+    assert not any(ch in wb.sheetnames[0] for ch in "[]:*?/\\")
+    ws = wb[wb.sheetnames[0]]
+    headers = [cell.value for cell in ws[1]]
+    first_col = headers.index("ShemPrati") + 1
+    last_col = headers.index("ShemMishpaha") + 1
+    father_col = headers.index("ShemHaAv") + 1
+    assert ws.cell(row=2, column=first_col).value == "'=NOT_A_REAL_FORMULA("
+    assert ws.cell(row=2, column=last_col).value == "BadName"
+    assert ws.cell(row=2, column=father_col).value == '{"nested": ["value"]}'
+    wb.close()
+
+
+def test_export_sanitizes_output_filename_special_characters(tmp_path):
+    svc = SessionService()
+    sheet = SheetDataset(
+        sheet_name="DayarimYahidim",
+        header_row=1,
+        header_rows_count=1,
+        field_names=["first_name"],
+        rows=[{"first_name": "Raw", "first_name_corrected": "Corrected"}],
+    )
+    record = SessionRecord(
+        session_id="filename-export-session",
+        source_file_path="uploads/filename-export-session.xlsx",
+        working_copy_path="work/filename-export-session.xlsx",
+        original_filename='שם:קובץ?מקור.xlsx',
+        status="standardized",
+        workbook_dataset=WorkbookDataset(source_file="safe.xlsx", sheets=[sheet]),
+    )
+    svc.create(record)
+
+    output_path = ExportService(svc, tmp_path / "output").export("filename-export-session")
+
+    assert output_path.exists()
+    assert output_path.suffix == ".xlsx"
+    assert not any(ch in output_path.name for ch in '<>:"/\\|?*')

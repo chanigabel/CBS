@@ -88,3 +88,26 @@ def test_export_engine_uses_corrected_standardized_fields_only(tmp_path):
     assert ws.cell(row=4, column=first_col).value == "Numeric Invalid Identifier"
     assert ws.cell(row=4, column=id_col).value == "1234567890"
     wb.close()
+
+
+def test_export_engine_sanitizes_extra_sheet_names_and_values(tmp_path):
+    engine = ExportEngine()
+    sheet = SheetDataset(
+        sheet_name="bad:name/with*chars?and a very very long suffix",
+        header_row=1,
+        header_rows_count=1,
+        field_names=["first_name", "payload"],
+        rows=[{"first_name": "Visible", "payload": "Bad\x02Value"}],
+    )
+    workbook = WorkbookDataset(source_file="input.xlsx", sheets=[sheet])
+    output_path = tmp_path / "export.xlsx"
+
+    engine.export_from_normalized_dataset(workbook, str(output_path))
+
+    wb = load_workbook(output_path)
+    extra_name = [name for name in wb.sheetnames if name not in {"DayarimYahidim", "MeshkeyBayt", "AnasheyTzevet"}][0]
+    assert len(extra_name) <= 31
+    assert not any(ch in extra_name for ch in "[]:*?/\\")
+    ws = wb[extra_name]
+    assert ws.cell(row=2, column=2).value == "BadValue"
+    wb.close()

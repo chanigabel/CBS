@@ -6,6 +6,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
+
 from webapp.services.derived_columns import apply_derived_columns, detect_serial_field, SYNTHETIC_SERIAL_KEY
 from webapp.services.export_schema import canonical_sheet_name, headers_for_sheet
 from webapp.services.export_validation import (
@@ -24,17 +26,26 @@ def _to_pascal_case(text: str) -> str:
     return "".join(t.capitalize() for t in tokens if t)
 
 
+def _safe_filename_stem(text: str, fallback: str = "export") -> str:
+    """Keep Unicode names but remove characters invalid in Windows filenames."""
+    invalid = '<>:"/\\|?*'
+    cleaned = ILLEGAL_CHARACTERS_RE.sub("", text)
+    cleaned = "".join("_" if ch in invalid else ch for ch in cleaned)
+    cleaned = " ".join(cleaned.split()).strip(" ._")
+    return cleaned or fallback
+
+
 # בונה שם קובץ יצוא ייחודי לפי שם המקור וזמן הריצה.
 def build_export_filename(record) -> str:
     """Build the export filename from institution metadata."""
-    mosad_id = (record.mosad_id or "").strip()
-    mosad_name = (record.mosad_name or "").strip()
+    mosad_id = _safe_filename_stem(record.mosad_id or "", fallback="").strip()
+    mosad_name = _safe_filename_stem(record.mosad_name or "", fallback="").strip()
 
     if mosad_id and mosad_name:
         pascal = _to_pascal_case(mosad_name)
-        return f"{mosad_id} {pascal}.xlsx"
+        return _safe_filename_stem(f"{mosad_id} {pascal}") + ".xlsx"
 
-    original_stem = Path(record.original_filename).stem
+    original_stem = _safe_filename_stem(Path(record.original_filename).stem)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     return f"{original_stem}_standardized_{timestamp}.xlsx"
 

@@ -17,6 +17,7 @@ from openpyxl import Workbook
 from openpyxl.worksheet.worksheet import Worksheet
 
 from ..data_types import WorkbookDataset, SheetDataset, JsonRow
+from .excel_safe import safe_cell_value, safe_sheet_title
 
 
 CorrectedColumnsBySheet = Dict[str, Dict[str, int]]
@@ -261,7 +262,7 @@ class ExportEngine:
     def write_headers(self, ws: Worksheet, include_dira: bool) -> None:
         headers = self.HEADERS_WITH_DIRA if include_dira else self.HEADERS_NO_DIRA
         for idx, name in enumerate(headers, start=1):
-            ws.cell(row=1, column=idx).value = name
+            ws.cell(row=1, column=idx).value = safe_cell_value(name)
 
     # יוצר Workbook יצוא עם כל גיליונות היעד הנדרשים.
     def create_export_workbook(self) -> Workbook:
@@ -271,7 +272,7 @@ class ExportEngine:
             wb.remove(wb[wb.sheetnames[0]])
 
         for spec in self.SOURCE_SHEET_SPECS:
-            ws = wb.create_sheet(spec.target_sheet_name)
+            ws = wb.create_sheet(safe_sheet_title(spec.target_sheet_name, wb.sheetnames))
             self.write_headers(ws, include_dira=spec.include_dira)
 
         return wb
@@ -323,10 +324,10 @@ class ExportEngine:
             if sheet_name in known_source_names:
                 continue
             ws_src = wb_source[sheet_name]
-            ws_dst = wb_export.create_sheet(sheet_name)
+            ws_dst = wb_export.create_sheet(safe_sheet_title(sheet_name, wb_export.sheetnames))
             for row in ws_src.iter_rows():
                 for cell in row:
-                    ws_dst.cell(row=cell.row, column=cell.column).value = cell.value
+                    ws_dst.cell(row=cell.row, column=cell.column).value = safe_cell_value(cell.value)
 
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         wb_export.save(output_path)
@@ -397,7 +398,7 @@ class ExportEngine:
             for col_idx, field_key in enumerate(headers, start=1):
                 source_col = source_dict.get(field_key)
                 if source_col:
-                    ws_target.cell(row=out_row, column=col_idx).value = ws_source.cell(row=r, column=source_col).value
+                    ws_target.cell(row=out_row, column=col_idx).value = safe_cell_value(ws_source.cell(row=r, column=source_col).value)
                 else:
                     # Missing mappings remain empty
                     ws_target.cell(row=out_row, column=col_idx).value = ""
@@ -451,14 +452,14 @@ class ExportEngine:
         for sheet in workbook_dataset.sheets:
             if sheet.sheet_name in known_source_names:
                 continue
-            ws_extra = wb.create_sheet(sheet.sheet_name)
+            ws_extra = wb.create_sheet(safe_sheet_title(sheet.sheet_name, wb.sheetnames))
             # Write field names as header row
             for col_idx, field_name in enumerate(sheet.field_names, start=1):
-                ws_extra.cell(row=1, column=col_idx).value = field_name
+                ws_extra.cell(row=1, column=col_idx).value = safe_cell_value(field_name)
             # Write data rows
             for row_idx, row in enumerate(sheet.rows, start=2):
                 for col_idx, field_name in enumerate(sheet.field_names, start=1):
-                    ws_extra.cell(row=row_idx, column=col_idx).value = row.get(field_name)
+                    ws_extra.cell(row=row_idx, column=col_idx).value = safe_cell_value(row.get(field_name))
 
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         wb.save(output_path)
@@ -488,7 +489,7 @@ class ExportEngine:
             # Write in the exact header order
             headers = self.HEADERS_WITH_DIRA if include_dira else self.HEADERS_NO_DIRA
             for col_idx, header_name in enumerate(headers, start=1):
-                target_ws.cell(row=out_row, column=col_idx).value = export_row.get(header_name, "")
+                target_ws.cell(row=out_row, column=col_idx).value = safe_cell_value(export_row.get(header_name, ""))
 
             if debug_trace:
                 self.last_export_trace.append(

@@ -9,6 +9,7 @@ from typing import Dict, Tuple
 from openpyxl import Workbook
 from openpyxl.styles import Alignment
 
+from src.excel_standardization.export.excel_safe import safe_cell_value, safe_sheet_title
 from webapp.services.export_rows import resolve_sug_mosad_for_sheet, visible_rows
 from webapp.services.export_schema import EXPORT_MAPPING, canonical_sheet_name, headers_for_sheet
 
@@ -27,12 +28,12 @@ def write_export_workbook(record, output_path: Path, workbook_factory=Workbook) 
 
     for sheet_dataset in record.workbook_dataset.sheets:
         export_name = canonical_sheet_name(sheet_dataset.sheet_name)
-        ws = wb.create_sheet(title=export_name)
+        ws = wb.create_sheet(title=safe_sheet_title(export_name, wb.sheetnames))
         ws.sheet_view.rightToLeft = True
         schema = headers_for_sheet(export_name)
 
         for col_idx, header in enumerate(schema, start=1):
-            cell = ws.cell(row=1, column=col_idx, value=header)
+            cell = ws.cell(row=1, column=col_idx, value=safe_cell_value(header))
             cell.alignment = Alignment(horizontal="right")
 
         data_rows, _ui_cols = visible_rows(sheet_dataset)
@@ -62,7 +63,7 @@ def write_export_workbook(record, output_path: Path, workbook_factory=Workbook) 
                     continue
                 v = row.get(json_key)
                 if v is not None and v != "":
-                    ws.cell(row=out_row, column=col_idx, value=v)
+                    ws.cell(row=out_row, column=col_idx, value=safe_cell_value(v))
             out_row += 1
             rows_exported += 1
             sheet_rows_exported += 1
