@@ -77,6 +77,52 @@ class TestApplyNamestandardization:
         assert row["last_name_corrected"] == "כהן"
         assert row["father_name_corrected"] == "אברהם"
 
+    def test_row_local_last_name_removed_from_first_and_father_without_dataset_pattern(self):
+        row = {
+            "first_name": "יוסי כהן",
+            "last_name": "כהן",
+            "father_name": "אברהם כהן",
+        }
+
+        self.pipeline.apply_name_standardization(row)
+
+        assert row["first_name_corrected"] == "יוסי"
+        assert row["father_name_corrected"] == "אברהם"
+
+    def test_dataset_pattern_removes_positional_tokens_even_without_row_local_match(self):
+        rows = [
+            {"first_name": "כהן יוסי", "last_name": "כהן", "father_name": "אברהם כהן"},
+            {"first_name": "לוי דני", "last_name": "לוי", "father_name": "יצחק לוי"},
+            {"first_name": "מזרחי שרה", "last_name": "מזרחי", "father_name": "משה מזרחי"},
+            {"first_name": "יעקב ישראל", "last_name": "כהן", "father_name": "אברהם לוי"},
+        ]
+        dataset = make_dataset(
+            rows,
+            field_names=["first_name", "last_name", "father_name"],
+        )
+
+        result = self.pipeline.normalize_dataset(dataset)
+
+        assert result.rows[3]["first_name_corrected"] == "ישראל"
+        assert result.rows[3]["father_name_corrected"] == "אברהם"
+
+    def test_father_pattern_uses_row_aligned_last_name_samples(self):
+        rows = [
+            {"first_name": "כהן יוסי", "last_name": "כהן"},
+            {"father_name": "אברהם לוי", "last_name": "לוי"},
+            {"father_name": "יצחק מזרחי", "last_name": "מזרחי"},
+            {"father_name": "משה ביטון", "last_name": "ביטון"},
+            {"father_name": "אהרן ישראל", "last_name": "כהן"},
+        ]
+        dataset = make_dataset(
+            rows,
+            field_names=["first_name", "last_name", "father_name"],
+        )
+
+        result = self.pipeline.normalize_dataset(dataset)
+
+        assert result.rows[4]["father_name_corrected"] == "אהרן"
+
     def test_missing_field_not_added(self):
         row = {"first_name": "יוסי"}
         self.pipeline.apply_name_standardization(row)

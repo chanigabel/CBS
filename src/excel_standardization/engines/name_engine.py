@@ -78,8 +78,9 @@ class NameEngine:
     ) -> str:
         """Remove the last name from a first name field using two-stage logic.
 
-        Stage A: substring removal (word-boundary aware).
-        Stage B: positional fallback — runs ONLY if Stage A did not change the value.
+        Stage A: row-local substring removal (word-boundary aware).
+        Stage B: dataset-level positional fallback when a pattern was detected
+        and Stage A did not change the value.
 
         Args:
             first_name: Cleaned first name string.
@@ -97,15 +98,8 @@ class NameEngine:
         if not first_name or not last_name:
             return first_name
 
-        # Single-word first name — never modify
-        if len(first_name.split()) == 1:
-            return first_name
-
         # ------------------------------------------------------------------
-        # Stage A: substring removal
-        # Only runs when the last name actually appears as a substring.
-        # When it doesn't, Stage A is a guaranteed no-op, so fall through
-        # directly to Stage B.
+        # Stage A: row-local substring removal.
         # ------------------------------------------------------------------
         if last_name in first_name:
             after_stage_a = self.text_processor.remove_substring(first_name, last_name)
@@ -113,16 +107,14 @@ class NameEngine:
             if not after_stage_a.strip():
                 return ""
 
-            # Stage A changed the value → stop, do NOT run Stage B.
+        # Stage A changed the value → stop, do NOT run Stage B.
             if after_stage_a != first_name:
                 return after_stage_a
-        # else: last_name not a substring → Stage A would make no change,
-        #       fall through directly to Stage B.
 
         # ------------------------------------------------------------------
         # Stage B: positional fallback
-        # Runs when Stage A made no change (either because the substring was
-        # absent, or because remove_substring left the value identical).
+        # Runs when dataset-level detection found a consistent positional
+        # pattern and Stage A did not change the value.
         # ------------------------------------------------------------------
         if pattern == FatherNamePattern.NONE:
             return first_name
@@ -163,7 +155,7 @@ class NameEngine:
             father = self.normalize_name(father_raw)
             last = self.normalize_name(last_raw) if last_raw else ""
 
-            if pattern != FatherNamePattern.NONE and last:
+            if last:
                 father = self.remove_last_name_from_father(father, last, pattern)
 
             result.append([father])
@@ -179,8 +171,9 @@ class NameEngine:
     ) -> str:
         """Remove the last name from a father name field using two-stage logic.
 
-        Stage A: substring removal (word-boundary aware via remove_substring).
-        Stage B: positional fallback — runs ONLY if Stage A did not change the value.
+        Stage A: row-local substring removal (word-boundary aware).
+        Stage B: dataset-level positional fallback when a pattern was detected
+        and Stage A did not change the value.
 
         Args:
             father_name: Cleaned father name string.
@@ -197,15 +190,8 @@ class NameEngine:
         if not father_name or not last_name:
             return father_name
 
-        # NONE pattern → never modify
-        if pattern == FatherNamePattern.NONE:
-            return father_name
-
         # ------------------------------------------------------------------
-        # Stage A: substring removal
-        # Only runs when the last name actually appears as a substring.
-        # When it doesn't, Stage A is a guaranteed no-op, so skip straight
-        # to Stage B.
+        # Stage A: row-local substring removal.
         # ------------------------------------------------------------------
         if last_name in father_name:
             after_stage_a = self.text_processor.remove_substring(father_name, last_name)
@@ -213,17 +199,17 @@ class NameEngine:
             if not after_stage_a.strip():
                 return ""
 
-            # Stage A changed the value → stop, do NOT run Stage B.
+        # Stage A changed the value → stop, do NOT run Stage B.
             if after_stage_a != father_name:
                 return after_stage_a
-        # else: last_name not a substring → Stage A would make no change,
-        #       fall through directly to Stage B.
-
         # ------------------------------------------------------------------
         # Stage B: positional fallback
-        # Runs when Stage A made no change (either because the substring was
-        # absent, or because remove_substring left the value identical).
+        # Runs when dataset-level detection found a consistent positional
+        # pattern and Stage A did not change the value.
         # ------------------------------------------------------------------
+        if pattern == FatherNamePattern.NONE:
+            return father_name
+
         parts = father_name.split()
 
         # Only apply positional removal when at least 2 words remain
@@ -258,8 +244,8 @@ class NameEngine:
         last = 0
 
         for i in range(sample_size):
-            father = self.text_processor.safe_to_string(father_sample[i][0]).strip()
-            ln = self.text_processor.safe_to_string(last_name_sample[i][0]).strip()
+            father = self.normalize_name(father_sample[i][0])
+            ln = self.normalize_name(last_name_sample[i][0])
 
             if not father or not ln:
                 continue
@@ -310,8 +296,8 @@ class NameEngine:
         last_pos = 0
 
         for i in range(sample_size):
-            fn = self.text_processor.safe_to_string(first_name_sample[i][0]).strip()
-            ln = self.text_processor.safe_to_string(last_name_sample[i][0]).strip()
+            fn = self.normalize_name(first_name_sample[i][0])
+            ln = self.normalize_name(last_name_sample[i][0])
 
             if not fn or not ln:
                 continue

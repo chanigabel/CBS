@@ -133,3 +133,56 @@ def test_export_keeps_moved_passport_value_without_source_passport_column(tmp_pa
     darkon_col = headers.index("Darkon") + 1
     assert ws.cell(row=2, column=darkon_col).value == "ABC123"
     wb.close()
+
+
+def test_export_uses_corrected_name_fields_only(tmp_path):
+    svc = SessionService()
+    sheet = SheetDataset(
+        sheet_name="DayarimYahidim",
+        header_row=1,
+        header_rows_count=1,
+        field_names=["first_name", "last_name", "father_name"],
+        rows=[
+            {
+                "first_name": "Original First",
+                "first_name_corrected": "Corrected First",
+                "last_name": "Original Last",
+                "last_name_corrected": "Corrected Last",
+                "father_name": "Original Father",
+                "father_name_corrected": "Corrected Father",
+            },
+            {
+                "first_name": "Fallback First",
+                "first_name_corrected": "",
+                "last_name": "Fallback Last",
+                "last_name_corrected": "",
+                "father_name": "Fallback Father",
+                "father_name_corrected": "",
+            },
+        ],
+    )
+    record = SessionRecord(
+        session_id="name-export-session",
+        source_file_path="uploads/name-export-session.xlsx",
+        working_copy_path="work/name-export-session.xlsx",
+        original_filename="test.xlsx",
+        status="standardized",
+        workbook_dataset=WorkbookDataset(source_file="test.xlsx", sheets=[sheet]),
+    )
+    svc.create(record)
+
+    output_path = ExportService(svc, tmp_path / "output").export("name-export-session")
+
+    wb = load_workbook(output_path)
+    ws = wb["DayarimYahidim"]
+    headers = [cell.value for cell in ws[1]]
+    first_col = headers.index("ShemPrati") + 1
+    last_col = headers.index("ShemMishpaha") + 1
+    father_col = headers.index("ShemHaAv") + 1
+    assert ws.cell(row=2, column=first_col).value == "Corrected First"
+    assert ws.cell(row=2, column=last_col).value == "Corrected Last"
+    assert ws.cell(row=2, column=father_col).value == "Corrected Father"
+    assert ws.cell(row=3, column=first_col).value is None
+    assert ws.cell(row=3, column=last_col).value is None
+    assert ws.cell(row=3, column=father_col).value is None
+    wb.close()

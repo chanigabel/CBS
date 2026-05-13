@@ -347,8 +347,9 @@ class StandardizationPipeline:
         # ------------------------------------------------------------------
         if self.apply_name_standardization_enabled and self.name_engine:
             first_sample: List[List] = []
+            first_last_sample: List[List] = []
             father_sample: List[List] = []
-            last_sample: List[List] = []
+            father_last_sample: List[List] = []
 
             for row in corrected_dataset.rows[:10]:
                 fn = row.get("first_name") or ""
@@ -356,18 +357,19 @@ class StandardizationPipeline:
                 ln = row.get("last_name") or ""
                 if fn and ln:
                     first_sample.append([fn])
-                    last_sample.append([ln])
+                    first_last_sample.append([ln])
                 if fa and ln:
                     father_sample.append([fa])
+                    father_last_sample.append([ln])
 
             # Detect and cache patterns on the pipeline instance so
             # apply_name_standardization can read them per-row.
             self._first_name_pattern = (
-                self.name_engine.detect_first_name_pattern(first_sample, last_sample)
+                self.name_engine.detect_first_name_pattern(first_sample, first_last_sample)
                 if first_sample else FatherNamePattern.NONE
             )
             self._father_name_pattern = (
-                self.name_engine.detect_father_name_pattern(father_sample, last_sample[:len(father_sample)])
+                self.name_engine.detect_father_name_pattern(father_sample, father_last_sample)
                 if father_sample else FatherNamePattern.NONE
             )
         else:

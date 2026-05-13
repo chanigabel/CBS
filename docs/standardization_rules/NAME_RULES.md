@@ -88,22 +88,38 @@ Dataset-level pattern detection:
 - If at least three matches are last token matches, pattern is `REMOVE_LAST`.
 - Otherwise pattern is `NONE`.
 
+Direct row-local removal:
+
+- Direct last-name removal is always applied independently of dataset-level
+  pattern detection.
+- If the current row’s `last_name` appears inside `first_name` or `father_name`,
+  the embedded last-name substring is removed.
+- This applies to:
+  - single-word last names
+  - multi-word last names
+- Removal uses normalized whole-word space-padded matching.
+
+Examples:
+
+- `first_name="Jacob Cohen"`, `last_name="Cohen"` -> `Jacob`
+- `father_name="Abraham Ben David"`, `last_name="Ben David"` -> `Abraham`
+
 First name:
 
 - Single-word first names are never modified by positional fallback.
-- Stage A removes the last-name substring using whole-word space-padded matching.
+- Stage A performs direct row-local last-name removal.
 - If Stage A changes the value, Stage B does not run.
 - If Stage A does not change the value and the pattern is not `NONE`, Stage B
   removes the first or last token according to the detected pattern.
 
 Father name:
 
-- Pattern `NONE` never modifies father name.
-- Stage A removes the last-name substring using whole-word space-padded matching.
+- Single-word father names are never modified by positional fallback.
+- Stage A performs direct row-local last-name removal.
 - If Stage A changes the value, Stage B does not run.
-- If Stage A does not change the value, Stage B removes first or last token
-  according to the detected pattern.
-
+- If Stage A does not change the value and the pattern is not `NONE`, Stage B
+  removes the first or last token according to the detected pattern.
+  
 ## 10. Validation Rules
 
 Name engine validation is cleanup-only. Required-name validation is handled by

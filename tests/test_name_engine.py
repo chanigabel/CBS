@@ -217,9 +217,9 @@ class TestRemoveLastNameFromFather:
     def setup_method(self):
         self.engine = NameEngine(TextProcessor())
 
-    def test_pattern_none_returns_unchanged(self):
+    def test_pattern_none_still_applies_row_local_removal(self):
         result = self.engine.remove_last_name_from_father("אברהם כהן", "כהן", FatherNamePattern.NONE)
-        assert result == "אברהם כהן"
+        assert result == "אברהם"
 
     def test_remove_last_removes_trailing_last_name(self):
         # Stage A: remove_substring("אברהם כהן", "כהן") → "אברהם"  (changed)
@@ -236,8 +236,6 @@ class TestRemoveLastNameFromFather:
         assert result == "אברהם"
 
     def test_last_name_not_in_father_returns_unchanged(self):
-        # last="כהן" is not in "אברהם לוי", pattern=REMOVE_LAST
-        # Stage A: no-op. Stage B: REMOVE_LAST → removes last token → "אברהם"
         result = self.engine.remove_last_name_from_father("אברהם לוי", "כהן", FatherNamePattern.REMOVE_LAST)
         assert result == "אברהם"
 
@@ -271,6 +269,14 @@ class TestRemoveLastNameFromFather:
         result = self.engine.remove_last_name_from_father("כהן אברהם יצחק", "כהן", FatherNamePattern.REMOVE_FIRST)
         assert result == "אברהם יצחק"
 
+    def test_normalize_father_names_pattern_none_still_removes_row_local_last_name(self):
+        result = self.engine.normalize_father_names(
+            [["אברהם כהן"]],
+            [["כהן"]],
+            FatherNamePattern.NONE,
+        )
+        assert result == [["אברהם"]]
+
 
 # ---------------------------------------------------------------------------
 # Two-stage removal rule — father name
@@ -298,9 +304,7 @@ class TestTwoStageRemovalFather:
         )
         assert result == "יעקב"
 
-    def test_stage_b_runs_when_stage_a_unchanged(self):
-        # last_name "כהן" is NOT in "אברהם יצחק" → Stage A is a no-op.
-        # Stage B: REMOVE_LAST → removes last token → "אברהם"
+    def test_stage_b_runs_when_row_last_name_absent_and_pattern_detected(self):
         result = self.engine.remove_last_name_from_father(
             "אברהם יצחק", "כהן", FatherNamePattern.REMOVE_LAST
         )
@@ -323,33 +327,25 @@ class TestTwoStageRemovalFather:
         # (depends on whether hyphen was already converted; here it's raw)
         assert "אברהם" in result
 
-    def test_none_pattern_never_modifies(self):
+    def test_none_pattern_still_applies_row_local_removal(self):
         result = self.engine.remove_last_name_from_father(
             "כהן אברהם", "כהן", FatherNamePattern.NONE
         )
-        assert result == "כהן אברהם"
+        assert result == "אברהם"
 
-    def test_last_name_absent_stage_b_still_fires(self):
-        # Exact case from bug report:
-        # last="דיטור", father="די טור אלעד"
-        # "דיטור" is NOT a substring of "די טור אלעד" → Stage A no-op
-        # Stage B REMOVE_FIRST → remove first token → "טור אלעד"
+    def test_last_name_absent_stage_b_remove_first_fires(self):
         result = self.engine.remove_last_name_from_father(
             "די טור אלעד", "דיטור", FatherNamePattern.REMOVE_FIRST
         )
         assert result == "טור אלעד"
 
-    def test_last_name_absent_stage_b_remove_last(self):
-        # last="דיטור", father="אלעד די טור", pattern=REMOVE_LAST
-        # Stage A no-op → Stage B removes last token → "אלעד די"
+    def test_last_name_absent_stage_b_remove_last_fires(self):
         result = self.engine.remove_last_name_from_father(
             "אלעד די טור", "דיטור", FatherNamePattern.REMOVE_LAST
         )
         assert result == "אלעד די"
 
     def test_last_name_absent_stage_b_fires(self):
-        # last="כהן" not in "אברהם לוי", pattern=REMOVE_LAST
-        # Stage A: no-op. Stage B: REMOVE_LAST → "אברהם"
         result = self.engine.remove_last_name_from_father(
             "אברהם לוי", "כהן", FatherNamePattern.REMOVE_LAST
         )
@@ -388,9 +384,13 @@ class TestTwoStageRemovalFirstName:
         )
         assert result == "יעקב"
 
+    def test_single_word_matching_last_name_is_removed(self):
+        result = self.engine.remove_last_name_from_first_name(
+            "כהן", "כהן", FatherNamePattern.NONE
+        )
+        assert result == ""
+
     def test_last_name_absent_stage_b_fires(self):
-        # last="כהן" not in "יעקב לוי", pattern=REMOVE_LAST
-        # Stage A: no-op. Stage B: REMOVE_LAST → "יעקב"
         result = self.engine.remove_last_name_from_first_name(
             "יעקב לוי", "כהן", FatherNamePattern.REMOVE_LAST
         )
@@ -436,6 +436,12 @@ class TestDetectFirstNamePattern:
     def test_detects_remove_first_when_last_name_leads(self):
         first_sample = [["כהן יעקב"]] * 4
         last_sample = [["כהן"]] * 4
+        pattern = self.engine.detect_first_name_pattern(first_sample, last_sample)
+        assert pattern == FatherNamePattern.REMOVE_FIRST
+
+    def test_detection_uses_cleaned_values(self):
+        first_sample = [["כהן-יעקב"], ["לוי\\דני"], ["מזרחי123 שרה"]]
+        last_sample = [["כהן"], ["לוי"], ["מזרחי"]]
         pattern = self.engine.detect_first_name_pattern(first_sample, last_sample)
         assert pattern == FatherNamePattern.REMOVE_FIRST
 

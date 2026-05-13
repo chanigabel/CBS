@@ -121,6 +121,48 @@ def test_get_sheet_data_shows_generated_passport_corrected_without_source_passpo
     assert response.rows[0]["passport_corrected"] == "ABC123"
 
 
+def test_get_sheet_data_orders_name_corrected_fields_after_source_fields():
+    svc = SessionService()
+    sheet = SheetDataset(
+        sheet_name="Sheet1",
+        header_row=1,
+        header_rows_count=1,
+        field_names=["first_name", "last_name", "father_name"],
+        rows=[
+            {
+                "first_name": "Alice Smith",
+                "first_name_corrected": "Alice",
+                "last_name": "Smith",
+                "last_name_corrected": "Smith",
+                "father_name": "Robert Smith",
+                "father_name_corrected": "Robert",
+            }
+        ],
+    )
+    record = SessionRecord(
+        session_id="name-ui-session",
+        source_file_path="uploads/name-ui-session.xlsx",
+        working_copy_path="work/name-ui-session.xlsx",
+        original_filename="test.xlsx",
+        status="standardized",
+        workbook_dataset=WorkbookDataset(source_file="test.xlsx", sheets=[sheet]),
+    )
+    svc.create(record)
+
+    response = WorkbookService(svc).get_sheet_data("name-ui-session", "Sheet1")
+
+    for source, corrected in [
+        ("first_name", "first_name_corrected"),
+        ("last_name", "last_name_corrected"),
+        ("father_name", "father_name_corrected"),
+    ]:
+        source_index = response.field_names.index(source)
+        assert response.field_names[source_index + 1] == corrected
+    assert response.rows[0]["first_name_corrected"] == "Alice"
+    assert response.rows[0]["last_name_corrected"] == "Smith"
+    assert response.rows[0]["father_name_corrected"] == "Robert"
+
+
 def test_get_sheet_data_raises_404_for_unknown_sheet(session_with_workbook):
     _, wb_svc = session_with_workbook
     with pytest.raises(HTTPException) as exc_info:
