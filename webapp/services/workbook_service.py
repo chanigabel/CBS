@@ -341,6 +341,10 @@ class WorkbookService:
             _date_group_cols.update(dg["corrected_fields"])
             _date_group_cols.add(dg["status_key"])
 
+        generated_identifier_corrected = {
+            "passport_corrected"
+        } if "passport" not in original_fields else set()
+
         display_columns: list = []
         placed: set = set()
 
@@ -348,6 +352,9 @@ class WorkbookService:
         _date_groups_emitted: set = set()
 
         for orig in original_fields:
+            if orig in generated_identifier_corrected:
+                continue
+
             # Check if this field belongs to a date group
             owning_group = None
             for dg in _DATE_GROUPS:
@@ -385,6 +392,12 @@ class WorkbookService:
             if corrected in seen and corrected not in placed:
                 display_columns.append(corrected)
                 placed.add(corrected)
+
+            if orig == "id_number":
+                for generated_corrected in generated_identifier_corrected:
+                    if generated_corrected in seen and generated_corrected not in placed:
+                        display_columns.append(generated_corrected)
+                        placed.add(generated_corrected)
 
             # If this corrected column is the anchor for a status key, emit it now.
             status_key = _anchor_to_status.get(corrected)

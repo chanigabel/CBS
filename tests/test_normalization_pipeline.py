@@ -582,6 +582,34 @@ class TestApplyIdentifierstandardization:
         assert row["id_number_corrected"] == ""
         assert row["passport_corrected"] == "ABC123"
 
+    def test_numeric_only_too_long_id_not_moved_to_passport(self):
+        row = {"id_number": "1234567890", "passport": ""}
+        self.pipeline.apply_identifier_standardization(row)
+        assert row["id_number"] == "1234567890"
+        assert row["id_number_corrected"] == "1234567890"
+        assert row["passport_corrected"] == ""
+        assert row["identifier_status"] == "ת.ז. לא תקינה"
+
+    def test_numeric_only_too_short_id_not_moved_to_passport(self):
+        row = {"id_number": "123", "passport": ""}
+        self.pipeline.apply_identifier_standardization(row)
+        assert row["id_number"] == "123"
+        assert row["id_number_corrected"] == "123"
+        assert row["passport_corrected"] == ""
+        assert row["identifier_status"] == "ת.ז. לא תקינה"
+
+    def test_id_with_special_content_moves_to_passport_when_passport_empty(self):
+        row = {"id_number": "AB@123", "passport": ""}
+        self.pipeline.apply_identifier_standardization(row)
+        assert row["id_number_corrected"] == ""
+        assert row["passport_corrected"] == "AB123"
+
+    def test_existing_passport_not_overwritten_by_passport_like_id(self):
+        row = {"id_number": "AB@123", "passport": "XYZ999"}
+        self.pipeline.apply_identifier_standardization(row)
+        assert row["id_number_corrected"] == ""
+        assert row["passport_corrected"] == "XYZ999"
+
     def test_engine_failure_falls_back_to_original(self):
         class BrokenIdentifierEngine:
             def normalize_identifiers(self, id_val, passport_val):

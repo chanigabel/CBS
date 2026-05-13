@@ -117,8 +117,50 @@ def test_get_sheet_data_shows_generated_passport_corrected_without_source_passpo
 
     response = WorkbookService(svc).get_sheet_data("passport-ui-session", "Sheet1")
 
+    id_index = response.field_names.index("id_number")
+    assert response.field_names[id_index + 1] == "id_number_corrected"
+    assert response.field_names[id_index + 2] == "passport_corrected"
+    assert response.field_names[id_index + 3] == "identifier_status"
     assert "passport_corrected" in response.field_names
     assert response.rows[0]["passport_corrected"] == "ABC123"
+    assert "passport" not in response.field_names
+    assert "passport" not in response.rows[0]
+
+
+def test_get_sheet_data_keeps_numeric_invalid_length_id_out_of_passport():
+    svc = SessionService()
+    sheet = SheetDataset(
+        sheet_name="Sheet1",
+        header_row=1,
+        header_rows_count=1,
+        field_names=["first_name", "id_number"],
+        rows=[
+            {
+                "first_name": "Person",
+                "id_number": "1234567890",
+                "id_number_corrected": "1234567890",
+                "identifier_status": "ת.ז. לא תקינה",
+            }
+        ],
+    )
+    record = SessionRecord(
+        session_id="identifier-ui-session",
+        source_file_path="uploads/identifier-ui-session.xlsx",
+        working_copy_path="work/identifier-ui-session.xlsx",
+        original_filename="test.xlsx",
+        status="standardized",
+        workbook_dataset=WorkbookDataset(source_file="test.xlsx", sheets=[sheet]),
+    )
+    svc.create(record)
+
+    response = WorkbookService(svc).get_sheet_data("identifier-ui-session", "Sheet1")
+
+    id_index = response.field_names.index("id_number")
+    assert response.field_names[id_index + 1] == "id_number_corrected"
+    assert response.field_names[id_index + 2] == "identifier_status"
+    assert "passport_corrected" not in response.field_names
+    assert response.rows[0]["id_number"] == "1234567890"
+    assert response.rows[0]["id_number_corrected"] == "1234567890"
 
 
 def test_get_sheet_data_orders_name_corrected_fields_after_source_fields():

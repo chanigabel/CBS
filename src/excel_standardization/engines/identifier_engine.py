@@ -1,8 +1,8 @@
 """Israeli ID and passport normalization rules.
 
 The engine cleans ID values, applies checksum validation, preserves passport
-values when appropriate, and moves invalid IDs to passport when the business
-rules require it.
+values when appropriate, and routes passport-like nonnumeric ID values to
+passport when the business rules require it.
 """
 
 import logging
@@ -68,9 +68,9 @@ class IdentifierEngine:
                 status = "ת.ז. לא תקינה"
             return IdentifierResult(corrected_id="", corrected_passport=cleaned_passport, status_text=status)
 
-        # Process the digit-only form through the existing Israeli ID logic.
-        # Pass id_str_digits (not id_str) so _process_id_value never sees
-        # non-digit characters and never moves the value to passport on that basis.
+        # Process the hyphen-stripped form through the existing Israeli ID logic.
+        # Letters and special characters remain so _process_id_value can route
+        # passport-like values to passport when allowed.
         (
             cleaned_digits,
             moved_to_passport,
@@ -80,9 +80,9 @@ class IdentifierEngine:
 
         cleaned_passport = updated_passport
 
-        # If ID was moved to passport for any reason
+        # If ID was moved to passport because it contains passport-like
+        # nonnumeric content.
         if moved_to_passport:
-            # Determine reason for VBA-style status text variants
             _digits, _should_move, reason = self.classify_id_value(id_str_digits)
             # ID column is empty in output, passport gets value
             if reason in {"too_short", "too_long"}:
@@ -100,6 +100,9 @@ class IdentifierEngine:
                 status = "ת.ז. לא תקינה + דרכון הוזן"
             else:
                 status = "ת.ז. לא תקינה"
+            _digits, _should_move, reason = self.classify_id_value(id_str_digits)
+            if reason in {"too_short", "too_long"}:
+                return IdentifierResult(corrected_id="", corrected_passport=cleaned_passport, status_text=status)
             return IdentifierResult(corrected_id=id_str, corrected_passport=cleaned_passport, status_text=status)
 
         # Valid or invalid checksum with a 9-digit cleaned ID
@@ -191,19 +194,17 @@ class IdentifierEngine:
 
         digit_count = len(digits)
 
-        # Too few digits (<4) => move to passport if empty
+        # Too few digits (<4) => invalid ID. Numeric-only values must not move
+        # to passport just because of length.
         if digit_count < 4:
-            if not cleaned_passport:
-                cleaned_passport = self.clean_passport(id_str)
-            logger.warning("ID moved to passport: %r (Reason: < 4 digits)", id_str)
-            return "", True, cleaned_passport, False
+            logger.warning("Invalid ID length: %r (Reason: < 4 digits)", id_str)
+            return digits, False, cleaned_passport, False
 
-        # Too many digits (>9) => move to passport if empty
+        # Too many digits (>9) => invalid ID. Numeric-only values must not move
+        # to passport just because of length.
         if digit_count > 9:
-            if not cleaned_passport:
-                cleaned_passport = self.clean_passport(id_str)
-            logger.warning("ID moved to passport: %r (Reason: > 9 digits)", id_str)
-            return "", True, cleaned_passport, False
+            logger.warning("Invalid ID length: %r (Reason: > 9 digits)", id_str)
+            return digits, False, cleaned_passport, False
 
         # 4–9 digits: pad to 9 and validate checksum
         padded = self.pad_id(digits)
@@ -252,9 +253,9 @@ class IdentifierEngine:
 
         digits = self._clean_digits_only(s)
         if len(digits) < 4:
-            return "", True, "too_short"
+            return digits, False, "too_short"
         if len(digits) > 9:
-            return "", True, "too_long"
+            return digits, False, "too_long"
         return digits, False, ""
 
     # הפונקציה בודקת checksum של תעודת זהות ישראלית לאחר ניקוי ופדינג.

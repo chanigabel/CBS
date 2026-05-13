@@ -53,17 +53,17 @@ class TestClassifyIdValue:
         assert should_move is False
     
     def test_too_few_digits(self):
-        """Less than 4 digits should move to passport with specific reason."""
+        """Less than 4 numeric-only digits should stay in the ID path."""
         digits, should_move, reason = self.engine.classify_id_value("123")
-        assert digits == ""
-        assert should_move is True
+        assert digits == "123"
+        assert should_move is False
         assert reason == "too_short"
     
     def test_too_many_digits(self):
-        """More than 9 digits should move to passport."""
+        """More than 9 numeric-only digits should stay in the ID path."""
         digits, should_move, reason = self.engine.classify_id_value("1234567890")
-        assert digits == ""
-        assert should_move is True
+        assert digits == "1234567890"
+        assert should_move is False
         assert reason == "too_long"
     
     def test_valid_digit_count_range(self):
@@ -248,12 +248,26 @@ class TestNormalizeIdentifiers:
         assert result.corrected_passport == "ABC123"
         assert result.status_text == "ת.ז. הועברה לדרכון"
     
-    def test_id_moved_to_passport_too_short(self):
-        """ID with too few digits should be moved to passport."""
+    def test_numeric_only_id_too_short_is_not_moved_to_passport(self):
+        """Numeric-only ID with too few digits stays invalid in the ID path."""
         result = self.engine.normalize_identifiers("123", "")
+        assert result.corrected_id == "123"
+        assert result.corrected_passport == ""
+        assert "הועברה לדרכון" not in result.status_text
+
+    def test_numeric_only_id_too_long_is_not_moved_to_passport(self):
+        """Numeric-only ID with too many digits stays invalid in the ID path."""
+        result = self.engine.normalize_identifiers("1234567890", "")
+        assert result.corrected_id == "1234567890"
+        assert result.corrected_passport == ""
+        assert "הועברה לדרכון" not in result.status_text
+
+    def test_id_with_special_content_still_moves_to_passport(self):
+        """Special/nonnumeric ID content still routes to cleaned passport."""
+        result = self.engine.normalize_identifiers("AB@123", "")
         assert result.corrected_id == ""
-        assert result.corrected_passport == "123"
-        assert result.status_text == "ת.ז. לא תקינה + הועברה לדרכון"
+        assert result.corrected_passport == "AB123"
+        assert "הועברה לדרכון" in result.status_text
     
     def test_id_padding(self):
         """ID with 4-9 digits should be padded to 9 digits."""

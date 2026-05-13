@@ -135,6 +135,45 @@ def test_export_keeps_moved_passport_value_without_source_passport_column(tmp_pa
     wb.close()
 
 
+def test_export_keeps_numeric_invalid_length_id_out_of_id_and_passport(tmp_path):
+    svc = SessionService()
+    sheet = SheetDataset(
+        sheet_name="DayarimYahidim",
+        header_row=1,
+        header_rows_count=1,
+        field_names=["first_name", "id_number"],
+        rows=[
+            {
+                "first_name": "Visible",
+                "first_name_corrected": "Visible",
+                "id_number": "1234567890",
+                "id_number_corrected": "1234567890",
+                "identifier_status": "ת.ז. לא תקינה",
+            }
+        ],
+    )
+    record = SessionRecord(
+        session_id="identifier-export-session",
+        source_file_path="uploads/identifier-export-session.xlsx",
+        working_copy_path="work/identifier-export-session.xlsx",
+        original_filename="test.xlsx",
+        status="standardized",
+        workbook_dataset=WorkbookDataset(source_file="test.xlsx", sheets=[sheet]),
+    )
+    svc.create(record)
+
+    output_path = ExportService(svc, tmp_path / "output").export("identifier-export-session")
+
+    wb = load_workbook(output_path)
+    ws = wb["DayarimYahidim"]
+    headers = [cell.value for cell in ws[1]]
+    id_col = headers.index("MisparZehut") + 1
+    passport_col = headers.index("Darkon") + 1
+    assert ws.cell(row=2, column=id_col).value == "1234567890"
+    assert ws.cell(row=2, column=passport_col).value is None
+    wb.close()
+
+
 def test_export_uses_corrected_name_fields_only(tmp_path):
     svc = SessionService()
     sheet = SheetDataset(

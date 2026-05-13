@@ -56,6 +56,12 @@ def test_export_engine_uses_corrected_standardized_fields_only(tmp_path):
                 "first_name": "Visible Missing Corrected",
                 "first_name_corrected": "Visible Missing Corrected",
                 "gender": "female",
+            },
+            {
+                "first_name": "Numeric Invalid Identifier",
+                "first_name_corrected": "Numeric Invalid Identifier",
+                "id_number": "1234567890",
+                "id_number_corrected": "1234567890",
             }
         ],
     )
@@ -79,4 +85,6 @@ def test_export_engine_uses_corrected_standardized_fields_only(tmp_path):
     assert ws.cell(row=2, column=gender_col).value is None
     assert ws.cell(row=3, column=first_col).value == "Visible Missing Corrected"
     assert ws.cell(row=3, column=gender_col).value is None
+    assert ws.cell(row=4, column=first_col).value == "Numeric Invalid Identifier"
+    assert ws.cell(row=4, column=id_col).value == "1234567890"
     wb.close()

@@ -43,10 +43,13 @@ Approved rule: source identifier fields must not be modified.
 
 ## 7. Corrected-Field Contract
 
-- `id_number_corrected` contains a cleaned, padded Israeli ID candidate or empty
-  string when the value is missing or moved to passport.
+- `id_number_corrected` contains the cleaned ID value that remains in the ID
+  path. Valid 4-9 digit IDs are padded when appropriate. Numeric-only
+  invalid-length IDs remain visible as their cleaned numeric value.
 - `passport_corrected` contains cleaned passport content or empty string.
 - Status text describes the ID/passport outcome.
+- Numeric-only invalid IDs must remain in the ID path, must not be blanked, and
+  must not be routed to passport only because of length.
 
 ## 8. Parsing / Cleanup / Normalization Rules
 
@@ -59,8 +62,14 @@ Approved rule:
   classification.
 - Any non-digit, non-dash character in the ID causes the ID value to be moved to
   passport when passport is empty.
-- IDs with fewer than 4 digits or more than 9 digits are moved to passport.
+- Numeric-only IDs are never moved to passport only because of length.
 - IDs with 4 to 9 digits are left-padded to 9 digits for checksum validation.
+- Numeric-only IDs shorter than 4 digits remain invalid IDs and are not moved to
+  passport. They remain visible in `id_number_corrected` as cleaned numeric
+  values.
+- Numeric-only IDs longer than 9 digits remain invalid IDs and are not moved to
+  passport. They remain visible in `id_number_corrected` as cleaned numeric
+  values.
 - All-zero and all-identical 9-digit IDs are invalid and are not moved.
 - Israeli ID checksum uses alternating multipliers 1 and 2, subtracting 9 from
   doubled values greater than 9, and requiring a sum divisible by 10.
@@ -70,6 +79,8 @@ Current behavior:
 - Hyphen-stripped valid IDs are exported from `id_number_corrected`.
 - Invalid checksum IDs that are not moved may still remain in
   `id_number_corrected` as the normalized/padded numeric value.
+- Numeric-only invalid-length IDs are treated as invalid IDs, not passports, and
+  are not blanked from `id_number_corrected`.
 
 ## 9. Validation Rules
 
@@ -95,8 +106,8 @@ On exception:
 
 Current behavior:
 
-- Passport-like ID values are moved only if current classification rules trigger
-  move-to-passport.
+- Passport-like ID values are moved only when they contain letters or special
+  nonnumeric content other than allowed dash variants.
 - If a passport already exists, an ID moved to passport does not overwrite that
   existing passport value.
 
@@ -111,11 +122,19 @@ Invalid cases include:
 - invalid checksum
 - all-zero ID
 - all-identical-digit ID
-- too-short or too-long numeric ID
+- too-short numeric-only ID
+- too-long numeric-only ID
 - non-digit/non-dash ID content
 
-Invalid values write a Hebrew identifier status. Some invalid values remain in
-`id_number_corrected`; values moved to passport clear `id_number_corrected`.
+Invalid values write a Hebrew identifier status.
+
+Rules:
+
+- Values containing letters or special characters may be routed to
+  `passport_corrected` if passport is empty.
+- Numeric-only invalid IDs are not routed to passport and remain visible in
+  `id_number_corrected`.
+- Values moved to passport clear `id_number_corrected`.
 
 ## 13. Export Behavior
 
@@ -125,7 +144,12 @@ The active web export maps:
 - `Darkon` from `passport_corrected`
 
 The compatibility export can keep `passport_corrected` even when no source
-passport column existed, which is covered by `tests/test_export_engine_dataset.py`.
+passport column existed, which is covered by
+`tests/test_export_engine_dataset.py`.
+
+Export reads corrected values from the standardized dataset rows according to
+the corrected-only export mapping. It must not depend on whether the UI/grid
+shows a helper column.
 
 ## 14. UI/Grid Behavior
 
@@ -144,7 +168,9 @@ standardization by default.
 | `000000018` | empty | `000000018` | empty | valid ID |
 | `12345` | empty | padded 9-digit value | empty | valid/invalid by checksum |
 | `ABC123` | empty | empty | `ABC123` | moved to passport |
-| `123` | empty | empty | `123` | invalid and moved to passport |
+| `123` | empty | `123` | empty | invalid short numeric ID |
+| `12345678910` | empty | `12345678910` | empty | invalid long numeric ID |
+| `AB@123` | empty | empty | `AB123` | moved to passport |
 | empty | `ABC123` | empty | `ABC123` | passport entered |
 | `9999` | empty | empty | empty | missing identifier |
 
@@ -170,5 +196,11 @@ standardization by default.
 
 ## 20. Final Principles
 
-Identifiers are processed as a pair. Do not validate ID and passport in separate
-passes unless the pairwise routing rules are preserved.
+Identifiers are processed as a pair.
+
+Do not validate ID and passport in separate passes unless the pairwise routing
+rules are preserved.
+
+Numeric-only invalid IDs remain ID values and must not automatically become
+passport values only because of invalid length. They remain visible in
+`id_number_corrected` with an invalid status.
