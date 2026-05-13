@@ -242,6 +242,158 @@ def test_get_sheet_data_orders_gender_corrected_and_status_after_source_field():
     assert response.rows[0]["gender_status"] == "קוד מין לא תקין - חייב להיות 1 (זכר) או 2 (נקבה)"
 
 
+def test_get_sheet_data_preserves_original_order_with_corrected_fields_and_status_anchors():
+    svc = SessionService()
+    sheet = SheetDataset(
+        sheet_name="Sheet1",
+        header_row=1,
+        header_rows_count=1,
+        field_names=["first_name", "id_number", "passport", "gender", "last_name"],
+        rows=[
+            {
+                "first_name": "Original First",
+                "first_name_corrected": "Corrected First",
+                "id_number": "123",
+                "id_number_corrected": "000000123",
+                "passport": "P1",
+                "passport_corrected": "P1",
+                "identifier_status": "identifier status",
+                "gender": "F",
+                "gender_corrected": 2,
+                "gender_status": "gender status",
+                "last_name": "Original Last",
+                "last_name_corrected": "Corrected Last",
+            }
+        ],
+    )
+    record = SessionRecord(
+        session_id="ordering-contract-session",
+        source_file_path="uploads/ordering-contract-session.xlsx",
+        working_copy_path="work/ordering-contract-session.xlsx",
+        original_filename="test.xlsx",
+        status="standardized",
+        workbook_dataset=WorkbookDataset(source_file="test.xlsx", sheets=[sheet]),
+    )
+    svc.create(record)
+
+    response = WorkbookService(svc).get_sheet_data("ordering-contract-session", "Sheet1")
+    fields = [field for field in response.field_names if field != "_serial"]
+
+    assert fields == [
+        "first_name",
+        "first_name_corrected",
+        "id_number",
+        "id_number_corrected",
+        "passport",
+        "passport_corrected",
+        "identifier_status",
+        "gender",
+        "gender_corrected",
+        "gender_status",
+        "last_name",
+        "last_name_corrected",
+    ]
+
+
+def test_get_sheet_data_date_groups_remain_block_based():
+    svc = SessionService()
+    sheet = SheetDataset(
+        sheet_name="Sheet1",
+        header_row=1,
+        header_rows_count=1,
+        field_names=["first_name", "birth_year", "birth_month", "birth_day", "gender"],
+        rows=[
+            {
+                "first_name": "Person",
+                "first_name_corrected": "Person",
+                "birth_year": "1980",
+                "birth_month": "05",
+                "birth_day": "17",
+                "birth_year_corrected": 1980,
+                "birth_month_corrected": 5,
+                "birth_day_corrected": 17,
+                "birth_date_status": "",
+                "gender": "M",
+                "gender_corrected": 1,
+                "gender_status": "",
+            }
+        ],
+    )
+    record = SessionRecord(
+        session_id="date-ordering-session",
+        source_file_path="uploads/date-ordering-session.xlsx",
+        working_copy_path="work/date-ordering-session.xlsx",
+        original_filename="test.xlsx",
+        status="standardized",
+        workbook_dataset=WorkbookDataset(source_file="test.xlsx", sheets=[sheet]),
+    )
+    svc.create(record)
+
+    response = WorkbookService(svc).get_sheet_data("date-ordering-session", "Sheet1")
+    fields = [field for field in response.field_names if field != "_serial"]
+
+    assert fields == [
+        "first_name",
+        "first_name_corrected",
+        "birth_year",
+        "birth_month",
+        "birth_day",
+        "birth_year_corrected",
+        "birth_month_corrected",
+        "birth_day_corrected",
+        "birth_date_status",
+        "gender",
+        "gender_corrected",
+        "gender_status",
+    ]
+
+
+def test_get_sheet_data_helper_row_filtering_keeps_ordering_contract():
+    svc = SessionService()
+    sheet = SheetDataset(
+        sheet_name="Sheet1",
+        header_row=1,
+        header_rows_count=1,
+        field_names=["id_number", "gender"],
+        rows=[
+            {"id_number": "1", "gender": "2"},
+            {
+                "id_number": "ABC123",
+                "id_number_corrected": "",
+                "passport_corrected": "ABC123",
+                "identifier_status": "moved",
+                "gender": "F",
+                "gender_corrected": 2,
+                "gender_status": "",
+            },
+        ],
+    )
+    record = SessionRecord(
+        session_id="helper-ordering-session",
+        source_file_path="uploads/helper-ordering-session.xlsx",
+        working_copy_path="work/helper-ordering-session.xlsx",
+        original_filename="test.xlsx",
+        status="standardized",
+        workbook_dataset=WorkbookDataset(source_file="test.xlsx", sheets=[sheet]),
+    )
+    svc.create(record)
+
+    response = WorkbookService(svc).get_sheet_data("helper-ordering-session", "Sheet1")
+    fields = [field for field in response.field_names if field != "_serial"]
+
+    assert len(response.rows) == 1
+    assert response.rows[0]["id_number"] == "ABC123"
+    assert fields == [
+        "id_number",
+        "id_number_corrected",
+        "passport_corrected",
+        "identifier_status",
+        "gender",
+        "gender_corrected",
+        "gender_status",
+    ]
+
+
 def test_get_sheet_data_raises_404_for_unknown_sheet(session_with_workbook):
     _, wb_svc = session_with_workbook
     with pytest.raises(HTTPException) as exc_info:
