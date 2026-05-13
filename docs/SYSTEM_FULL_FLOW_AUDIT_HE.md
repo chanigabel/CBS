@@ -15,8 +15,8 @@
 |---|---|---|---|---|
 | 1. העלאה | `POST /api/upload` קורא קובץ, בודק גודל, שומר מקור ועותק עבודה. | `webapp/api/upload.py`; `upload_service.py` | `UploadResponse` מחזיר `session_id` ושמות גיליונות. | 413 על גודל; 500 על קובץ לא תקין. |
 | 2. Session | נוצר `SessionRecord` עם `status='uploaded'` ו־`workbook_dataset=None`. | `session_service.py`; `models/session.py` | המצב נשמר בזיכרון לכל התהליך. | אם השמירה נכשלת הדוח מסמן שגיאה. |
-| 3. זיהוי גיליונות | `.xlsx/.xlsm` דרך openpyxl; `.xls` דרך `xlrd`. | `upload_service.py`; `xls_reader.py` | רשימת גיליונות חוזרת למשתמש. | קובץ ישן/פגום מחזיר הודעת שגיאה. |
-| 4. טעינת חוברת | אם אין `workbook_dataset`, השירותים טוענים חוברת רק כשצריך. | `workbook_service.py`; `standardization_service.py`; `export_service.py` | הטעינה שקופה למשתמש. | אם אין נתון, מוחזר 404/500. |
+| 3. זיהוי גיליונות | מדיניות טעינה מרכזית מנתבת `.xlsx/.xlsm` ל־openpyxl ו־`.xls` ל־`xlrd`. | `workbook_loader.py`; `upload_service.py`; `xls_reader.py` | רשימת גיליונות חוזרת למשתמש. | קובץ ישן/פגום מחזיר הודעת שגיאה. |
+| 4. טעינת חוברת | אם אין `workbook_dataset`, השירותים טוענים חוברת רק כשצריך דרך אותו loader מרכזי. | `workbook_loader.py`; `workbook_service.py`; `standardization_service.py`; `export_service.py` | הטעינה שקופה למשתמש. | אם אין נתון, מוחזר 404/500. |
 | 5. זיהוי טבלה | `ExcelReader` מזהה אזור טבלה, כותרות, ותת־כותרות, ומדלג על עמודות מתוקנות/סטטוסים. | `excel_reader.py`; `table_detection.py`; `column_detection.py` | מיפוי שדות נבנה לפני חילוץ. | בלי כותרות טובות הגיליון מסומן skipped. |
 | 6. חילוץ שורות | `ExcelToJsonExtractor` קורא שורה ושומר ערכים כמות שהם או `None`. | `excel_to_json_extractor.py` | שורות נכנסות ל־`SheetDataset`. | תא בודד נכשל לא מפיל את כל הגיליון. |
 | 7. הזרקת מטא־דאטה | `MosadID` ו־`SugMosad` מוזרקים לפי session/גיליון/שורות נבחרות. | `derived_columns.py`; `mosad_id_scanner.py`; `institution.py` | הערכים נראים בגריד, ביצוא ובדוח. | חוסר מדווח אך לא חוסם. |

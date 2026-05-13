@@ -11,10 +11,15 @@ from webapp.models.responses import UploadResponse
 from webapp.models.session import SessionRecord
 from webapp.services.processing_report_service import ProcessingReportService
 from webapp.services.session_service import SessionService
+from webapp.services.workbook_loader import (
+    ALLOWED_WORKBOOK_EXTENSIONS,
+    WorkbookLoadError,
+    get_workbook_sheet_names,
+)
 
 logger = logging.getLogger(__name__)
 
-ALLOWED_EXTENSIONS = {".xlsx", ".xlsm", ".xls"}
+ALLOWED_EXTENSIONS = ALLOWED_WORKBOOK_EXTENSIONS
 
 
 # שירות העלאה שמייצר session ועותק עבודה לקובץ ה־Excel.
@@ -48,7 +53,7 @@ class UploadService:
             UploadResponse with session_id and sheet_names
 
         Raises:
-            HTTPException 400: If file extension is not .xlsx or .xlsm
+            HTTPException 400: If file extension is not .xlsx, .xlsm, or .xls
             HTTPException 422: If file cannot be opened as a valid Excel workbook
             HTTPException 500: If an IO error occurs while saving the file
         """
@@ -84,30 +89,15 @@ class UploadService:
                 detail="Failed to save the uploaded file. Please try again.",
             )
 
-        # 5. Validate workbook and get sheet names.
-        # For .xls files use xlrd; for .xlsx/.xlsm use openpyxl.
+        # 5. Validate workbook and get sheet names through the shared loader.
         # Full per-sheet extraction is deferred to the first sheet load request.
         try:
-            if suffix == ".xls":
-                from src.excel_standardization.io_layer.xls_reader import (
-                    get_xls_sheet_names,
-                    XLS_ERROR_HE,
-                )
-                try:
-                    sheet_names = get_xls_sheet_names(str(working_path))
-                except ValueError:
-                    source_path.unlink(missing_ok=True)
-                    working_path.unlink(missing_ok=True)
-                    raise HTTPException(status_code=422, detail=XLS_ERROR_HE)
-            else:
-                from openpyxl import load_workbook as _load_wb
-                _wb = _load_wb(str(working_path), data_only=True, read_only=True)
-                sheet_names = _wb.sheetnames
-                _wb.close()
-                if not sheet_names:
-                    raise ValueError("Workbook has no sheets")
-        except HTTPException:
-            raise
+            sheet_names = get_workbook_sheet_names(working_path)
+        except WorkbookLoadError as exc:
+            source_path.unlink(missing_ok=True)
+            working_path.unlink(missing_ok=True)
+            logger.warning(f"Invalid workbook uploaded '{filename}': {exc}")
+            raise HTTPException(status_code=422, detail=str(exc))
         except Exception as exc:
             source_path.unlink(missing_ok=True)
             working_path.unlink(missing_ok=True)

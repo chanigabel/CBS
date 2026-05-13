@@ -17,6 +17,7 @@ from openpyxl import Workbook
 from openpyxl.worksheet.worksheet import Worksheet
 
 from ..data_types import WorkbookDataset, SheetDataset, JsonRow
+from ..normalized_row_contract import build_standard_export_row
 from .excel_safe import safe_cell_value, safe_sheet_title
 
 
@@ -518,37 +519,12 @@ class ExportEngine:
         allow_mosad_fields: bool,
     ) -> Dict[str, Any]:
         """Map the project's JSON fields to the VBA export headers."""
-        def pick(*keys: str) -> Any:
-            for k in keys:
-                if k in row:
-                    v = row.get(k)
-                    if v is not None and v != "":
-                        return v
-            # If all are empty/missing, return empty string for export
-            return ""
-
-        mosad_id = pick("MosadID", "mosad_id") if allow_mosad_fields else ""
-        sug_mosad = pick("SugMosad", "sug_mosad") if allow_mosad_fields else ""
-
-        mapped: Dict[str, Any] = {
-            "MosadID": mosad_id,
-            "SugMosad": sug_mosad,
-            "ShemPrati": pick("first_name_corrected"),
-            "ShemMishpaha": pick("last_name_corrected"),
-            "ShemHaAv": pick("father_name_corrected"),
-            "MisparZehut": pick("id_number_corrected"),
-            "Darkon": pick("passport_corrected"),
-            "Min": pick("gender_corrected"),
-            "ShnatLida": pick("birth_year_corrected"),
-            "HodeshLida": pick("birth_month_corrected"),
-            "YomLida": pick("birth_day_corrected"),
-            "shnatknisa": pick("entry_year_corrected"),
-            "Hodeshknisa": pick("entry_month_corrected"),
-            "YomKnisa": pick("entry_day_corrected"),
-        }
-
-        if include_dira:
-            mapped["MisparDiraBeMosad"] = pick("MisparDiraBeMosad", "dira", "apartment") if allow_mosad_fields else ""
-
+        mapped = build_standard_export_row(
+            row,
+            include_dira=include_dira,
+            allow_mosad_fields=allow_mosad_fields,
+        )
+        if include_dira and allow_mosad_fields and not mapped.get("MisparDiraBeMosad"):
+            mapped["MisparDiraBeMosad"] = row.get("dira") or row.get("apartment") or ""
         return mapped
 

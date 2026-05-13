@@ -224,6 +224,26 @@ class TestNames:
         r = _validator().validate_row(row)
         assert MSG_SHEM_PRATI_MISSING not in _messages(r)
 
+    def test_mixed_corrected_and_original_selection(self):
+        row = _make_valid_row(
+            first_name="Original First",
+            first_name_corrected="Corrected First",
+            last_name="Original Last",
+            last_name_corrected="",
+        )
+        r = _validator().validate_row(row)
+        assert MSG_SHEM_PRATI_MISSING not in _messages(r)
+        assert MSG_SHEM_MISHPAHA_MISSING not in _messages(r)
+
+    def test_unexpected_corrected_field_type_is_stringified_for_validation(self):
+        row = _make_valid_row(
+            first_name_corrected=["Corrected"],
+            last_name_corrected={"name": "Last"},
+        )
+        r = _validator().validate_row(row)
+        assert MSG_SHEM_PRATI_MISSING not in _messages(r)
+        assert MSG_SHEM_MISHPAHA_MISSING not in _messages(r)
+
 
 # ---------------------------------------------------------------------------
 # MisparZehut

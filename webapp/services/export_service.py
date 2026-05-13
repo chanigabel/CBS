@@ -8,8 +8,6 @@ from pathlib import Path
 from fastapi import HTTPException
 from openpyxl import Workbook
 
-from src.excel_standardization.io_layer.excel_reader import ExcelReader
-from src.excel_standardization.io_layer.excel_to_json_extractor import ExcelToJsonExtractor
 from webapp.services.export_rows import build_export_filename as _build_export_filename
 from webapp.services.export_rows import resolve_sug_mosad_for_sheet as _resolve_sug_mosad_for_sheet
 from webapp.services.export_rows import visible_rows
@@ -17,6 +15,7 @@ from webapp.services.export_schema import EXPORT_MAPPING, canonical_sheet_name, 
 from webapp.services.export_writer import write_export_workbook
 from webapp.services.processing_report_service import ProcessingReportService
 from webapp.services.session_service import SessionService
+from webapp.services.workbook_loader import extract_workbook_dataset
 
 logger = logging.getLogger(__name__)
 
@@ -45,23 +44,7 @@ class ExportService:
 
         if record.workbook_dataset is None:
             try:
-                suffix = Path(record.working_copy_path).suffix.lower()
-                if suffix == ".xls":
-                    from src.excel_standardization.io_layer.xls_reader import (
-                        extract_xls_to_workbook_dataset,
-                    )
-
-                    workbook_dataset = extract_xls_to_workbook_dataset(
-                        record.working_copy_path
-                    )
-                else:
-                    extractor = ExcelToJsonExtractor(
-                        ExcelReader(),
-                        skip_empty_rows=False,
-                        handle_formulas=True,
-                        preserve_types=True,
-                    )
-                    workbook_dataset = extractor.extract_workbook_to_json(record.working_copy_path)
+                workbook_dataset = extract_workbook_dataset(record.working_copy_path)
                 self.session_service.update(session_id, workbook_dataset=workbook_dataset)
                 record = self.session_service.get(session_id)
             except Exception as exc:

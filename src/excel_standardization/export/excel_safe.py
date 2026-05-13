@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import json
+import logging
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from typing import Any, Iterable, Set
 
 from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
+
+logger = logging.getLogger(__name__)
 
 _INVALID_SHEET_CHARS = set("[]:*?/\\")
 _MAX_SHEET_TITLE_LEN = 31
@@ -45,5 +48,13 @@ def safe_cell_value(value: Any) -> Any:
         try:
             return json.dumps(value, ensure_ascii=False, sort_keys=True)
         except TypeError:
+            logger.warning(
+                "unsupported_export_cell_value_type",
+                extra={"value_type": type(value).__name__},
+            )
             return str(value)
+    logger.warning(
+        "unsupported_export_cell_value_type",
+        extra={"value_type": type(value).__name__},
+    )
     return str(value)

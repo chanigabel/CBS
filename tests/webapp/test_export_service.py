@@ -347,6 +347,84 @@ def test_export_sanitizes_sheet_names_and_cell_values_for_openable_xlsx(tmp_path
     wb.close()
 
 
+def test_export_sanitizes_colliding_sheet_names(tmp_path):
+    svc = SessionService()
+    sheets = [
+        SheetDataset(
+            sheet_name="bad:name",
+            header_row=1,
+            header_rows_count=1,
+            field_names=["first_name"],
+            rows=[{"first_name": "Raw", "first_name_corrected": "One"}],
+        ),
+        SheetDataset(
+            sheet_name="bad/name",
+            header_row=1,
+            header_rows_count=1,
+            field_names=["first_name"],
+            rows=[{"first_name": "Raw", "first_name_corrected": "Two"}],
+        ),
+    ]
+    record = SessionRecord(
+        session_id="sheet-collision-export-session",
+        source_file_path="uploads/sheet-collision.xlsx",
+        working_copy_path="work/sheet-collision.xlsx",
+        original_filename="collision.xlsx",
+        status="standardized",
+        workbook_dataset=WorkbookDataset(source_file="collision.xlsx", sheets=sheets),
+    )
+    svc.create(record)
+
+    output_path = ExportService(svc, tmp_path / "output").export(record.session_id)
+
+    wb = load_workbook(output_path)
+    assert "bad_name" in wb.sheetnames
+    assert "bad_name_1" in wb.sheetnames
+    wb.close()
+
+
+def test_export_does_not_mutate_dataset_rows_when_injecting_institution_metadata(tmp_path):
+    svc, record = make_session_with_workbook("non-mutating-export-session")
+    record.mosad_id = "999"
+    record.mosad_types = ["123"]
+    source_row = record.workbook_dataset.sheets[0].rows[0]
+    assert "MosadID" not in source_row
+    assert "SugMosad" not in source_row
+
+    ExportService(svc, tmp_path / "output").export("non-mutating-export-session")
+
+    assert "MosadID" not in source_row
+    assert "SugMosad" not in source_row
+
+
+def test_export_logs_unsupported_cell_value_type(tmp_path, caplog):
+    class UnsupportedCellValue:
+        pass
+
+    svc = SessionService()
+    sheet = SheetDataset(
+        sheet_name="DayarimYahidim",
+        header_row=1,
+        header_rows_count=1,
+        field_names=["first_name"],
+        rows=[{"first_name": "Raw", "first_name_corrected": UnsupportedCellValue()}],
+    )
+    record = SessionRecord(
+        session_id="unsupported-cell-export-session",
+        source_file_path="uploads/unsupported.xlsx",
+        working_copy_path="work/unsupported.xlsx",
+        original_filename="unsupported.xlsx",
+        status="standardized",
+        workbook_dataset=WorkbookDataset(source_file="unsupported.xlsx", sheets=[sheet]),
+    )
+    svc.create(record)
+
+    with caplog.at_level("WARNING", logger="src.excel_standardization.export.excel_safe"):
+        ExportService(svc, tmp_path / "output").export(record.session_id)
+
+    assert "unsupported_export_cell_value_type" in caplog.text
+
+
 def test_export_sanitizes_output_filename_special_characters(tmp_path):
     svc = SessionService()
     sheet = SheetDataset(

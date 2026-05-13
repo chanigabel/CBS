@@ -79,6 +79,20 @@ def resolve_sug_mosad_for_sheet(configs, sheet_name: str, fallback: str):
     return fallback
 
 
+def build_row_export_view(row: Dict[str, Any], mosad_id: str = "", scoped_sug_mosad=None) -> Dict[str, Any]:
+    """Return a non-mutating row view with export-scoped institution metadata."""
+    export_row = dict(row)
+    if mosad_id:
+        export_row["MosadID"] = mosad_id
+    if callable(scoped_sug_mosad):
+        value = scoped_sug_mosad(row.get("_row_uid", ""))
+        if value is not None:
+            export_row["SugMosad"] = value
+    elif scoped_sug_mosad:
+        export_row["SugMosad"] = scoped_sug_mosad
+    return export_row
+
+
 # מחזיר רק שורות פעילות ושדות מקור שרלוונטיים ליצוא ולדוחות.
 def visible_rows(sheet_dataset) -> Tuple[List[Dict[str, Any]], List[str]]:
     """Return (rows, display_columns) exactly as the UI would show them."""

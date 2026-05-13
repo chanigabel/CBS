@@ -54,6 +54,12 @@ def test_valid_xlsx_upload_creates_session_and_returns_sheet_names(upload_svc):
     assert record.workbook_dataset is None
 
 
+def test_uppercase_xlsx_extension_is_accepted(upload_svc):
+    svc, _ = upload_svc
+    response = svc.handle_upload("DATA.XLSX", make_xlsx_bytes(["Upper"]))
+    assert response.sheet_names == ["Upper"]
+
+
 def test_xlsm_extension_is_accepted(upload_svc, tmp_dirs):
     svc, _ = upload_svc
     # Create a minimal xlsm-like file (openpyxl can write .xlsm)
@@ -110,6 +116,20 @@ def test_corrupted_bytes_raises_422(upload_svc):
     with pytest.raises(HTTPException) as exc_info:
         svc.handle_upload("data.xlsx", b"this is not a valid xlsx file at all")
     assert exc_info.value.status_code == 422
+
+
+def test_blank_no_header_sheet_uploads_and_defers_extraction(upload_svc):
+    svc, session_svc = upload_svc
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Blank"
+    buf = io.BytesIO()
+    wb.save(buf)
+
+    response = svc.handle_upload("blank.xlsx", buf.getvalue())
+
+    assert response.sheet_names == ["Blank"]
+    assert session_svc.get(response.session_id).workbook_dataset is None
 
 
 def test_source_file_is_byte_identical_to_upload(upload_svc, tmp_dirs):

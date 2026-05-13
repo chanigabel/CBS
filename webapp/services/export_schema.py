@@ -5,6 +5,8 @@ from __future__ import annotations
 import unicodedata
 from typing import Dict, List, Optional
 
+from src.excel_standardization.normalized_row_contract import EXPORT_FIELD_TO_SOURCE
+
 # ---------------------------------------------------------------------------
 # Sheet-name normalization and canonical export name mapping.
 # ---------------------------------------------------------------------------
@@ -72,22 +74,4 @@ def headers_for_sheet(canonical_name: str) -> List[str]:
 # Field mapping: export header → source JSON key.
 # ---------------------------------------------------------------------------
 
-EXPORT_MAPPING: Dict[str, Optional[str]] = {
-    "MosadID": "MosadID",
-    "SugMosad": "SugMosad",
-    "MisparDiraBeMosad": "MisparDiraBeMosad",
-    "ShemPrati": "first_name_corrected",
-    "ShemMishpaha": "last_name_corrected",
-    "ShemHaAv": "father_name_corrected",
-    "MisparZehut": "id_number_corrected",
-    "Darkon": "passport_corrected",
-    "Min": "gender_corrected",
-    "ShnatLida": "birth_year_corrected",
-    "HodeshLida": "birth_month_corrected",
-    "YomLida": "birth_day_corrected",
-    "shnatknisa": "entry_year_corrected",
-    "ShnatKnisa": "entry_year_corrected",
-    "Hodeshknisa": "entry_month_corrected",
-    "HodeshKnisa": "entry_month_corrected",
-    "YomKnisa": "entry_day_corrected",
-}
+EXPORT_MAPPING: Dict[str, Optional[str]] = dict(EXPORT_FIELD_TO_SOURCE)

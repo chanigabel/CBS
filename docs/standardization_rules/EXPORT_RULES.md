@@ -20,6 +20,7 @@ Implemented by:
 - `webapp/services/export_rows.py`
 - `webapp/services/export_schema.py`
 - `webapp/services/export_validation.py`
+- `src/excel_standardization/normalized_row_contract.py`
 - `src/excel_standardization/export/export_engine.py`
 
 ## 3. Source Fields
@@ -46,8 +47,9 @@ The final export workbook does not include standardization status fields or
 
 ## 6. Original-Value Immutability Rules
 
-Export must not mutate original source files. Web export may mutate in-memory row
-dictionaries by injecting `MosadID` and `SugMosad` before writing.
+Export must not mutate original source files or dataset row dictionaries while
+writing. Web export builds a per-row output view when applying `MosadID` and
+`SugMosad` metadata.
 
 ## 7. Corrected-Field Contract
 
@@ -56,10 +58,10 @@ standardization. If a mapped corrected value is missing or empty, the cell is
 left empty; active web export does not use original fallback through
 `EXPORT_MAPPING`.
 
-Compatibility `ExportEngine._map_row_to_export_fields` also maps standardized
-columns from corrected fields only. If a corrected standardized value is missing
-or empty, the exported cell remains empty. Mosad/apartment metadata may still
-use explicit metadata/source fallbacks.
+Active export and compatibility `ExportEngine._map_row_to_export_fields` both
+use the shared normalized-row contract for standardized columns. If a corrected
+standardized value is missing or empty, the exported cell remains empty.
+Mosad/apartment metadata may still use explicit metadata/source fallbacks.
 
 ## 8. Parsing / Cleanup / Normalization Rules
 

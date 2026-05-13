@@ -10,7 +10,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment
 
 from src.excel_standardization.export.excel_safe import safe_cell_value, safe_sheet_title
-from webapp.services.export_rows import resolve_sug_mosad_for_sheet, visible_rows
+from webapp.services.export_rows import build_row_export_view, resolve_sug_mosad_for_sheet, visible_rows
 from webapp.services.export_schema import EXPORT_MAPPING, canonical_sheet_name, headers_for_sheet
 
 logger = logging.getLogger(__name__)
@@ -44,24 +44,19 @@ def write_export_workbook(record, output_path: Path, workbook_factory=Workbook) 
             active_mosad_type,
         )
 
-        for row in data_rows:
-            if record.mosad_id:
-                row["MosadID"] = record.mosad_id
-            if callable(scoped_type):
-                v = scoped_type(row.get("_row_uid", ""))
-                if v is not None:
-                    row["SugMosad"] = v
-            elif scoped_type:
-                row["SugMosad"] = scoped_type
-
         out_row = 2
         sheet_rows_exported = 0
         for row in data_rows:
+            export_row = build_row_export_view(
+                row,
+                mosad_id=record.mosad_id or "",
+                scoped_sug_mosad=scoped_type,
+            )
             for col_idx, header in enumerate(schema, start=1):
                 json_key = EXPORT_MAPPING.get(header)
                 if json_key is None:
                     continue
-                v = row.get(json_key)
+                v = export_row.get(json_key)
                 if v is not None and v != "":
                     ws.cell(row=out_row, column=col_idx, value=safe_cell_value(v))
             out_row += 1

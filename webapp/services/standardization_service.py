@@ -5,10 +5,7 @@ from datetime import date
 from typing import List, Optional
 
 from fastapi import HTTPException
-from openpyxl import load_workbook as _lw
 
-from src.excel_standardization.io_layer.excel_to_json_extractor import ExcelToJsonExtractor
-from src.excel_standardization.io_layer.excel_reader import ExcelReader
 from src.excel_standardization.processing.standardization_pipeline import StandardizationPipeline
 from src.excel_standardization.engines.name_engine import NameEngine
 from src.excel_standardization.engines.gender_engine import GenderEngine
@@ -20,13 +17,13 @@ from src.excel_standardization.data_types import SheetDataset
 from webapp.models.responses import StandardizeResponse, PerSheetStat
 from webapp.services.processing_report_service import ProcessingReportService
 from webapp.services.session_service import SessionService
-from webapp.services.mosad_id_scanner import scan_mosad_id
+from webapp.services.workbook_loader import (
+    extract_sheet_dataset,
+    extract_workbook_dataset,
+    get_workbook_sheet_names,
+)
 
 logger = logging.getLogger(__name__)
-
-
-def _is_xls_path(path: str) -> bool:
-    return str(path).lower().endswith(".xls")
 
 
 # שירות runtime שמריץ את StandardizationPipeline על session פעיל.
@@ -56,28 +53,17 @@ class StandardizationService:
         record = self.session_service.get(session_id)
 
         pipeline = self._build_pipeline()
-        extractor = ExcelToJsonExtractor(
-            excel_reader=ExcelReader(),
-            skip_empty_rows=False,
-            handle_formulas=True,
-            preserve_types=True,
-        )
 
+        loaded_workbook_now = False
         if record.workbook_dataset is None:
             # Load the workbook when no sheet has been accessed yet.
             try:
-                if _is_xls_path(record.working_copy_path):
-                    from src.excel_standardization.io_layer.xls_reader import (
-                        extract_xls_to_workbook_dataset,
-                    )
-
-                    wbd = extract_xls_to_workbook_dataset(record.working_copy_path)
-                else:
-                    wbd = extractor.extract_workbook_to_json(record.working_copy_path)
+                wbd = extract_workbook_dataset(record.working_copy_path)
                 self.session_service.update(session_id, workbook_dataset=wbd)
                 self.processing_report_service.complete_stage(session_id, "extract")
                 self.processing_report_service.update_workbook_counts(session_id, wbd)
                 record = self.session_service.get(session_id)
+                loaded_workbook_now = True
             except Exception as exc:
                 self.processing_report_service.add_error(
                     session_id,
@@ -101,42 +87,18 @@ class StandardizationService:
         if sheet_name is not None:
             # Single-sheet path.
             try:
-                if _is_xls_path(record.working_copy_path):
-                    from src.excel_standardization.io_layer.xls_reader import (
-                        extract_xls_sheet_to_dataset,
-                    )
-
-                    fresh = extract_xls_sheet_to_dataset(
-                        record.working_copy_path,
-                        sheet_name,
-                    )
-                    existing = record.workbook_dataset.get_sheet_by_name(sheet_name)
-                    mosad_id = existing.get_metadata("MosadID") if existing is not None else None
-                    if mosad_id is not None:
-                        fresh.set_metadata("MosadID", mosad_id)
-                    sheets_to_normalize = [fresh]
-                else:
-                    wb = _lw(record.working_copy_path, data_only=True)
-                    if sheet_name not in wb.sheetnames:
-                        wb.close()
-                        raise HTTPException(
-                            status_code=404,
-                            detail=f"Sheet '{sheet_name}' not found.",
-                        )
-                    ws = wb[sheet_name]
-                    fresh = extractor.extract_sheet_to_json(ws)
-                    # Preserve MosadID from metadata or re-scan from the sheet.
-                    existing = record.workbook_dataset.get_sheet_by_name(sheet_name)
-                    mosad_id = (
-                        existing.get_metadata("MosadID")
-                        if existing is not None
-                        else None
-                    ) or scan_mosad_id(ws)
-                    if mosad_id is not None:
-                        fresh.set_metadata("MosadID", mosad_id)
-                    sheets_to_normalize = [fresh]
-                    wb.close()
+                existing = record.workbook_dataset.get_sheet_by_name(sheet_name)
+                fresh = extract_sheet_dataset(record.working_copy_path, sheet_name)
+                mosad_id = existing.get_metadata("MosadID") if existing is not None else None
+                if mosad_id is not None:
+                    fresh.set_metadata("MosadID", mosad_id)
+                sheets_to_normalize = [fresh]
                 self.processing_report_service.complete_stage(session_id, "extract")
+            except KeyError:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Sheet '{sheet_name}' not found.",
+                )
             except HTTPException:
                 raise
             except Exception as exc:
@@ -161,29 +123,17 @@ class StandardizationService:
         else:
             # Full-workbook path.
             try:
-                if _is_xls_path(record.working_copy_path):
-                    from src.excel_standardization.io_layer.xls_reader import (
-                        extract_xls_to_workbook_dataset,
-                    )
-
-                    fresh_wbd = extract_xls_to_workbook_dataset(record.working_copy_path)
-                    sheets_to_normalize = fresh_wbd.sheets
+                if loaded_workbook_now:
+                    sheets_to_normalize = list(record.workbook_dataset.sheets)
                 else:
-                    wb = _lw(record.working_copy_path, data_only=True)
                     sheets_to_normalize = []
-                    for sname in wb.sheetnames:
-                        ws = wb[sname]
-                        fresh = extractor.extract_sheet_to_json(ws)
+                    for sname in get_workbook_sheet_names(record.working_copy_path):
+                        fresh = extract_sheet_dataset(record.working_copy_path, sname)
                         existing = record.workbook_dataset.get_sheet_by_name(sname)
-                        mosad_id = (
-                            existing.get_metadata("MosadID")
-                            if existing is not None
-                            else None
-                        ) or scan_mosad_id(ws)
+                        mosad_id = existing.get_metadata("MosadID") if existing is not None else None
                         if mosad_id is not None:
                             fresh.set_metadata("MosadID", mosad_id)
                         sheets_to_normalize.append(fresh)
-                    wb.close()
                 self.processing_report_service.complete_stage(session_id, "extract")
             except Exception as exc:
                 self.processing_report_service.add_error(

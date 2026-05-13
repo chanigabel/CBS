@@ -14,6 +14,11 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Any, Dict, List, Optional, Set
 
+from src.excel_standardization.normalized_row_contract import (
+    select_corrected_or_original,
+    select_first_present,
+)
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -154,20 +159,13 @@ def _to_int_safe(value: Any) -> Optional[int]:
 # הפונקציה קוראת את הערך הראשון שקיים מבין כמה שמות שדה אפשריים.
 def _get_field(row: Dict[str, Any], *keys: str) -> Any:
     """Return the first non-None, non-empty value found among the given keys."""
-    for k in keys:
-        v = row.get(k)
-        if v is not None and str(v).strip() != "":
-            return v
-    return None
+    return select_first_present(row, keys)
 
 
 # הפונקציה מעדיפה ערך corrected אך נופלת לערך מקור כשאין תיקון.
 def _get_corrected_or_original(row: Dict[str, Any], base_name: str) -> Any:
     """Return corrected value if present, else original."""
-    corrected = row.get(f"{base_name}_corrected")
-    if corrected is not None and str(corrected).strip() != "":
-        return corrected
-    return row.get(base_name)
+    return select_corrected_or_original(row, base_name)
 
 
 # ---------------------------------------------------------------------------

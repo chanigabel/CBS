@@ -2,6 +2,7 @@ from openpyxl import load_workbook
 
 from src.excel_standardization.data_types import SheetDataset, WorkbookDataset
 from src.excel_standardization.export.export_engine import ExportEngine
+from webapp.services.export_schema import EXPORT_MAPPING
 
 
 def test_export_engine_keeps_moved_passport_value_without_source_passport_column(tmp_path):
@@ -88,6 +89,47 @@ def test_export_engine_uses_corrected_standardized_fields_only(tmp_path):
     assert ws.cell(row=4, column=first_col).value == "Numeric Invalid Identifier"
     assert ws.cell(row=4, column=id_col).value == "1234567890"
     wb.close()
+
+
+def test_compatibility_and_active_export_share_standardized_column_sources():
+    engine = ExportEngine()
+    row = {
+        "first_name": "Original First",
+        "first_name_corrected": "Corrected First",
+        "last_name": "Original Last",
+        "last_name_corrected": "Corrected Last",
+        "father_name": "Original Father",
+        "father_name_corrected": "Corrected Father",
+        "id_number": "123",
+        "id_number_corrected": "000000123",
+        "passport": "Original Passport",
+        "passport_corrected": "P123",
+        "gender": "female",
+        "gender_corrected": 2,
+        "birth_year": 80,
+        "birth_year_corrected": 1980,
+        "birth_month": "05",
+        "birth_month_corrected": 5,
+        "birth_day": "bad",
+        "birth_day_corrected": "",
+        "entry_year": 10,
+        "entry_year_corrected": 2010,
+        "entry_month": "03",
+        "entry_month_corrected": 3,
+        "entry_day": "01",
+        "entry_day_corrected": 1,
+    }
+
+    mapped = engine._map_row_to_export_fields(
+        row,
+        include_dira=False,
+        allow_mosad_fields=True,
+    )
+
+    for header, source_key in EXPORT_MAPPING.items():
+        if header in {"MosadID", "SugMosad", "MisparDiraBeMosad", "ShnatKnisa", "HodeshKnisa"}:
+            continue
+        assert mapped[header] == (row.get(source_key) or "")
 
 
 def test_export_engine_sanitizes_extra_sheet_names_and_values(tmp_path):

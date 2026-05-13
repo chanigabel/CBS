@@ -36,6 +36,12 @@ inspect the current code first:
 - `webapp/api/`
 - `tests/`
 
+## Broader Project Docs
+
+For project-wide architecture, API, upload, workbook/session, extraction,
+validation, export, UI/grid, manual-edits, packaging, security, testing, and
+legacy-path rules, see `docs/project_rules/`.
+
 ## Final Principles
 
 Original values are immutable. Standardization writes corrected values into
