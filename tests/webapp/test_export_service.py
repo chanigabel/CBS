@@ -72,6 +72,24 @@ def test_export_failure_raises_500_and_preserves_session(tmp_path):
     # Session state must be preserved
     record_after = svc.get("export-session")
     assert record_after.workbook_dataset is original_dataset
+    assert not list((tmp_path / "output").glob("*.xlsx"))
+
+
+def test_export_cleans_up_partial_temp_file_on_failure(tmp_path, monkeypatch):
+    svc, _ = make_session_with_workbook("temp-failure-session")
+    export_svc = ExportService(svc, tmp_path / "output")
+
+    def fake_write_export_workbook(record, output_path, workbook_factory=None):
+        output_path.write_bytes(b"partial")
+        raise RuntimeError("save failed")
+
+    monkeypatch.setattr("webapp.services.export_service.write_export_workbook", fake_write_export_workbook)
+
+    with pytest.raises(HTTPException) as exc_info:
+        export_svc.export("temp-failure-session")
+    assert exc_info.value.status_code == 500
+    assert not list((tmp_path / "output").glob("*.tmp"))
+    assert not list((tmp_path / "output").glob("*.xlsx"))
 
 
 def test_export_raises_404_for_unknown_session(tmp_path):

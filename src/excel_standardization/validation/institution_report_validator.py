@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import logging
 import os
-from dataclasses import dataclass, field
 from datetime import date
 from typing import Any, Dict, List, Optional, Set
 
@@ -18,6 +17,7 @@ from src.excel_standardization.normalized_row_contract import (
     select_first_present,
     validation_source_value,
 )
+from .results import RowValidationResult, ValidationResult
 
 logger = logging.getLogger(__name__)
 
@@ -82,51 +82,6 @@ MSG_HODESH_KNISA_RANGE = "חודש כניסה חייב להיות בין 1 ל-12
 MSG_YOM_KNISA_MISSING = "חסר יום כניסה"
 MSG_YOM_KNISA_NOT_NUMERIC = "יום כניסה חייב להכיל ספרות בלבד"
 MSG_YOM_KNISA_RANGE = "יום כניסה לא תקין לחודש ולשנה שנבחרו"
-
-
-# ---------------------------------------------------------------------------
-# Data classes
-# ---------------------------------------------------------------------------
-
-# המחלקה מייצגת ממצא validation יחיד בשדה אחד בשורת דיווח.
-@dataclass
-class ValidationResult:
-    """A single validation finding for one field in one row."""
-    field_name: str
-    message: str
-    severity: str = "error"   # "error" | "warning"
-
-    # הפונקציה מציגה ממצא validation בפורמט קריא ללוגים ודוחות.
-    def __str__(self) -> str:
-        return f"[{self.severity.upper()}] {self.field_name}: {self.message}"
-
-
-# המחלקה אוספת את כל ממצאי ה־validation עבור שורה אחת.
-@dataclass
-class RowValidationResult:
-    """Aggregated validation results for a single data row."""
-    row_index: int                              # 0-based index within the sheet rows list
-    row_uid: Optional[str]                      # _row_uid if present
-    findings: List[ValidationResult] = field(default_factory=list)
-
-    @property
-    # הפונקציה מחזירה האם לשורה אין שגיאות חסומות.
-    def is_valid(self) -> bool:
-        return not any(f.severity == "error" for f in self.findings)
-
-    @property
-    # הפונקציה מחזירה האם לשורה יש אזהרות שאינן חוסמות.
-    def has_warnings(self) -> bool:
-        return any(f.severity == "warning" for f in self.findings)
-
-    # הפונקציה מוסיפה ממצא validation לשורה במהלך בדיקת החוקים.
-    def add(self, field_name: str, message: str, severity: str = "error") -> None:
-        self.findings.append(ValidationResult(field_name=field_name, message=message, severity=severity))
-
-    # הפונקציה מאחדת הודעות validation לטקסט קצר שנשמר על השורה.
-    def status_summary(self) -> str:
-        """Return a pipe-separated summary of all messages, or empty string."""
-        return " | ".join(f.message for f in self.findings)
 
 
 # ---------------------------------------------------------------------------

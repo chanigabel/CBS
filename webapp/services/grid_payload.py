@@ -12,20 +12,9 @@ from typing import Any, Iterable, Mapping, Sequence
 from webapp.models.responses import SheetDataResponse
 from webapp.services.derived_columns import apply_derived_columns
 from webapp.services.export_validation import row_has_visible_original_values, row_is_numeric_helper_row
-from src.excel_standardization.normalized_row_contract import DATE_FIELD_GROUPS
+from src.excel_standardization.normalized_row_contract import build_grid_field_metadata
 
-_KEEP_INTERNAL = {"_row_uid", "_validation_status"}
-_STATUS_GROUPS = {
-    "gender_status": {"gender"},
-    "identifier_status": {"id_number", "passport"},
-    "birth_date_status": {"birth_year", "birth_month", "birth_day", "birth_date"},
-    "entry_date_status": {"entry_year", "entry_month", "entry_day", "entry_date"},
-}
-_DATE_STRUCTURED_FALLBACK = {
-    "birth_date_corrected": ["birth_day_corrected", "birth_month_corrected", "birth_year_corrected"],
-    "entry_date_corrected": ["entry_day_corrected", "entry_month_corrected", "entry_year_corrected"],
-}
-_DATE_GROUPS = list(DATE_FIELD_GROUPS)
+_GRID_METADATA = build_grid_field_metadata()
 
 
 def _visible_row_copy(row: Mapping[str, Any]) -> dict[str, Any]:
@@ -46,18 +35,18 @@ def _all_row_keys(rows: Sequence[Mapping[str, Any]]) -> list[str]:
 def _build_anchor_to_status(original_fields: Sequence[str], seen: Iterable[str]) -> dict[str, str]:
     seen_set = set(seen)
     anchor_to_status: dict[str, str] = {}
-    for status_key, group_members in _STATUS_GROUPS.items():
+    for status_key, source_fields in _GRID_METADATA.status_to_sources.items():
         if status_key not in seen_set:
             continue
         anchor_orig = None
         for field in original_fields:
-            if field in group_members:
+            if field in source_fields:
                 anchor_orig = field
         if anchor_orig is None:
             continue
         anchor_corrected = f"{anchor_orig}_corrected"
-        if anchor_corrected not in seen_set and anchor_corrected in _DATE_STRUCTURED_FALLBACK:
-            for fallback in _DATE_STRUCTURED_FALLBACK[anchor_corrected]:
+        if anchor_corrected not in seen_set and anchor_corrected in _GRID_METADATA.structured_date_fallbacks:
+            for fallback in _GRID_METADATA.structured_date_fallbacks[anchor_corrected]:
                 if fallback in seen_set:
                     anchor_corrected = fallback
                     break
@@ -78,13 +67,9 @@ def _build_display_columns(original_fields: Sequence[str], rows: Sequence[Mappin
         if orig in generated_identifier_corrected:
             continue
 
-        owning_group = None
-        for dg in _DATE_GROUPS:
-            if orig in dg.source_fields:
-                owning_group = dg
-                break
+        owning_group = _GRID_METADATA.source_to_group.get(orig)
 
-        if owning_group is not None:
+        if owning_group is not None and owning_group.name in {"birth_date", "entry_date"}:
             status_key = owning_group.status_field
             if status_key and status_key not in date_groups_emitted:
                 date_groups_emitted.add(status_key)

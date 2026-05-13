@@ -58,6 +58,8 @@ API payloads shaped by the backend.
 - Corrected and status columns are styled separately.
 - Row deletion and inline edit actions operate on the session dataset.
 - Backend grid payload shaping now lives in `webapp/services/grid_payload.py`.
+- Shared grid metadata and source/corrected/status grouping live in
+  `src/excel_standardization/normalized_row_contract.py`.
 
 ## Known Limitations
 

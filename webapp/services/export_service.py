@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from pathlib import Path
 
 from fastapi import HTTPException
@@ -69,13 +70,25 @@ class ExportService:
                 logger.warning("Could not remove old export file %s: %s", old_file, exc)
 
         output_path = self.output_dir / output_filename
+        temp_path = output_path.with_name(f"{output_path.name}.tmp")
+        if temp_path.exists():
+            try:
+                temp_path.unlink()
+            except Exception:
+                logger.warning("Could not remove stale temp export file %s", temp_path, exc_info=True)
 
         try:
             rows_exported, rows_exported_by_sheet = write_export_workbook(
                 record,
-                output_path,
+                temp_path,
                 workbook_factory=Workbook,
             )
+            if output_path.exists():
+                try:
+                    output_path.unlink()
+                except Exception:
+                    logger.warning("Could not remove previous export file %s", output_path, exc_info=True)
+            os.replace(temp_path, output_path)
             self.processing_report_service.finalize_export_details(
                 session_id,
                 record=record,
@@ -92,6 +105,11 @@ class ExportService:
                 },
             )
         except Exception as exc:
+            if temp_path.exists():
+                try:
+                    temp_path.unlink()
+                except Exception:
+                    logger.warning("Could not remove failed temp export file %s", temp_path, exc_info=True)
             self.processing_report_service.add_error(session_id, "Export failed.")
             logger.error(
                 "export_failed",

@@ -19,6 +19,8 @@ rows.
 - Keep workbook-wide checks workbook-wide.
 - Treat `src/excel_standardization/normalized_row_contract.py` as the shared
   source for validation-source selection.
+- Treat `src/excel_standardization/validation/results.py` as the shared
+  validation-result structure module.
 
 ## What The Agent May Change
 

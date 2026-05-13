@@ -7,6 +7,7 @@ the low-risk selection rules used by validation, UI preparation, and export.
 
 from __future__ import annotations
 
+from functools import lru_cache
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, Mapping
 
@@ -97,6 +98,24 @@ DATE_FIELD_GROUPS = (
 
 GRID_GROUPS = (NAME_FIELD_GROUP, IDENTIFIER_FIELD_GROUP, *DATE_FIELD_GROUPS)
 
+
+@dataclass(frozen=True)
+class GridFieldMetadata:
+    """Cached metadata for backend grid ordering and status placement."""
+
+    groups: tuple[NormalizedFieldGroup, ...]
+    source_to_corrected: Dict[str, str]
+    source_to_status: Dict[str, str]
+    status_to_sources: Dict[str, tuple[str, ...]]
+    source_to_group: Dict[str, NormalizedFieldGroup]
+    structured_date_fallbacks: Dict[str, tuple[str, ...]]
+
+
+GRID_DATE_STRUCTURED_FALLBACKS: Dict[str, tuple[str, ...]] = {
+    "birth_date_corrected": ("birth_day_corrected", "birth_month_corrected", "birth_year_corrected"),
+    "entry_date_corrected": ("entry_day_corrected", "entry_month_corrected", "entry_year_corrected"),
+}
+
 EXPORT_FIELD_TO_SOURCE: Dict[str, str] = {
     "MosadID": "MosadID",
     "SugMosad": "SugMosad",
@@ -163,22 +182,63 @@ def export_source_value(row: Mapping[str, Any], corrected_field: str) -> Any:
 
 def build_grid_group_maps():
     """Return helper maps used by the backend grid payload builder."""
+    metadata = build_grid_field_metadata()
     status_by_group = {
         group.name: group.status_field
-        for group in GRID_GROUPS
+        for group in metadata.groups
         if group.status_field is not None
     }
+    return status_by_group, dict(metadata.source_to_corrected)
+
+
+def grid_group_for_source_field(source_field: str) -> NormalizedFieldGroup | None:
+    """Return the logical grid group that owns a source field, if any."""
+    return build_grid_field_metadata().source_to_group.get(source_field)
+
+
+@lru_cache(maxsize=1)
+def build_grid_field_metadata() -> GridFieldMetadata:
+    """Build the cached metadata used by grid payload ordering and status layout."""
     source_to_corrected = {
         source: corrected_field_name(source)
         for group in GRID_GROUPS
         for source in group.source_fields
-        if not source.endswith("_date")
+        if source not in {"birth_date", "entry_date"}
     }
     source_to_corrected.update({
         "birth_date": "birth_date_corrected",
         "entry_date": "entry_date_corrected",
     })
-    return status_by_group, source_to_corrected
+    source_to_status = {
+        "gender": "gender_status",
+        "id_number": "identifier_status",
+        "passport": "identifier_status",
+        "birth_year": "birth_date_status",
+        "birth_month": "birth_date_status",
+        "birth_day": "birth_date_status",
+        "birth_date": "birth_date_status",
+        "entry_year": "entry_date_status",
+        "entry_month": "entry_date_status",
+        "entry_day": "entry_date_status",
+        "entry_date": "entry_date_status",
+    }
+    status_to_sources: Dict[str, tuple[str, ...]] = {}
+    for source_field, status_field in source_to_status.items():
+        status_to_sources.setdefault(status_field, [])
+        status_to_sources[status_field] = tuple((*status_to_sources[status_field], source_field))
+    source_to_group = {
+        source: group
+        for group in GRID_GROUPS
+        for source in group.source_fields
+    }
+    return GridFieldMetadata(
+        groups=GRID_GROUPS,
+        source_to_corrected=source_to_corrected,
+        source_to_status=source_to_status,
+        status_to_sources=status_to_sources,
+        source_to_group=source_to_group,
+        structured_date_fallbacks=GRID_DATE_STRUCTURED_FALLBACKS,
+    )
 
 
 def build_standard_export_row(

@@ -100,3 +100,58 @@ def test_get_workbook_sheet_names_raises_clear_error_for_corrupt_xlsx(tmp_path):
 
     with pytest.raises(WorkbookLoadError):
         get_workbook_sheet_names(path)
+
+
+def test_get_workbook_sheet_names_closes_workbook_on_failure(monkeypatch, tmp_path):
+    path = tmp_path / "broken.xlsx"
+    path.write_bytes(_xlsx_bytes())
+
+    closed = {"value": False}
+
+    class FakeWorkbook:
+        @property
+        def sheetnames(self):
+            raise RuntimeError("boom")
+
+        def close(self):
+            closed["value"] = True
+
+    monkeypatch.setattr("webapp.services.workbook_loader.load_workbook", lambda *a, **k: FakeWorkbook())
+
+    with pytest.raises(WorkbookLoadError):
+        get_workbook_sheet_names(path)
+
+    assert closed["value"] is True
+
+
+def test_extract_sheet_dataset_closes_workbook_on_failure(monkeypatch, tmp_path):
+    path = tmp_path / "sheet.xlsx"
+    path.write_bytes(_xlsx_bytes())
+
+    closed = {"value": False}
+
+    class FakeWorksheet:
+        title = "Sheet1"
+
+    class FakeWorkbook:
+        sheetnames = ["Sheet1"]
+
+        def __getitem__(self, name):
+            assert name == "Sheet1"
+            return FakeWorksheet()
+
+        def close(self):
+            closed["value"] = True
+
+    class FakeExtractor:
+        def extract_sheet_to_json(self, ws):
+            raise RuntimeError("extract failed")
+
+    monkeypatch.setattr("webapp.services.workbook_loader.load_workbook", lambda *a, **k: FakeWorkbook())
+    monkeypatch.setattr("webapp.services.workbook_loader._extractor", lambda: FakeExtractor())
+    monkeypatch.setattr("webapp.services.workbook_loader.scan_mosad_id", lambda ws: None)
+
+    with pytest.raises(WorkbookLoadError):
+        extract_sheet_dataset(path, "Sheet1")
+
+    assert closed["value"] is True

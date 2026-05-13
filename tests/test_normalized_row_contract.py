@@ -2,7 +2,9 @@ from openpyxl import load_workbook
 
 from src.excel_standardization.data_types import SheetDataset, WorkbookDataset
 from src.excel_standardization.normalized_row_contract import (
+    build_grid_field_metadata,
     build_standard_export_row,
+    grid_group_for_source_field,
     select_corrected_or_original,
 )
 from webapp.models.session import SessionRecord
@@ -17,6 +19,21 @@ def test_validation_source_selection_prefers_corrected_then_original():
 
     row["first_name_corrected"] = ""
     assert select_corrected_or_original(row, "first_name") == "Original"
+
+
+def test_grid_contract_metadata_exposes_shared_grouping_and_status_maps():
+    metadata = build_grid_field_metadata()
+
+    assert metadata.groups
+    assert metadata.source_to_corrected["first_name"] == "first_name_corrected"
+    assert metadata.source_to_corrected["birth_date"] == "birth_date_corrected"
+    assert metadata.source_to_status["gender"] == "gender_status"
+    assert metadata.source_to_status["passport"] == "identifier_status"
+    assert metadata.status_to_sources["gender_status"] == ("gender",)
+    assert "passport" in metadata.status_to_sources["identifier_status"]
+    assert metadata.structured_date_fallbacks["birth_date_corrected"][0] == "birth_day_corrected"
+    assert grid_group_for_source_field("entry_year").name == "entry_date"
+    assert grid_group_for_source_field("last_name").corrected_fields[1] == "last_name_corrected"
 
 
 def test_corrected_values_survive_dataset_to_grid_to_export(tmp_path):
@@ -65,4 +82,3 @@ def test_corrected_values_survive_dataset_to_grid_to_export(tmp_path):
     assert ws.cell(row=2, column=headers.index("ShemMishpaha") + 1).value == "Corrected Last"
     assert ws.cell(row=2, column=headers.index("Min") + 1).value == 2
     wb.close()
-

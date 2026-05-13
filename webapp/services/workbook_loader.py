@@ -49,13 +49,13 @@ def _extractor() -> ExcelToJsonExtractor:
 def get_workbook_sheet_names(path: str | Path) -> List[str]:
     """Read sheet names using the same extension policy as upload/export."""
     suffix = ensure_supported_workbook(path)
+    wb = None
     try:
         if suffix == ".xls":
             names = xls_reader.get_xls_sheet_names(str(path))
         else:
             wb = load_workbook(str(path), data_only=True, read_only=True)
             names = list(wb.sheetnames)
-            wb.close()
         if not names:
             raise WorkbookLoadError("Workbook has no sheets.")
         return names
@@ -68,6 +68,9 @@ def get_workbook_sheet_names(path: str | Path) -> List[str]:
     except Exception as exc:
         logger.warning("workbook_sheet_names_failed", exc_info=True)
         raise WorkbookLoadError("The workbook could not be opened.") from exc
+    finally:
+        if wb is not None:
+            wb.close()
 
 
 def extract_workbook_dataset(path: str | Path) -> WorkbookDataset:
@@ -85,19 +88,18 @@ def extract_workbook_dataset(path: str | Path) -> WorkbookDataset:
 def extract_sheet_dataset(path: str | Path, sheet_name: str) -> SheetDataset:
     """Extract one sheet using the approved loader for the suffix."""
     suffix = ensure_supported_workbook(path)
+    wb = None
     try:
         if suffix == ".xls":
             return xls_reader.extract_xls_sheet_to_dataset(str(path), sheet_name)
         wb = load_workbook(str(path), data_only=True)
         if sheet_name not in wb.sheetnames:
-            wb.close()
             raise KeyError(sheet_name)
         ws = wb[sheet_name]
         sheet = _extractor().extract_sheet_to_json(ws)
         mosad_id = scan_mosad_id(ws)
         if mosad_id is not None:
             sheet.set_metadata("MosadID", mosad_id)
-        wb.close()
         return sheet
     except KeyError:
         raise
@@ -108,6 +110,9 @@ def extract_sheet_dataset(path: str | Path, sheet_name: str) -> SheetDataset:
     except Exception as exc:
         logger.error("sheet_extract_failed", exc_info=True)
         raise WorkbookLoadError(f"Failed to read sheet '{sheet_name}'.") from exc
+    finally:
+        if wb is not None:
+            wb.close()
 
 
 def sheet_exists(path: str | Path, sheet_name: str) -> bool:

@@ -50,6 +50,8 @@ Document how institution/Mosad validation works on normalized rows.
   available.
 - Corrected-vs-original field selection is centralized in
   `src/excel_standardization/normalized_row_contract.py`.
+- Validation result structures are centralized in
+  `src/excel_standardization/validation/results.py`.
 
 ## Known Limitations
 

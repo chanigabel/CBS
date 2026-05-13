@@ -8,9 +8,12 @@ import io
 import pytest
 from pathlib import Path
 from openpyxl import Workbook
+from openpyxl import load_workbook
 from fastapi.testclient import TestClient
 
 from webapp.services.session_service import SessionService
+
+LEGACY_XLS = Path(__file__).resolve().parents[1] / "fixtures" / "sample_legacy.xls"
 
 
 def make_sample_xlsx() -> bytes:
@@ -168,6 +171,35 @@ def test_source_file_unchanged_after_full_workflow(client):
     source_files = list(uploads_dir.glob(f"{session_id}*"))
     assert len(source_files) == 1
     assert hashlib.sha256(source_files[0].read_bytes()).hexdigest() == original_hash
+
+
+def test_legacy_xls_api_workflow_upload_normalize_export(client):
+    """Legacy .xls should flow through upload → normalize → export through the API."""
+    test_client, _ = client
+    file_bytes = LEGACY_XLS.read_bytes()
+
+    upload_response = test_client.post(
+        "/api/upload",
+        files={"file": (LEGACY_XLS.name, file_bytes, "application/octet-stream")},
+    )
+    assert upload_response.status_code == 200
+    upload_data = upload_response.json()
+    session_id = upload_data["session_id"]
+    sheet_name = upload_data["sheet_names"][0]
+
+    normalize_response = test_client.post(f"/api/workbook/{session_id}/normalize")
+    assert normalize_response.status_code == 200
+
+    sheet_response = test_client.get(f"/api/workbook/{session_id}/sheet/{sheet_name}")
+    assert sheet_response.status_code == 200
+    assert sheet_response.json()["rows"]
+
+    export_response = test_client.post(f"/api/workbook/{session_id}/export")
+    assert export_response.status_code == 200
+
+    wb = load_workbook(io.BytesIO(export_response.content))
+    assert wb.sheetnames
+    wb.close()
 
 
 def test_index_page_returns_html(client):
