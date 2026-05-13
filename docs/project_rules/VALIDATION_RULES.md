@@ -48,6 +48,8 @@ Document how institution/Mosad validation works on normalized rows.
   gender, and date fields.
 - It uses corrected fields for many checks and workbook metadata where
   available.
+- Corrected-vs-original field selection is centralized in
+  `src/excel_standardization/normalized_row_contract.py`.
 
 ## Known Limitations
 
@@ -65,4 +67,3 @@ Document how institution/Mosad validation works on normalized rows.
 
 - Whether to split pure validation from row mutation.
 - Whether to centralize corrected-vs-original field selection policy.
-

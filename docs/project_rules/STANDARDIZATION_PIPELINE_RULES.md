@@ -53,6 +53,8 @@ standardization flow.
 - The pipeline copies the row data before mutating corrected fields.
 - Dataset-level name pattern detection is computed once per dataset.
 - Manual edits are replayed after standardization in the web service.
+- The normalized-row contract helper centralizes source/corrected/status field
+  selection used by validation and export.
 
 ## Known Limitations
 
@@ -72,4 +74,3 @@ standardization flow.
 - Whether to extract a shared normalized-row contract helper.
 - Whether to reduce coupling between service orchestration and pipeline
   internals.
-

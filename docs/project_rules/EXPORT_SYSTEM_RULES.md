@@ -54,6 +54,8 @@ Document how normalized rows are turned into downloadable Excel workbooks.
 - Compatibility `ExportEngine` maps its export headers separately but uses the
   same safety helpers.
 - `safe_sheet_title` and `safe_cell_value` sanitize workbook output.
+- Export row assembly now uses a non-mutating row-view helper before values are
+  written to cells.
 
 ## Known Limitations
 
@@ -71,4 +73,3 @@ Document how normalized rows are turned into downloadable Excel workbooks.
 
 - Whether to factor a shared export assembly helper for both export paths.
 - Whether to log coercions for unsupported cell types more explicitly.
-

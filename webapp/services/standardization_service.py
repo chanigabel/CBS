@@ -18,6 +18,7 @@ from webapp.models.responses import StandardizeResponse, PerSheetStat
 from webapp.services.processing_report_service import ProcessingReportService
 from webapp.services.session_service import SessionService
 from webapp.services.workbook_loader import (
+    WorkbookLoadError,
     extract_sheet_dataset,
     extract_workbook_dataset,
     get_workbook_sheet_names,
@@ -64,6 +65,24 @@ class StandardizationService:
                 self.processing_report_service.update_workbook_counts(session_id, wbd)
                 record = self.session_service.get(session_id)
                 loaded_workbook_now = True
+            except WorkbookLoadError as exc:
+                self.processing_report_service.add_error(
+                    session_id,
+                    str(exc),
+                )
+                logger.error(
+                    "standardization_extract_failed",
+                    exc_info=True,
+                    extra={
+                        "event": "standardization_extract_failed",
+                        "session_id": session_id,
+                        "error_type": type(exc).__name__,
+                    },
+                )
+                raise HTTPException(
+                    status_code=500,
+                    detail=str(exc),
+                )
             except Exception as exc:
                 self.processing_report_service.add_error(
                     session_id,
@@ -99,6 +118,22 @@ class StandardizationService:
                     status_code=404,
                     detail=f"Sheet '{sheet_name}' not found.",
                 )
+            except WorkbookLoadError as exc:
+                self.processing_report_service.add_error(
+                    session_id,
+                    str(exc),
+                )
+                logger.error(
+                    "standardization_sheet_extract_failed",
+                    exc_info=True,
+                    extra={
+                        "event": "standardization_sheet_extract_failed",
+                        "session_id": session_id,
+                        "sheet_name": sheet_name,
+                        "error_type": type(exc).__name__,
+                    },
+                )
+                raise HTTPException(status_code=500, detail=str(exc))
             except HTTPException:
                 raise
             except Exception as exc:
@@ -135,6 +170,21 @@ class StandardizationService:
                             fresh.set_metadata("MosadID", mosad_id)
                         sheets_to_normalize.append(fresh)
                 self.processing_report_service.complete_stage(session_id, "extract")
+            except WorkbookLoadError as exc:
+                self.processing_report_service.add_error(
+                    session_id,
+                    str(exc),
+                )
+                logger.error(
+                    "standardization_extract_failed",
+                    exc_info=True,
+                    extra={
+                        "event": "standardization_extract_failed",
+                        "session_id": session_id,
+                        "error_type": type(exc).__name__,
+                    },
+                )
+                raise HTTPException(status_code=500, detail=str(exc))
             except Exception as exc:
                 self.processing_report_service.add_error(
                     session_id,

@@ -50,11 +50,17 @@ def safe_cell_value(value: Any) -> Any:
         except TypeError:
             logger.warning(
                 "unsupported_export_cell_value_type",
-                extra={"value_type": type(value).__name__},
+                extra={
+                    "event": "unsupported_export_cell_value_type",
+                    "value_type": type(value).__name__,
+                },
             )
             return str(value)
     logger.warning(
         "unsupported_export_cell_value_type",
-        extra={"value_type": type(value).__name__},
+        extra={
+            "event": "unsupported_export_cell_value_type",
+            "value_type": type(value).__name__,
+        },
     )
     return str(value)

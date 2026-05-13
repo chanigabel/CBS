@@ -1,12 +1,13 @@
 """Shared contract helpers for normalized workbook rows.
 
 The active pipeline keeps source values in their original fields and writes
-standardized values only to ``*_corrected`` fields.  These helpers centralize
+standardized values only to ``*_corrected`` fields. These helpers centralize
 the low-risk selection rules used by validation, UI preparation, and export.
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any, Dict, Iterable, Mapping
 
 SOURCE_FIELDS = {
@@ -54,6 +55,47 @@ STATUS_FIELDS = {
     "_validation_status",
     "_validation_ok",
 }
+
+
+@dataclass(frozen=True)
+class NormalizedFieldGroup:
+    """Source/corrected/status grouping metadata for a logical field family."""
+
+    name: str
+    source_fields: tuple[str, ...]
+    corrected_fields: tuple[str, ...]
+    status_field: str | None = None
+
+
+NAME_FIELD_GROUP = NormalizedFieldGroup(
+    name="name",
+    source_fields=("first_name", "last_name", "father_name"),
+    corrected_fields=("first_name_corrected", "last_name_corrected", "father_name_corrected"),
+)
+
+IDENTIFIER_FIELD_GROUP = NormalizedFieldGroup(
+    name="identifier",
+    source_fields=("id_number", "passport"),
+    corrected_fields=("id_number_corrected", "passport_corrected"),
+    status_field="identifier_status",
+)
+
+DATE_FIELD_GROUPS = (
+    NormalizedFieldGroup(
+        name="birth_date",
+        source_fields=("birth_year", "birth_month", "birth_day", "birth_date"),
+        corrected_fields=("birth_year_corrected", "birth_month_corrected", "birth_day_corrected"),
+        status_field="birth_date_status",
+    ),
+    NormalizedFieldGroup(
+        name="entry_date",
+        source_fields=("entry_year", "entry_month", "entry_day", "entry_date"),
+        corrected_fields=("entry_year_corrected", "entry_month_corrected", "entry_day_corrected"),
+        status_field="entry_date_status",
+    ),
+)
+
+GRID_GROUPS = (NAME_FIELD_GROUP, IDENTIFIER_FIELD_GROUP, *DATE_FIELD_GROUPS)
 
 EXPORT_FIELD_TO_SOURCE: Dict[str, str] = {
     "MosadID": "MosadID",
@@ -103,10 +145,40 @@ def select_corrected_or_original(row: Mapping[str, Any], source_field: str) -> A
     )
 
 
+def validation_source_value(row: Mapping[str, Any], source_field: str) -> Any:
+    """Return the authoritative validation value for a normalized source field."""
+    return select_corrected_or_original(row, source_field)
+
+
 def select_corrected_only(row: Mapping[str, Any], corrected_field: str) -> Any:
     """Return a corrected value for corrected-only export, or ``""``."""
     value = row.get(corrected_field)
     return "" if is_blank(value) else value
+
+
+def export_source_value(row: Mapping[str, Any], corrected_field: str) -> Any:
+    """Return the approved export value for a corrected-only field."""
+    return select_corrected_only(row, corrected_field)
+
+
+def build_grid_group_maps():
+    """Return helper maps used by the backend grid payload builder."""
+    status_by_group = {
+        group.name: group.status_field
+        for group in GRID_GROUPS
+        if group.status_field is not None
+    }
+    source_to_corrected = {
+        source: corrected_field_name(source)
+        for group in GRID_GROUPS
+        for source in group.source_fields
+        if not source.endswith("_date")
+    }
+    source_to_corrected.update({
+        "birth_date": "birth_date_corrected",
+        "entry_date": "entry_date_corrected",
+    })
+    return status_by_group, source_to_corrected
 
 
 def build_standard_export_row(
@@ -132,6 +204,5 @@ def build_standard_export_row(
                 else ""
             ) or ""
         else:
-            mapped[export_field] = select_corrected_only(row, source_field)
+            mapped[export_field] = export_source_value(row, source_field)
     return mapped
-

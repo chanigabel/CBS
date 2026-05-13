@@ -10,6 +10,9 @@ manual edits, packaging, testing, security, and legacy paths.
 
 - `docs/project_rules/README.md`
 - `docs/project_rules/PROJECT_ARCHITECTURE_RULES.md`
+- `docs/project_rules/WORKBOOK_LOADER_RULES.md`
+- `docs/project_rules/STANDARDIZATION_PIPELINE_RULES.md`
+- `docs/project_rules/EXPORT_SYSTEM_RULES.md`
 - `webapp/app.py`
 - `webapp/api/*.py`
 - `webapp/services/*.py`
@@ -22,6 +25,12 @@ manual edits, packaging, testing, security, and legacy paths.
 - Do not invent behavior.
 - Separate approved behavior, current behavior, known limitations, and needs
   approval.
+- Treat `webapp/services/workbook_loader.py` as the canonical workbook
+  dispatch path.
+- Treat `src/excel_standardization/normalized_row_contract.py` as the shared
+  corrected-field / export-field contract helper.
+- Treat `webapp/services/grid_payload.py` as the backend grid payload builder.
+- Treat export assembly as row-view based and non-mutating.
 
 ## What The Agent May Change
 
@@ -56,4 +65,3 @@ manual edits, packaging, testing, security, and legacy paths.
 - Treat source workbooks as immutable.
 - Keep corrected-only export behavior intact.
 - Keep UI payloads separate from source data contracts.
-

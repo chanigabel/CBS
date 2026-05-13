@@ -15,7 +15,7 @@ from webapp.services.export_schema import EXPORT_MAPPING, canonical_sheet_name, 
 from webapp.services.export_writer import write_export_workbook
 from webapp.services.processing_report_service import ProcessingReportService
 from webapp.services.session_service import SessionService
-from webapp.services.workbook_loader import extract_workbook_dataset
+from webapp.services.workbook_loader import WorkbookLoadError, extract_workbook_dataset
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +47,9 @@ class ExportService:
                 workbook_dataset = extract_workbook_dataset(record.working_copy_path)
                 self.session_service.update(session_id, workbook_dataset=workbook_dataset)
                 record = self.session_service.get(session_id)
+            except WorkbookLoadError as exc:
+                logger.error("Failed to load workbook for export: %s", exc, exc_info=True)
+                raise HTTPException(status_code=500, detail=str(exc))
             except Exception as exc:
                 logger.error("Failed to load workbook for export: %s", exc, exc_info=True)
                 raise HTTPException(

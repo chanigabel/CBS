@@ -98,10 +98,7 @@ def visible_rows(sheet_dataset) -> Tuple[List[Dict[str, Any]], List[str]]:
     """Return (rows, display_columns) exactly as the UI would show them."""
     original_field_set = set(sheet_dataset.field_names)
 
-    rows = [
-        {k: v for k, v in row.items() if not k.startswith("_standardization")}
-        for row in sheet_dataset.rows
-    ]
+    rows = [build_row_export_view(row) for row in sheet_dataset.rows]
 
     rows = [
         row for row in rows

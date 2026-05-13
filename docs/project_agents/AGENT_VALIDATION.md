@@ -8,6 +8,7 @@ rows.
 ## Files To Inspect First
 
 - `docs/project_rules/VALIDATION_RULES.md`
+- `docs/project_rules/STANDARDIZATION_PIPELINE_RULES.md`
 - `src/excel_standardization/validation/institution_report_validator.py`
 - `webapp/services/standardization_service.py`
 - `tests/test_institution_report_validator.py`
@@ -16,6 +17,8 @@ rows.
 
 - Prefer corrected values when validating normalized output.
 - Keep workbook-wide checks workbook-wide.
+- Treat `src/excel_standardization/normalized_row_contract.py` as the shared
+  source for validation-source selection.
 
 ## What The Agent May Change
 
@@ -49,4 +52,3 @@ rows.
 
 - Keep validation side effects deliberate and minimal.
 - Do not suppress actual validation failures.
-

@@ -15,8 +15,8 @@ from datetime import date
 from typing import Any, Dict, List, Optional, Set
 
 from src.excel_standardization.normalized_row_contract import (
-    select_corrected_or_original,
     select_first_present,
+    validation_source_value,
 )
 
 logger = logging.getLogger(__name__)
@@ -165,7 +165,7 @@ def _get_field(row: Dict[str, Any], *keys: str) -> Any:
 # הפונקציה מעדיפה ערך corrected אך נופלת לערך מקור כשאין תיקון.
 def _get_corrected_or_original(row: Dict[str, Any], base_name: str) -> Any:
     """Return corrected value if present, else original."""
-    return select_corrected_or_original(row, base_name)
+    return validation_source_value(row, base_name)
 
 
 # ---------------------------------------------------------------------------

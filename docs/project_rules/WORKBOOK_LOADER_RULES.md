@@ -17,6 +17,7 @@ Describe the loader policy for `.xlsx`, `.xlsm`, and `.xls` files.
 
 - `src/excel_standardization/io_layer/xls_reader.py`
 - `src/excel_standardization/io_layer/excel_to_json_extractor.py`
+- `webapp/services/workbook_loader.py`
 - `webapp/services/upload_service.py`
 - `webapp/services/workbook_service.py`
 - `webapp/services/standardization_service.py`
@@ -52,6 +53,8 @@ Describe the loader policy for `.xlsx`, `.xlsm`, and `.xls` files.
 - Upload validates workbook openness before a session is created.
 - Workbook and export services can lazily load the dataset if needed.
 - The workbook service can lazy-load individual sheets when absent.
+- `webapp/services/workbook_loader.py` is the canonical loader dispatch for
+  supported workbook types.
 
 ## Known Limitations
 
@@ -67,7 +70,6 @@ Describe the loader policy for `.xlsx`, `.xlsm`, and `.xls` files.
 
 ## Open Questions / Future Improvements
 
-- Whether to centralize loader dispatch in one shared helper.
+- Whether to collapse the remaining helper aliases into a smaller loader API.
 - Whether to treat uppercase suffixes or mismatched extensions more
   explicitly.
-

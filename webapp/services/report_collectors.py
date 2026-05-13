@@ -13,7 +13,7 @@ from webapp.models.processing_report import (
     ProcessingReport,
 )
 from webapp.services.export_schema import EXPORT_MAPPING, canonical_sheet_name, headers_for_sheet
-from webapp.services.export_rows import resolve_sug_mosad_for_sheet, visible_rows
+from webapp.services.export_rows import build_row_export_view, resolve_sug_mosad_for_sheet, visible_rows
 from webapp.services.report_status_builder import is_invalid_date_component, row_number
 
 
@@ -68,15 +68,11 @@ def collect_missing_required_export_fields(record) -> list[MissingRequiredExport
         )
 
         for row in data_rows:
-            effective_row = dict(row)
-            if record.mosad_id:
-                effective_row["MosadID"] = record.mosad_id
-            if callable(scoped_type):
-                scoped_value = scoped_type(row.get("_row_uid", ""))
-                if scoped_value is not None:
-                    effective_row["SugMosad"] = scoped_value
-            elif scoped_type:
-                effective_row["SugMosad"] = scoped_type
+            effective_row = build_row_export_view(
+                row,
+                mosad_id=record.mosad_id or "",
+                scoped_sug_mosad=scoped_type,
+            )
 
             for header in schema:
                 json_key = EXPORT_MAPPING.get(header)

@@ -8,6 +8,7 @@ integration.
 ## Files To Inspect First
 
 - `docs/project_rules/STANDARDIZATION_PIPELINE_RULES.md`
+- `docs/project_rules/WORKBOOK_LOADER_RULES.md`
 - `src/excel_standardization/processing/standardization_pipeline.py`
 - `src/excel_standardization/processing/name_standardization.py`
 - `src/excel_standardization/processing/gender_standardization.py`
@@ -19,6 +20,8 @@ integration.
 
 - Keep original values immutable.
 - Keep corrected fields and statuses visible to downstream consumers.
+- Treat `src/excel_standardization/normalized_row_contract.py` as the shared
+  source for corrected-field selection and export-field selection.
 
 ## What The Agent May Change
 
@@ -55,4 +58,3 @@ integration.
 
 - Do not rewrite the whole pipeline.
 - Keep the active web session flow working.
-

@@ -2,6 +2,9 @@ from openpyxl import load_workbook
 
 from src.excel_standardization.data_types import SheetDataset, WorkbookDataset
 from src.excel_standardization.export.export_engine import ExportEngine
+from webapp.models.session import SessionRecord
+from webapp.services.export_service import ExportService
+from webapp.services.session_service import SessionService
 from webapp.services.export_schema import EXPORT_MAPPING
 
 
@@ -153,3 +156,59 @@ def test_export_engine_sanitizes_extra_sheet_names_and_values(tmp_path):
     ws = wb[extra_name]
     assert ws.cell(row=2, column=2).value == "BadValue"
     wb.close()
+
+
+def test_active_and_compatibility_export_paths_produce_matching_standardized_values(tmp_path):
+    engine = ExportEngine()
+    sheet = SheetDataset(
+        sheet_name=engine.SOURCE_SHEET_SPECS[0].source_sheet_name,
+        header_row=1,
+        header_rows_count=1,
+        field_names=["first_name", "last_name", "father_name", "gender", "id_number"],
+        rows=[
+            {
+                "first_name": "Original First",
+                "first_name_corrected": "Corrected First",
+                "last_name": "Original Last",
+                "last_name_corrected": "Corrected Last",
+                "father_name": "Original Father",
+                "father_name_corrected": "Corrected Father",
+                "gender": "female",
+                "gender_corrected": 2,
+                "id_number": "123",
+                "id_number_corrected": "123",
+            }
+        ],
+    )
+    workbook = WorkbookDataset(source_file="input.xlsx", sheets=[sheet])
+
+    compat_path = tmp_path / "compat.xlsx"
+    engine.export_from_normalized_dataset(workbook, str(compat_path))
+
+    session_service = SessionService()
+    session_service.clear_all()
+    record = SessionRecord(
+        session_id="export-compare",
+        source_file_path="uploads/export-compare.xlsx",
+        working_copy_path="work/export-compare.xlsx",
+        original_filename="export-compare.xlsx",
+        status="standardized",
+        workbook_dataset=workbook,
+    )
+    session_service.create(record)
+    active_path = ExportService(session_service, tmp_path / "active").export("export-compare")
+
+    compat_wb = load_workbook(compat_path)
+    active_wb = load_workbook(active_path)
+    compat_ws = compat_wb["DayarimYahidim"]
+    active_ws = active_wb["DayarimYahidim"]
+
+    compat_headers = [cell.value for cell in compat_ws[1]]
+    active_headers = [cell.value for cell in active_ws[1]]
+    for header in ["ShemPrati", "ShemMishpaha", "ShemHaAv", "Min", "MisparZehut"]:
+        compat_col = compat_headers.index(header) + 1
+        active_col = active_headers.index(header) + 1
+        assert compat_ws.cell(row=2, column=compat_col).value == active_ws.cell(row=2, column=active_col).value
+
+    compat_wb.close()
+    active_wb.close()

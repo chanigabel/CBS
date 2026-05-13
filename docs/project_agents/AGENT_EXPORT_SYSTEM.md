@@ -7,6 +7,8 @@ Review and maintain all workbook export paths and their safety helpers.
 ## Files To Inspect First
 
 - `docs/project_rules/EXPORT_SYSTEM_RULES.md`
+- `docs/project_rules/WORKBOOK_LOADER_RULES.md`
+- `docs/project_rules/VALIDATION_RULES.md`
 - `webapp/services/export_service.py`
 - `webapp/services/export_writer.py`
 - `webapp/services/export_rows.py`
@@ -18,6 +20,9 @@ Review and maintain all workbook export paths and their safety helpers.
 
 - Export must remain corrected-only for standardized columns.
 - Exported files must be valid `.xlsx` workbooks.
+- Treat export row assembly as row-view based and non-mutating.
+- Treat `src/excel_standardization/normalized_row_contract.py` as the shared
+  corrected-field mapping helper.
 
 ## What The Agent May Change
 
@@ -53,4 +58,3 @@ Review and maintain all workbook export paths and their safety helpers.
 - Do not depend on UI visibility.
 - Do not mutate source rows in place unless the current contract already
   requires it and it is documented.
-

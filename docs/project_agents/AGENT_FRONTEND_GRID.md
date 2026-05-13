@@ -7,6 +7,7 @@ Review the browser grid, selection, editing, and visibility contract.
 ## Files To Inspect First
 
 - `docs/project_rules/FRONTEND_GRID_RULES.md`
+- `docs/project_rules/WORKBOOK_LOADER_RULES.md`
 - `webapp/templates/index.html`
 - `webapp/static/js/grid.js`
 - `webapp/static/js/edit.js`
@@ -19,6 +20,8 @@ Review the browser grid, selection, editing, and visibility contract.
 
 - Treat the grid as a helper view, not the source of truth.
 - Keep `_row_uid` as the stable identity.
+- Treat `webapp/services/grid_payload.py` as the backend payload-shaping
+  helper that the grid consumes.
 
 ## What The Agent May Change
 
@@ -51,4 +54,3 @@ Review the browser grid, selection, editing, and visibility contract.
 
 - Do not let UI visibility control export behavior.
 - Do not let filtering alter row identity.
-

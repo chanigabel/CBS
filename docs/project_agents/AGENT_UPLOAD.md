@@ -8,6 +8,7 @@ creation.
 ## Files To Inspect First
 
 - `docs/project_rules/UPLOAD_RULES.md`
+- `docs/project_rules/WORKBOOK_LOADER_RULES.md`
 - `webapp/services/upload_service.py`
 - `webapp/api/upload.py`
 - `tests/webapp/test_upload_service.py`
@@ -18,6 +19,8 @@ creation.
 
 - Keep source files untouched.
 - Keep the loader policy aligned with workbook/session services.
+- Treat `webapp/services/workbook_loader.py` as the canonical workbook
+  dispatch path.
 
 ## What The Agent May Change
 
@@ -52,4 +55,3 @@ creation.
 
 - Do not modify the uploaded source file.
 - Do not rely on UI visibility when deciding loadability.
-

@@ -8,6 +8,8 @@ and manual edit replay behavior.
 ## Files To Inspect First
 
 - `docs/project_rules/WORKBOOK_SESSION_RULES.md`
+- `docs/project_rules/WORKBOOK_LOADER_RULES.md`
+- `docs/project_rules/FRONTEND_GRID_RULES.md`
 - `webapp/services/session_service.py`
 - `webapp/models/session.py`
 - `webapp/services/workbook_service.py`
@@ -19,6 +21,8 @@ and manual edit replay behavior.
 - Keep `_row_uid` stable.
 - Keep workbook state in the session.
 - Do not let row filtering or deletion change identity semantics.
+- Treat backend grid payload shaping as a helper responsibility of
+  `webapp/services/grid_payload.py`.
 
 ## What The Agent May Change
 
@@ -55,4 +59,3 @@ and manual edit replay behavior.
 
 - Treat the session dataset as the active working state.
 - Do not silently reindex rows.
-

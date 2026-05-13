@@ -57,6 +57,7 @@ API payloads shaped by the backend.
 - The UI is rendered by static JavaScript.
 - Corrected and status columns are styled separately.
 - Row deletion and inline edit actions operate on the session dataset.
+- Backend grid payload shaping now lives in `webapp/services/grid_payload.py`.
 
 ## Known Limitations
 
@@ -74,4 +75,3 @@ API payloads shaped by the backend.
 
 - Whether to split UI payload shaping from data loading in `WorkbookService`.
 - Whether to add a dedicated frontend contract module.
-
