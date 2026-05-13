@@ -51,6 +51,11 @@ def test_export_engine_uses_corrected_standardized_fields_only(tmp_path):
                 "id_number_corrected": "",
                 "gender": "male",
                 "gender_corrected": "",
+            },
+            {
+                "first_name": "Visible Missing Corrected",
+                "first_name_corrected": "Visible Missing Corrected",
+                "gender": "female",
             }
         ],
     )
@@ -72,4 +77,6 @@ def test_export_engine_uses_corrected_standardized_fields_only(tmp_path):
     assert ws.cell(row=2, column=father_col).value == "Corrected Father"
     assert ws.cell(row=2, column=id_col).value is None
     assert ws.cell(row=2, column=gender_col).value is None
+    assert ws.cell(row=3, column=first_col).value == "Visible Missing Corrected"
+    assert ws.cell(row=3, column=gender_col).value is None
     wb.close()

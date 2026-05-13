@@ -48,6 +48,8 @@ List mappings changed or reviewed, invalid cases, tests run, and approval gaps.
 
 - Substring matching implications are understood.
 - Empty, `None`, and whitespace-only pipeline behavior is preserved or approved.
+  Whitespace-only source values must keep original `gender` unchanged and write
+  `gender_corrected = ""`.
 - UI status placement is not broken.
 
 ## 10. Regression Checklist

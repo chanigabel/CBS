@@ -39,8 +39,10 @@ Approved rule: `gender` must not be modified. All normalized values go into
 - Recognized male values produce integer `1`.
 - Recognized female values produce integer `2`.
 - Unrecognized non-empty values produce an empty string in `gender_corrected`.
-- Missing, `None`, empty string, and whitespace-only values are preserved by the
-  processing helper in `gender_corrected`.
+- Missing values and `None` remain empty/blank in `gender_corrected`.
+- Empty string values remain empty in `gender_corrected`.
+- Whitespace-only values normalize to an empty string in `gender_corrected`.
+- The original `gender` value is always preserved unchanged.
 
 ## 8. Parsing / Cleanup / Normalization Rules
 
@@ -57,6 +59,8 @@ Approved rule:
 Current behavior: because matching is substring-based, a longer value containing
 one of the configured tokens may normalize even if it is not an exact gender
 field value.
+
+Approved decision: keep substring matching for now.
 
 ## 9. Validation Rules
 
@@ -79,7 +83,7 @@ On exception:
 Approved rule: female patterns are checked first so values like `female` do not
 match the male `m` pattern first.
 
-Needs approval: there is no separate ambiguous-gender status.
+Current behavior: there is no separate ambiguous-gender status.
 
 ## 12. Invalid-Value Behavior
 
@@ -89,15 +93,25 @@ Invalid non-empty values:
 - write `gender_status` with a Hebrew invalid-code message
 - are also flagged by institution validation when applicable
 
+Whitespace-only values:
+
+- produce `gender_corrected = ""`
+- should not preserve spaces in the corrected field
+- should preserve the original `gender` source value unchanged
+
 ## 13. Export Behavior
 
-The active web export maps `Min` from `gender_corrected`.
+All export paths should use `gender_corrected` for the standardized `Min`
+column.
 
-Compatibility export may fall back to `gender` if `gender_corrected` is absent
-or empty.
+Approved export rule:
 
-Potential issue: fallback-to-original can export an unstandardized value outside
-the active web export writer path.
+- `Min` is exported from `gender_corrected`.
+- Export must not fall back to the original `gender` value when
+  `gender_corrected` exists but is empty.
+- If `gender_corrected` is missing because standardization was not run, the
+  standardized export value should remain blank rather than exporting an
+  unstandardized raw gender value.
 
 ## 14. UI/Grid Behavior
 
@@ -119,20 +133,20 @@ standardization by default.
 | `female` | `2` | empty |
 | `8` | empty string | invalid gender code |
 | `xyz` | empty string | invalid gender code |
-| whitespace only | original whitespace | empty |
+| whitespace only | empty string | empty |
 
 ## 17. Current Known Limitations
 
-- Matching is substring-based.
+- Matching is substring-based by approved current behavior.
 - There is no stable machine-readable gender status code.
-- Whitespace-only input is preserved by the pipeline, not converted to empty.
+- Stable status-code support is a future architectural improvement, not part of
+  the current implementation requirement.
 
 ## 18. Open Questions Requiring Approval
 
-- Should gender matching become exact-token matching?
-- Should whitespace-only values normalize to empty string instead of preserving
-  the original whitespace?
-- Should invalid gender use a stable status code in addition to Hebrew text?
+- Should gender matching become exact-token matching in the future?
+- Should invalid gender use a stable status code in addition to Hebrew text in
+  a future cross-system status registry?
 
 ## 19. Tests That Should Cover The Behavior
 
@@ -140,8 +154,13 @@ standardization by default.
 - `tests/test_institution_report_validator.py`
 - `tests/test_normalization_pipeline.py`
 - web grid tests for status placement
+- export tests proving `Min` is written from `gender_corrected` only
+- tests proving whitespace-only gender values produce `gender_corrected = ""`
 
 ## 20. Final Principles
 
 Gender normalization must never copy invalid raw values into `gender_corrected`.
 Only approved codes `1` and `2` are valid corrected values.
+
+Original `gender` values remain immutable. Corrected/exported values must be
+standardized or blank.

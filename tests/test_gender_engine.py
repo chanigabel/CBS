@@ -169,11 +169,20 @@ class TestPipelineInvalidGender:
         pipeline.apply_gender_standardization(row)
         assert row["gender_corrected"] == ""
 
-    def test_whitespace_only_preserved_by_pipeline(self):
+    def test_whitespace_only_normalized_to_empty_by_pipeline(self):
         pipeline = self._make_pipeline()
         row = {"gender": "   "}
         pipeline.apply_gender_standardization(row)
-        assert row["gender_corrected"] == "   "
+        assert row["gender"] == "   "
+        assert row["gender_corrected"] == ""
+        assert "gender_status" not in row
+
+    def test_invalid_non_empty_value_writes_hebrew_status(self):
+        pipeline = self._make_pipeline()
+        row = {"gender": "8"}
+        pipeline.apply_gender_standardization(row)
+        assert row["gender_corrected"] == ""
+        assert row["gender_status"] == "קוד מין לא תקין - חייב להיות 1 (זכר) או 2 (נקבה)"
 
     def test_hebrew_female_still_maps_to_2(self):
         pipeline = self._make_pipeline()

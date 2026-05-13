@@ -163,6 +163,43 @@ def test_get_sheet_data_orders_name_corrected_fields_after_source_fields():
     assert response.rows[0]["father_name_corrected"] == "Robert"
 
 
+def test_get_sheet_data_orders_gender_corrected_and_status_after_source_field():
+    svc = SessionService()
+    sheet = SheetDataset(
+        sheet_name="Sheet1",
+        header_row=1,
+        header_rows_count=1,
+        field_names=["first_name", "gender"],
+        rows=[
+            {
+                "first_name": "Person",
+                "gender": "8",
+                "gender_corrected": "",
+                "gender_status": "קוד מין לא תקין - חייב להיות 1 (זכר) או 2 (נקבה)",
+            }
+        ],
+    )
+    record = SessionRecord(
+        session_id="gender-ui-session",
+        source_file_path="uploads/gender-ui-session.xlsx",
+        working_copy_path="work/gender-ui-session.xlsx",
+        original_filename="test.xlsx",
+        status="standardized",
+        workbook_dataset=WorkbookDataset(source_file="test.xlsx", sheets=[sheet]),
+    )
+    svc.create(record)
+
+    response = WorkbookService(svc).get_sheet_data("gender-ui-session", "Sheet1")
+
+    gender_index = response.field_names.index("gender")
+    assert response.field_names[gender_index + 1] == "gender_corrected"
+    assert response.field_names[gender_index + 2] == "gender_status"
+    assert response.rows[0]["first_name"] == "Person"
+    assert response.rows[0]["gender"] == "8"
+    assert response.rows[0]["gender_corrected"] == ""
+    assert response.rows[0]["gender_status"] == "קוד מין לא תקין - חייב להיות 1 (זכר) או 2 (נקבה)"
+
+
 def test_get_sheet_data_raises_404_for_unknown_sheet(session_with_workbook):
     _, wb_svc = session_with_workbook
     with pytest.raises(HTTPException) as exc_info:

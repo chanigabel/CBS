@@ -22,8 +22,12 @@ def apply_gender_standardization(
     if "gender" in json_row:
         original = json_row["gender"]
 
-        if original is None or str(original).strip() == "":
+        if original is None:
             json_row["gender_corrected"] = original
+            return failed_fields
+
+        if str(original).strip() == "":
+            json_row["gender_corrected"] = ""
             return failed_fields
 
         try:

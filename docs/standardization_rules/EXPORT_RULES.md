@@ -56,8 +56,10 @@ standardization. If a mapped corrected value is missing or empty, the cell is
 left empty; active web export does not use original fallback through
 `EXPORT_MAPPING`.
 
-Compatibility `ExportEngine._map_row_to_export_fields` uses a `pick` helper that
-can fall back from corrected to original fields for non-date fields.
+Compatibility `ExportEngine._map_row_to_export_fields` also maps standardized
+columns from corrected fields only. If a corrected standardized value is missing
+or empty, the exported cell remains empty. Mosad/apartment metadata may still
+use explicit metadata/source fallbacks.
 
 ## 8. Parsing / Cleanup / Normalization Rules
 
@@ -149,15 +151,15 @@ the workbook for download.
 ## 17. Current Known Limitations
 
 - Final export does not include status columns.
-- Active web export and compatibility `ExportEngine` differ in fallback behavior.
+- Active web export and compatibility `ExportEngine` share corrected-only
+  behavior for standardized output columns.
 - Unknown sheets use default web headers, while compatibility export appends
   extra sheets differently.
 
 ## 18. Open Questions Requiring Approval
 
 - Should export include a validation/status report sheet?
-- Should compatibility export remove fallback-to-original behavior for
-  non-date fields?
+- Should Mosad/apartment metadata fallback rules be narrowed further?
 - Should unknown sheets be exported with source columns or skipped?
 
 ## 19. Tests That Should Cover The Behavior

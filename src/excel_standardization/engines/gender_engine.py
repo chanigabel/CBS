@@ -35,8 +35,7 @@ class GenderEngine:
         Algorithm:
         1. Convert value to string and trim whitespace.
         2. Convert to lowercase for case-insensitive matching.
-        3. If empty, return 1 (male) — caller (pipeline) already short-circuits
-           None/whitespace-only before reaching this method.
+        3. If empty, return "".
         4. If value contains any female pattern, return 2 (female).
         5. If value contains any male pattern, return 1 (male).
         6. Otherwise return "" — the value is not a recognized gender code and
@@ -74,8 +73,7 @@ class GenderEngine:
         # Convert to string, trim, and lowercase
         value_str = str(value).strip().lower()
 
-        # Empty values default to male (pipeline short-circuits before this,
-        # but keep the guard for direct callers)
+        # Empty values normalize to an empty corrected value.
         if not value_str:
             return ""
 

@@ -190,6 +190,13 @@ class TestApplyGenderstandardization:
         self.pipeline.apply_gender_standardization(row)
         assert row["gender_corrected"] == ""
 
+    def test_whitespace_only_normalized_to_empty_without_status(self):
+        row = {"gender": "   "}
+        self.pipeline.apply_gender_standardization(row)
+        assert row["gender"] == "   "
+        assert row["gender_corrected"] == ""
+        assert "gender_status" not in row
+
     def test_missing_gender_field_no_op(self):
         row = {"first_name": "יוסי"}
         self.pipeline.apply_gender_standardization(row)

@@ -186,3 +186,38 @@ def test_export_uses_corrected_name_fields_only(tmp_path):
     assert ws.cell(row=3, column=last_col).value is None
     assert ws.cell(row=3, column=father_col).value is None
     wb.close()
+
+
+def test_export_uses_corrected_gender_field_only(tmp_path):
+    svc = SessionService()
+    sheet = SheetDataset(
+        sheet_name="DayarimYahidim",
+        header_row=1,
+        header_rows_count=1,
+        field_names=["gender"],
+        rows=[
+            {"gender": "Original Female", "gender_corrected": 2},
+            {"gender": "Fallback Male", "gender_corrected": ""},
+            {"gender": "Missing Corrected"},
+        ],
+    )
+    record = SessionRecord(
+        session_id="gender-export-session",
+        source_file_path="uploads/gender-export-session.xlsx",
+        working_copy_path="work/gender-export-session.xlsx",
+        original_filename="test.xlsx",
+        status="standardized",
+        workbook_dataset=WorkbookDataset(source_file="test.xlsx", sheets=[sheet]),
+    )
+    svc.create(record)
+
+    output_path = ExportService(svc, tmp_path / "output").export("gender-export-session")
+
+    wb = load_workbook(output_path)
+    ws = wb["DayarimYahidim"]
+    headers = [cell.value for cell in ws[1]]
+    gender_col = headers.index("Min") + 1
+    assert ws.cell(row=2, column=gender_col).value == 2
+    assert ws.cell(row=3, column=gender_col).value is None
+    assert ws.cell(row=4, column=gender_col).value is None
+    wb.close()
