@@ -8,6 +8,7 @@ from src.excel_standardization.engines.identifier_engine import IdentifierEngine
 from src.excel_standardization.engines.name_engine import NameEngine
 from src.excel_standardization.engines.text_processor import TextProcessor
 from src.excel_standardization.processing.standardization_pipeline import StandardizationPipeline
+from webapp.api.engines import router as engines_router
 
 
 class CustomAppendEngine(BaseEngine):
@@ -99,3 +100,22 @@ def test_add_engine_without_class_uses_passthrough_engine(tmp_path):
     assert summary["engine_key"] == "location"
     assert summary["enabled"] is True
     assert manager.registry.has("location") is True
+
+
+def test_column_mapping_routes_are_not_shadowed_by_engine_key_routes():
+    routes = [
+        (index, route.path, route.methods)
+        for index, route in enumerate(engines_router.routes)
+        if hasattr(route, "methods")
+    ]
+
+    def route_index(path, method):
+        for index, route_path, methods in routes:
+            if route_path == path and method in methods:
+                return index
+        raise AssertionError(f"Route {method} {path} was not registered")
+
+    assert route_index("/engines/mappings", "GET") < route_index("/engines/{engine_key}", "GET")
+    assert route_index("/engines/remove-mapping", "DELETE") < route_index(
+        "/engines/{engine_key}", "DELETE"
+    )

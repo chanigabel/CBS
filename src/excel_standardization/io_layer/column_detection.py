@@ -229,6 +229,14 @@ def detect_columns(reader, worksheet: Worksheet) -> Dict[str, ColumnHeaderInfo]:
     # Deterministic date grouping (birth/entry)
     date_groups = reader.detect_date_groups(worksheet, table_region)
 
+    def unique_field_key(preferred_key: str, header_text: str, col_idx: int) -> str:
+        if preferred_key not in column_mapping:
+            return preferred_key
+        safe_key = re.sub(r'[^\w\u0590-\u05FF]+', '_', header_text).strip('_') or f"col_{col_idx}"
+        if safe_key not in column_mapping:
+            return safe_key
+        return f"{safe_key}_{col_idx}"
+
     for col_idx in range(table_region.start_col, table_region.end_col + 1):
         # Skip if this column was already processed as part of a merged cell
         if col_idx in processed_merged_cols:
@@ -270,33 +278,50 @@ def detect_columns(reader, worksheet: Worksheet) -> Dict[str, ColumnHeaderInfo]:
                 group = date_groups.get(group_type)
                 if group:
                     prefix = "birth" if matched_field == "birth_date" else "entry"
-                    column_mapping[f"{prefix}_year"] = ColumnHeaderInfo(
+                    year_key = unique_field_key(
+                        f"{prefix}_year",
+                        str(worksheet.cell(row=subheader_row, column=group.year_col).value or ""),
+                        group.year_col,
+                    )
+                    month_key = unique_field_key(
+                        f"{prefix}_month",
+                        str(worksheet.cell(row=subheader_row, column=group.month_col).value or ""),
+                        group.month_col,
+                    )
+                    day_key = unique_field_key(
+                        f"{prefix}_day",
+                        str(worksheet.cell(row=subheader_row, column=group.day_col).value or ""),
+                        group.day_col,
+                    )
+                    column_mapping[year_key] = ColumnHeaderInfo(
                         col=group.year_col,
                         header_row=subheader_row,
                         last_row=table_region.end_row,
                         header_text=str(worksheet.cell(row=subheader_row, column=group.year_col).value or ""),
                     )
-                    column_mapping[f"{prefix}_month"] = ColumnHeaderInfo(
+                    column_mapping[month_key] = ColumnHeaderInfo(
                         col=group.month_col,
                         header_row=subheader_row,
                         last_row=table_region.end_row,
                         header_text=str(worksheet.cell(row=subheader_row, column=group.month_col).value or ""),
                     )
-                    column_mapping[f"{prefix}_day"] = ColumnHeaderInfo(
+                    column_mapping[day_key] = ColumnHeaderInfo(
                         col=group.day_col,
                         header_row=subheader_row,
                         last_row=table_region.end_row,
                         header_text=str(worksheet.cell(row=subheader_row, column=group.day_col).value or ""),
                     )
                 else:
-                    column_mapping[matched_field] = ColumnHeaderInfo(
+                    field_key = unique_field_key(matched_field, header_text, col_idx)
+                    column_mapping[field_key] = ColumnHeaderInfo(
                         col=col_idx,
                         header_row=header_row,
                         last_row=table_region.end_row,
                         header_text=header_text,
                     )
             else:
-                column_mapping[matched_field] = ColumnHeaderInfo(
+                field_key = unique_field_key(matched_field, header_text, col_idx)
+                column_mapping[field_key] = ColumnHeaderInfo(
                     col=col_idx,
                     header_row=header_row,
                     last_row=table_region.end_row,
@@ -393,13 +418,13 @@ def detect_columns(reader, worksheet: Worksheet) -> Dict[str, ColumnHeaderInfo]:
             matched_field = reader._match_field(normalized_header)
 
             if matched_field:
-                if matched_field not in column_mapping:
-                    column_mapping[matched_field] = ColumnHeaderInfo(
-                        col=col_idx,
-                        header_row=subheader_row,
-                        last_row=table_region.end_row,
-                        header_text=header_text,
-                    )
+                field_key = unique_field_key(matched_field, header_text, col_idx)
+                column_mapping[field_key] = ColumnHeaderInfo(
+                    col=col_idx,
+                    header_row=subheader_row,
+                    last_row=table_region.end_row,
+                    header_text=header_text,
+                )
             else:
                 safe_key = re.sub(r'[^\w\u0590-\u05FF]+', '_', header_text).strip('_') or f"col_{col_idx}"
                 if safe_key in column_mapping:

@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Engine Management</title>
+    <title>&#1502;&#1502;&#1513;&#1511; &#1504;&#1497;&#1492;&#1493;&#1500; &#1502;&#1504;&#1493;&#1506;&#1497;&#1501;</title>
     <style>
         *, *::before, *::after { box-sizing: border-box; }
         body {
@@ -12,6 +12,7 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             background: #f4f6f8;
             color: #1f2933;
+            direction: rtl;
         }
         main {
             width: min(1120px, calc(100% - 32px));
@@ -54,7 +55,7 @@
         th, td {
             padding: 11px 10px;
             border-bottom: 1px solid #e6edf3;
-            text-align: left;
+            text-align: right;
             vertical-align: top;
         }
         th {
@@ -121,7 +122,8 @@
             max-height: 300px;
             overflow: auto;
             margin-top: 12px;
-            padding-right: 2px;
+            padding-right: 0;
+            padding-left: 2px;
         }
         .mapping-row {
             border: 1px solid #e6edf3;
@@ -154,26 +156,26 @@
 <main>
     <header>
         <div>
-            <h1>Engine Management</h1>
-            <div class="version" id="config-version">Configuration version: loading</div>
+            <h1>&#1502;&#1502;&#1513;&#1511; &#1504;&#1497;&#1492;&#1493;&#1500; &#1502;&#1504;&#1493;&#1506;&#1497;&#1501;</h1>
+            <div class="version" id="config-version">גרסת קונפיגורציה: נטען</div>
         </div>
-        <button class="secondary" type="button" onclick="reloadConfig()">Reload Configuration</button>
+        <button class="secondary" type="button" onclick="reloadConfig()">טעינת קונפיגורציה מחדש</button>
     </header>
 
     <section class="layout">
         <div class="panel">
             <div class="toolbar">
-                <h2>Registered Engines</h2>
-                <button class="secondary" type="button" onclick="getEngines()">Refresh</button>
+                <h2>מנועים רשומים</h2>
+                <button class="secondary" type="button" onclick="getEngines()">רענון</button>
             </div>
             <table>
                 <thead>
                 <tr>
-                    <th>Engine</th>
-                    <th>Status</th>
-                    <th>Priority</th>
-                    <th>Version</th>
-                    <th>Description</th>
+                    <th>מנוע</th>
+                    <th>סטטוס</th>
+                    <th>עדיפות</th>
+                    <th>גרסה</th>
+                    <th>תיאור</th>
                 </tr>
                 </thead>
                 <tbody id="engines-list"></tbody>
@@ -182,48 +184,48 @@
 
         <div class="stack">
             <section class="panel">
-                <h2>Activation</h2>
+                <h2>הפעלה</h2>
                 <div class="field">
-                    <label for="engine-name">Engine</label>
+                    <label for="engine-name">מנוע</label>
                     <select id="engine-name"></select>
                 </div>
                 <div class="button-row">
-                    <button type="button" onclick="enableEngine()">Enable</button>
-                    <button class="danger" type="button" onclick="disableEngine()">Disable</button>
+                    <button type="button" onclick="enableEngine()">הפעל</button>
+                    <button class="danger" type="button" onclick="disableEngine()">השבת</button>
                 </div>
             </section>
 
             <section class="panel">
-                <h2>Add Engine</h2>
+                <h2>הוסף מנוע</h2>
                 <div class="field">
-                    <label for="new-engine-name">Engine Key</label>
+                    <label for="new-engine-name">מפתח מנוע</label>
                     <input type="text" id="new-engine-name" placeholder="location">
                 </div>
                 <div class="field">
-                    <label for="new-engine-class">Class Path</label>
+                    <label for="new-engine-class">נתיב מחלקה</label>
                     <input type="text" id="new-engine-class"
                            placeholder="src.excel_standardization.engine_management.PassthroughEngine">
                 </div>
                 <div class="button-row">
-                    <button type="button" onclick="addEngine()">Add Engine</button>
+                    <button type="button" onclick="addEngine()">הוסף מנוע</button>
                 </div>
                 <div class="message" id="message"></div>
             </section>
 
             <section class="panel">
-                <h2>Column Schema</h2>
+                <h2>סכמת עמודות</h2>
                 <div class="field">
-                    <label for="mapping-standard-name">Standard Field</label>
+                    <label for="mapping-standard-name">שדה תקני</label>
                     <input type="text" id="mapping-standard-name" placeholder="first_name">
                 </div>
                 <div class="field">
-                    <label for="mapping-synonym">Synonym</label>
+                    <label for="mapping-synonym">שם נרדף</label>
                     <input type="text" id="mapping-synonym" placeholder="First Name">
                 </div>
                 <div class="button-row">
-                    <button type="button" onclick="addColumnMapping()">Add Mapping</button>
-                    <button class="danger" type="button" onclick="removeColumnMapping()">Remove Mapping</button>
-                    <button class="secondary" type="button" onclick="reloadColumnMappings()">Reload Mapping Config</button>
+                    <button type="button" onclick="addColumnMapping()">הוסף מיפוי</button>
+                    <button class="danger" type="button" onclick="removeColumnMapping()">הסר מיפוי</button>
+                    <button class="secondary" type="button" onclick="reloadColumnMappings()">טעינת קונפיגורציה מחדש</button>
                 </div>
                 <div class="message" id="mapping-message"></div>
                 <div id="mapping-list" class="mapping-list"></div>
@@ -259,7 +261,7 @@
         const response = await fetch(url, options);
         const data = await response.json().catch(() => ({}));
         if (!response.ok) {
-            throw new Error(data.detail || `Request failed with status ${response.status}`);
+            throw new Error(data.detail || `הבקשה נכשלה עם סטטוס ${response.status}`);
         }
         return data;
     }
@@ -282,7 +284,7 @@
             const enginesList = document.getElementById("engines-list");
             const engineSelect = document.getElementById("engine-name");
             document.getElementById("config-version").textContent =
-                `Configuration version: ${data.config_version || "unversioned"}`;
+                `גרסת קונפיגורציה: ${data.config_version || "ללא גרסה"}`;
 
             enginesList.innerHTML = "";
             engineSelect.innerHTML = "";
@@ -300,7 +302,7 @@
                 const statusCell = document.createElement("td");
                 const status = document.createElement("span");
                 status.className = `status ${engine.enabled ? "enabled" : "disabled"}`;
-                status.textContent = engine.enabled ? "Enabled" : "Disabled";
+                status.textContent = engine.enabled ? "פעיל" : "כבוי";
                 statusCell.appendChild(status);
 
                 const priorityCell = document.createElement("td");
@@ -315,7 +317,7 @@
 
                 const option = document.createElement("option");
                 option.value = key;
-                option.textContent = `${key} (${engine.enabled ? "enabled" : "disabled"})`;
+                option.textContent = `${key} (${engine.enabled ? "פעיל" : "כבוי"})`;
                 engineSelect.appendChild(option);
             }
         } catch (error) {
@@ -345,7 +347,7 @@
             title.textContent = field;
             const synonyms = document.createElement("div");
             synonyms.className = "mapping-synonyms";
-            synonyms.textContent = (mappings[field] || []).join(", ") || "No synonyms";
+            synonyms.textContent = (mappings[field] || []).join(", ") || "אין שמות נרדפים";
             row.append(title, synonyms);
             list.appendChild(row);
         }
@@ -359,7 +361,7 @@
                 method: "POST",
                 headers: writeHeaders
             });
-            setMessage(`Engine ${engineName} enabled.`);
+            setMessage(`המנוע ${engineName} הופעל.`);
             await getEngines();
         } catch (error) {
             setMessage(error.message, true);
@@ -374,7 +376,7 @@
                 method: "POST",
                 headers: writeHeaders
             });
-            setMessage(`Engine ${engineName} disabled.`);
+            setMessage(`המנוע ${engineName} הושבת.`);
             await getEngines();
         } catch (error) {
             setMessage(error.message, true);
@@ -385,7 +387,7 @@
         const engineName = document.getElementById("new-engine-name").value.trim();
         const classPath = document.getElementById("new-engine-class").value.trim();
         if (!engineName) {
-            setMessage("Engine key is required.", true);
+            setMessage("נדרש מפתח מנוע.", true);
             return;
         }
         const body = {
@@ -405,7 +407,7 @@
                 body: JSON.stringify(body)
             });
             document.getElementById("new-engine-name").value = "";
-            setMessage(`Engine ${engineName} added.`);
+            setMessage(`המנוע ${engineName} נוסף.`);
             await getEngines();
         } catch (error) {
             setMessage(error.message, true);
@@ -418,7 +420,7 @@
                 method: "POST",
                 headers: operateHeaders
             });
-            setMessage("Configuration reloaded.");
+            setMessage("הקונפיגורציה נטענה מחדש.");
             await getEngines();
         } catch (error) {
             setMessage(error.message, true);
@@ -439,7 +441,7 @@
                 headers: writeHeaders,
                 body: JSON.stringify(mappingPayload())
             });
-            setMappingMessage("Column mapping added.");
+            setMappingMessage("המיפוי נוסף.");
             await loadColumnMappings();
         } catch (error) {
             setMappingMessage(error.message, true);
@@ -453,7 +455,7 @@
                 headers: writeHeaders,
                 body: JSON.stringify(mappingPayload())
             });
-            setMappingMessage("Column mapping removed.");
+            setMappingMessage("המיפוי הוסר.");
             await loadColumnMappings();
         } catch (error) {
             setMappingMessage(error.message, true);
@@ -467,7 +469,7 @@
                 headers: operateHeaders
             });
             renderColumnMappings(data.mappings || {});
-            setMappingMessage("Column mapping configuration reloaded.");
+            setMappingMessage("קונפיגורציית המיפויים נטענה מחדש.");
         } catch (error) {
             setMappingMessage(error.message, true);
         }

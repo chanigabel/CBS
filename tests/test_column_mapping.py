@@ -1,6 +1,10 @@
 from pathlib import Path
 
+from openpyxl import Workbook
+
 from src.excel_standardization.data_types import SheetDataset, WorkbookDataset
+from src.excel_standardization.io_layer.excel_reader import ExcelReader
+from src.excel_standardization.io_layer.excel_to_json_extractor import ExcelToJsonExtractor
 from webapp.models.session import SessionRecord
 from webapp.services.column_mapping_schema import ColumnMappingSchemaService
 from webapp.services.session_service import SessionService
@@ -108,3 +112,18 @@ def test_reload_column_mapping_returns_current_schema(tmp_path):
     response = WorkbookService(session_service, schema).reload_column_mapping("s3", "Sheet1")
 
     assert "first_name" in response.fields
+
+
+def test_duplicate_synonym_columns_are_preserved_in_extraction():
+    workbook = Workbook()
+    worksheet = workbook.active
+    worksheet.title = "Sheet1"
+    worksheet.append(["first_name", "שם פרטי", "last_name"])
+    worksheet.append(["Dana", "דנה", "Cohen"])
+
+    dataset = ExcelToJsonExtractor(ExcelReader()).extract_sheet_to_json(worksheet)
+
+    assert "first_name" in dataset.field_names
+    assert "שם_פרטי" in dataset.field_names
+    assert dataset.rows[0]["first_name"] == "Dana"
+    assert dataset.rows[0]["שם_פרטי"] == "דנה"
