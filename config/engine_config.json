@@ -1,0 +1,69 @@
+{
+  "config_version": "2026.05.14-001",
+  "engines": {
+    "name": {
+      "engine_key": "name",
+      "display_name": "Name Engine",
+      "description": "Standardizes first, last, and father name fields.",
+      "class": "src.excel_standardization.engines.name_engine.NameEngine",
+      "enabled": true,
+      "priority": 10,
+      "run_mode": "sequential",
+      "version": "1.0.0",
+      "on_error": "continue",
+      "settings": {},
+      "permissions": {
+        "can_view": ["engine_admin", "operator", "system_admin", "viewer"],
+        "can_modify": ["engine_admin", "system_admin"]
+      }
+    },
+    "gender": {
+      "engine_key": "gender",
+      "display_name": "Gender Engine",
+      "description": "Normalizes gender values into canonical export codes.",
+      "class": "src.excel_standardization.engines.gender_engine.GenderEngine",
+      "enabled": true,
+      "priority": 20,
+      "run_mode": "sequential",
+      "version": "1.0.0",
+      "on_error": "continue",
+      "settings": {},
+      "permissions": {
+        "can_view": ["engine_admin", "operator", "system_admin", "viewer"],
+        "can_modify": ["engine_admin", "system_admin"]
+      }
+    },
+    "date": {
+      "engine_key": "date",
+      "display_name": "Date Engine",
+      "description": "Parses, validates, and standardizes date fields.",
+      "class": "src.excel_standardization.engines.date_engine.DateEngine",
+      "enabled": true,
+      "priority": 30,
+      "run_mode": "sequential",
+      "version": "1.0.0",
+      "on_error": "continue",
+      "settings": {},
+      "permissions": {
+        "can_view": ["engine_admin", "operator", "system_admin", "viewer"],
+        "can_modify": ["engine_admin", "system_admin"]
+      }
+    },
+    "identifier": {
+      "engine_key": "identifier",
+      "display_name": "Identifier Engine",
+      "description": "Validates ID values and normalizes passport fields.",
+      "class": "src.excel_standardization.engines.identifier_engine.IdentifierEngine",
+      "enabled": true,
+      "priority": 40,
+      "run_mode": "sequential",
+      "version": "1.0.0",
+      "on_error": "continue",
+      "settings": {},
+      "permissions": {
+        "can_view": ["engine_admin", "operator", "system_admin", "viewer"],
+        "can_modify": ["engine_admin", "system_admin"]
+      }
+    }
+  }
+}

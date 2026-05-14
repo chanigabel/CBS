@@ -18,6 +18,7 @@ from .data_types import (
 )
 from .orchestrator import StandardizationOrchestrator
 from .json_exporter import JsonExporter, generate_output_filenames
+from .engine_management import BaseEngine, EngineManager, EngineRegistry, PassthroughEngine
 
 __all__ = [
     # Data types
@@ -37,6 +38,10 @@ __all__ = [
     "StandardizationOrchestrator",
     "JsonExporter",
     "generate_output_filenames",
+    "BaseEngine",
+    "EngineManager",
+    "EngineRegistry",
+    "PassthroughEngine",
 ]
 
 # Backward-compatible alias for callers that still import the legacy name.

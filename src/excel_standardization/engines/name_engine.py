@@ -15,6 +15,12 @@ logger = logging.getLogger(__name__)
 
 # המנוע אחראי לניקוי שמות ולזיהוי דפוסי שם משפחה בשדות שם.
 class NameEngine:
+    engine_key = "name"
+    display_name = "Name Engine"
+    version = "1.0.0"
+    description = "Standardizes first, last, and father name fields."
+    supported_fields = ["first_name", "last_name", "father_name"]
+
     # הפונקציה מקבלת TextProcessor כדי לרכז את כל ניקויי הטקסט במקום אחד.
     def __init__(self, text_processor: TextProcessor):
         self.text_processor = text_processor

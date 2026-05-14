@@ -21,6 +21,7 @@ from contextlib import asynccontextmanager
 
 from webapp.api import (
     edit,
+    engines,
     export,
     institution,
     process_file,
@@ -113,6 +114,7 @@ app.include_router(upload.router, prefix="/api")
 app.include_router(workbook.router, prefix="/api")
 app.include_router(standardize.router, prefix="/api")
 app.include_router(edit.router, prefix="/api")
+app.include_router(engines.router, prefix="/api")
 app.include_router(export.router, prefix="/api")
 app.include_router(institution.router, prefix="/api")
 app.include_router(process_file.router, prefix="/api")
@@ -154,3 +156,9 @@ def index(request: Request) -> HTMLResponse:
             "v_css": _file_hash(_STATIC_DIR / "style.css"),
         },
     )
+
+
+@app.get("/engine-management", response_class=HTMLResponse)
+def engine_management_ui(request: Request) -> HTMLResponse:
+    """Serve the dynamic engine management interface."""
+    return templates.TemplateResponse(request, "engine_management.html", {})

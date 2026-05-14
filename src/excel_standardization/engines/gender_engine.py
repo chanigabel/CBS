@@ -10,6 +10,12 @@ from typing import Any
 
 # המנוע ממיר ייצוגי מגדר שונים לקוד היצוא התקני.
 class GenderEngine:
+    engine_key = "gender"
+    display_name = "Gender Engine"
+    version = "1.0.0"
+    description = "Normalizes gender values into canonical export codes."
+    supported_fields = ["gender"]
+
     """
     Pure business logic for gender standardization.
 

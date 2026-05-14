@@ -14,6 +14,7 @@ from .io_layer.excel_reader import ExcelReader
 from .io_layer.excel_to_json_extractor import ExcelToJsonExtractor
 from .processing.standardization_pipeline import StandardizationPipeline
 from .json_exporter import JsonExporter
+from .engine_management import EngineManager
 
 
 # הפונקציה מחלצת WorkbookDataset מקובץ Excel כשלב הראשון בנתיב ה־Dataset הפעיל.
@@ -36,6 +37,7 @@ def build_pipeline(
     gender_engine: GenderEngine,
     date_engine: DateEngine,
     identifier_engine: IdentifierEngine,
+    engine_manager: EngineManager | None = None,
 ) -> StandardizationPipeline:
     return StandardizationPipeline(
         name_engine=name_engine,
@@ -46,6 +48,7 @@ def build_pipeline(
         apply_gender_standardization_enabled=True,
         apply_date_standardization_enabled=True,
         apply_identifier_standardization_enabled=True,
+        engine_manager=engine_manager,
     )
 
 
@@ -56,8 +59,9 @@ def normalize_sheets(
     gender_engine: GenderEngine,
     date_engine: DateEngine,
     identifier_engine: IdentifierEngine,
+    engine_manager: EngineManager | None = None,
 ) -> list:
-    pipeline = build_pipeline(name_engine, gender_engine, date_engine, identifier_engine)
+    pipeline = build_pipeline(name_engine, gender_engine, date_engine, identifier_engine, engine_manager)
     normalized_sheets = []
 
     for sheet in sheets:
@@ -95,6 +99,7 @@ def export_vba_parity_workbook_from_json(
     identifier_engine: IdentifierEngine,
     input_excel_path: str,
     output_excel_path: Optional[str] = None,
+    engine_manager: EngineManager | None = None,
 ) -> str:
     workbook_dataset = extract_workbook(reader, input_excel_path)
     workbook_dataset.sheets = normalize_sheets(
@@ -103,6 +108,7 @@ def export_vba_parity_workbook_from_json(
         gender_engine,
         date_engine,
         identifier_engine,
+        engine_manager,
     )
 
     if output_excel_path is None:
@@ -134,6 +140,7 @@ def export_normalized_json(
     identifier_engine: IdentifierEngine,
     input_excel_path: str,
     output_json_path: str,
+    engine_manager: EngineManager | None = None,
 ) -> None:
     workbook_dataset = extract_workbook(reader, input_excel_path)
     workbook_dataset.sheets = normalize_sheets(
@@ -142,6 +149,7 @@ def export_normalized_json(
         gender_engine,
         date_engine,
         identifier_engine,
+        engine_manager,
     )
 
     JsonExporter(indent=2, ensure_ascii=False).export_workbook_to_json(

@@ -15,6 +15,7 @@ from .engines.gender_engine import GenderEngine
 from .engines.identifier_engine import IdentifierEngine
 from .engines.name_engine import NameEngine
 from .engines.text_processor import TextProcessor
+from .engine_management import get_default_engine_manager
 from .io_layer.excel_reader import ExcelReader
 from .workbook_json_flow import (
     export_normalized_json as export_normalized_json_flow,
@@ -47,6 +48,7 @@ class StandardizationOrchestrator:
         self.gender_engine = GenderEngine()
         self.date_engine = DateEngine()
         self.identifier_engine = IdentifierEngine()
+        self.engine_manager = get_default_engine_manager()
 
     # הפונקציה חוסמת שימוש בנתיב legacy ישיר כדי לשמור על נתיב runtime יחיד.
     def normalize_workbook(self, file_path: str) -> None:
@@ -106,6 +108,7 @@ class StandardizationOrchestrator:
             self.identifier_engine,
             input_excel_path,
             output_json_path,
+            self.engine_manager,
         )
 
     # הפונקציה היא entry point פעיל ליצירת קובץ Excel מתוקנן מנתיב ה־Dataset.
@@ -127,6 +130,7 @@ class StandardizationOrchestrator:
             self.identifier_engine,
             input_excel_path,
             output_excel_path,
+            self.engine_manager,
         )
 
 # Backward-compatible alias for callers that still import the legacy name.

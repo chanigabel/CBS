@@ -50,6 +50,8 @@ installer/Output/
 *.xlsm
 *.log
 *.json
+!config/
+!config/engine_config.json
 
 # Logs
 *.log

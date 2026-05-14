@@ -12,6 +12,7 @@ from src.excel_standardization.engines.gender_engine import GenderEngine
 from src.excel_standardization.engines.date_engine import DateEngine
 from src.excel_standardization.engines.identifier_engine import IdentifierEngine
 from src.excel_standardization.engines.text_processor import TextProcessor
+from src.excel_standardization.engine_management import EngineManager
 from src.excel_standardization.data_types import SheetDataset
 
 from webapp.models.responses import StandardizeResponse, PerSheetStat
@@ -36,11 +37,13 @@ class StandardizationService:
         self,
         session_service: SessionService,
         processing_report_service: ProcessingReportService | None = None,
+        engine_manager: EngineManager | None = None,
     ) -> None:
         self.session_service = session_service
         self.processing_report_service = (
             processing_report_service or ProcessingReportService(session_service)
         )
+        self.engine_manager = engine_manager
 
     # מחלץ מחדש גיליון או workbook, מריץ pipeline ומחזיר סטטיסטיקות ל־UI.
     def standardize(self, session_id: str, sheet_name: Optional[str] = None) -> StandardizeResponse:
@@ -370,6 +373,7 @@ class StandardizationService:
             apply_date_standardization_enabled=True,
             apply_identifier_standardization_enabled=True,
             reference_date=reference_date,
+            engine_manager=self.engine_manager,
         )
 
 

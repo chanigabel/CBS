@@ -51,6 +51,21 @@ STATUS_SPLIT_FULL_DATE_FROM_YEAR = "תאריך מלא פורק מעמודת שנ
 
 # המנוע אחראי לפענוח תאריכים, תיקון רכיבים והרצת חוקי תאריך.
 class DateEngine:
+    engine_key = "date"
+    display_name = "Date Engine"
+    version = "1.0.0"
+    description = "Parses, validates, and standardizes birth and entry date fields."
+    supported_fields = [
+        "birth_date",
+        "birth_year",
+        "birth_month",
+        "birth_day",
+        "entry_date",
+        "entry_year",
+        "entry_month",
+        "entry_day",
+    ]
+
     def __init__(self, reference_date: Optional[date] = None) -> None:
         self.reference_date = reference_date or date.today()
 

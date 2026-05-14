@@ -16,6 +16,7 @@ from webapp.services.standardization_service import StandardizationService
 from webapp.services.edit_service import EditService
 from webapp.services.export_service import ExportService
 from webapp.services.processing_report_service import ProcessingReportService
+from src.excel_standardization.engine_management import EngineManager
 
 
 def _get_data_dir() -> Path:
@@ -38,14 +39,16 @@ _data_dir = _get_data_dir()
 UPLOADS_DIR = _data_dir / "uploads"
 WORK_DIR = _data_dir / "work"
 OUTPUT_DIR = _data_dir / "output"
+CONFIG_DIR = _data_dir / "config"
 
 # Ensure they exist at import time so services can use them immediately
-for _d in (UPLOADS_DIR, WORK_DIR, OUTPUT_DIR):
+for _d in (UPLOADS_DIR, WORK_DIR, OUTPUT_DIR, CONFIG_DIR):
     _d.mkdir(parents=True, exist_ok=True)
 
 # Shared service instances (singletons for the process lifetime)
 _session_service = SessionService()
 _processing_report_service = ProcessingReportService(_session_service)
+_engine_manager = EngineManager(CONFIG_DIR / "engine_config.json")
 _upload_service = UploadService(
     _session_service,
     UPLOADS_DIR,
@@ -56,6 +59,7 @@ _workbook_service = WorkbookService(_session_service)
 _standardization_service = StandardizationService(
     _session_service,
     _processing_report_service,
+    _engine_manager,
 )
 _edit_service = EditService(_session_service)
 _export_service = ExportService(_session_service, OUTPUT_DIR, _processing_report_service)
@@ -87,3 +91,7 @@ def get_export_service() -> ExportService:
 
 def get_processing_report_service() -> ProcessingReportService:
     return _processing_report_service
+
+
+def get_engine_manager() -> EngineManager:
+    return _engine_manager

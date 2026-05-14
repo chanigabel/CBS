@@ -22,6 +22,7 @@ from . import date_standardization
 from . import gender_standardization
 from . import identifier_standardization
 from . import name_standardization
+from ..engine_management import DynamicEngineRunner, EngineManager
 
 # Configure logger for this module
 logger = logging.getLogger(__name__)
@@ -93,6 +94,7 @@ class StandardizationPipeline:
         apply_date_standardization_enabled: bool = True,
         apply_identifier_standardization_enabled: bool = True,
         reference_date: Optional[date] = None,
+        engine_manager: Optional[EngineManager] = None,
     ):
         """Initialize StandardizationPipeline with engine dependencies.
         
@@ -127,6 +129,8 @@ class StandardizationPipeline:
         self.apply_gender_standardization_enabled = apply_gender_standardization_enabled
         self.apply_date_standardization_enabled = apply_date_standardization_enabled
         self.apply_identifier_standardization_enabled = apply_identifier_standardization_enabled
+        self.engine_manager = engine_manager
+        self.engine_runner = DynamicEngineRunner(engine_manager) if engine_manager is not None else None
     
     # הפונקציה מנרמלת שורה אחת ומוסיפה שדות corrected בלי לשנות את ערכי המקור.
     def normalize_row(self, json_row: JsonRow, row_number: Optional[int] = None) -> JsonRow:
@@ -161,22 +165,56 @@ class StandardizationPipeline:
         # Track failed standardizations for this row
         failed_fields: List[str] = []
         
-        # Apply each standardization engine
-        if self.apply_name_standardization_enabled and self.name_engine:
-            failures = self.apply_name_standardization(result, row_number)
-            failed_fields.extend(failures)
-        
-        if self.apply_gender_standardization_enabled and self.gender_engine:
-            failures = self.apply_gender_standardization(result, row_number)
-            failed_fields.extend(failures)
-        
-        if self.apply_date_standardization_enabled and self.date_engine:
-            failures = self.apply_date_standardization(result, row_number)
-            failed_fields.extend(failures)
-        
-        if self.apply_identifier_standardization_enabled and self.identifier_engine:
-            failures = self.apply_identifier_standardization(result, row_number)
-            failed_fields.extend(failures)
+        if self.engine_runner is not None:
+            context: Dict[str, Any] = {
+                "row_number": row_number,
+                "pipeline": self,
+                "failed_fields": failed_fields,
+            }
+
+            def _apply_name(payload: JsonRow, _context: Dict[str, Any]) -> JsonRow:
+                failed_fields.extend(self.apply_name_standardization(payload, row_number))
+                return payload
+
+            def _apply_gender(payload: JsonRow, _context: Dict[str, Any]) -> JsonRow:
+                failed_fields.extend(self.apply_gender_standardization(payload, row_number))
+                return payload
+
+            def _apply_date(payload: JsonRow, _context: Dict[str, Any]) -> JsonRow:
+                failed_fields.extend(self.apply_date_standardization(payload, row_number))
+                return payload
+
+            def _apply_identifier(payload: JsonRow, _context: Dict[str, Any]) -> JsonRow:
+                failed_fields.extend(self.apply_identifier_standardization(payload, row_number))
+                return payload
+
+            handlers = {}
+            if self.name_engine is not None:
+                handlers["name"] = _apply_name
+            if self.gender_engine is not None:
+                handlers["gender"] = _apply_gender
+            if self.date_engine is not None:
+                handlers["date"] = _apply_date
+            if self.identifier_engine is not None:
+                handlers["identifier"] = _apply_identifier
+            result = self.engine_runner.run(result, context, handlers)
+        else:
+            # Apply each standardization engine using legacy constructor flags.
+            if self.apply_name_standardization_enabled and self.name_engine:
+                failures = self.apply_name_standardization(result, row_number)
+                failed_fields.extend(failures)
+
+            if self.apply_gender_standardization_enabled and self.gender_engine:
+                failures = self.apply_gender_standardization(result, row_number)
+                failed_fields.extend(failures)
+
+            if self.apply_date_standardization_enabled and self.date_engine:
+                failures = self.apply_date_standardization(result, row_number)
+                failed_fields.extend(failures)
+
+            if self.apply_identifier_standardization_enabled and self.identifier_engine:
+                failures = self.apply_identifier_standardization(result, row_number)
+                failed_fields.extend(failures)
         
         # Store failed fields in metadata if any failures occurred
         if failed_fields:
@@ -345,7 +383,7 @@ class StandardizationPipeline:
         # Detect last-name removal patterns once per dataset (not per row).
         # Build sample arrays from the first few rows that have both fields.
         # ------------------------------------------------------------------
-        if self.apply_name_standardization_enabled and self.name_engine:
+        if self._engine_enabled("name") and self.name_engine:
             first_sample: List[List] = []
             first_last_sample: List[List] = []
             father_sample: List[List] = []
@@ -379,7 +417,7 @@ class StandardizationPipeline:
         # F-03: Detect date format pattern (DDMM vs MMDD) once per dataset.
         # Previously the pipeline always used DDMM.  Now we sample the first 20
         # rows to detect whether the sheet uses US-style MM/DD dates.
-        if self.apply_date_standardization_enabled and self.date_engine:
+        if self._engine_enabled("date") and self.date_engine:
             self._date_format_pattern = date_standardization.detect_date_format_pattern(corrected_dataset.rows)
             logger.debug(
                 f"Date format pattern detected for sheet '{raw_dataset.sheet_name}': "
@@ -425,11 +463,11 @@ class StandardizationPipeline:
         # Only auto-completed shortened years are eligible; explicit 4-digit
         # years stored in _birth_year_auto_completed=False rows are untouched.
         # ------------------------------------------------------------------
-        if self.apply_date_standardization_enabled and self.date_engine:
+        if self._engine_enabled("date") and self.date_engine:
             normalized_rows = self._apply_birth_year_majority_correction(normalized_rows)
 
         if (
-            self.apply_identifier_standardization_enabled
+            self._engine_enabled("identifier")
             and any(row.get("passport_corrected") for row in normalized_rows)
             and "passport_corrected" not in corrected_dataset.field_names
         ):
@@ -480,11 +518,13 @@ class StandardizationPipeline:
 
         corrected_dataset.metadata["normalized"] = True
         corrected_dataset.metadata["standardization_engines"] = {
-            "name": self.apply_name_standardization_enabled and self.name_engine is not None,
-            "gender": self.apply_gender_standardization_enabled and self.gender_engine is not None,
-            "date": self.apply_date_standardization_enabled and self.date_engine is not None,
-            "identifier": self.apply_identifier_standardization_enabled and self.identifier_engine is not None
+            "name": self._engine_enabled("name") and self.name_engine is not None,
+            "gender": self._engine_enabled("gender") and self.gender_engine is not None,
+            "date": self._engine_enabled("date") and self.date_engine is not None,
+            "identifier": self._engine_enabled("identifier") and self.identifier_engine is not None
         }
+        if self.engine_manager is not None:
+            corrected_dataset.metadata["engine_config_version"] = self.engine_manager.config_version
         corrected_dataset.metadata["processing_date"] = self._reference_date.isoformat()
         corrected_dataset.metadata["processing_year"] = self._reference_date.year
         
@@ -511,6 +551,24 @@ class StandardizationPipeline:
             )
 
         return corrected_dataset
+
+    def _engine_enabled(self, engine_key: str) -> bool:
+        """Return whether an engine is enabled by dynamic config or legacy flags."""
+        if self.engine_manager is not None:
+            try:
+                return any(cfg.engine_key == engine_key for cfg in self.engine_manager.enabled_engine_configs())
+            except Exception:
+                logger.exception("Failed to read dynamic engine config for '%s'", engine_key)
+                return False
+        if engine_key == "name":
+            return self.apply_name_standardization_enabled
+        if engine_key == "gender":
+            return self.apply_gender_standardization_enabled
+        if engine_key == "date":
+            return self.apply_date_standardization_enabled
+        if engine_key == "identifier":
+            return self.apply_identifier_standardization_enabled
+        return False
 
     # הפונקציה מחילה תיקון רוב לשנת לידה מקוצרת אחרי נרמול כל השורות.
     def _apply_birth_year_majority_correction(self, rows: List[JsonRow]) -> List[JsonRow]:

@@ -15,6 +15,12 @@ logger = logging.getLogger(__name__)
 
 # המנוע אחראי לניקוי, סיווג ואימות תעודות זהות ודרכונים.
 class IdentifierEngine:
+    engine_key = "identifier"
+    display_name = "Identifier Engine"
+    version = "1.0.0"
+    description = "Validates ID values and normalizes passport fields."
+    supported_fields = ["id_number", "passport"]
+
     """Pure business logic for ID and passport validation.
 
     This class contains no Excel dependencies and operates on plain Python types.
