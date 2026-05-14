@@ -100,6 +100,9 @@
             <button id="clear-all-filters-btn" class="btn btn-filter-clear hidden" onclick="clearAllFilters()">
                 ✕ נקה כל הסינונים
             </button>
+            <button id="engine-management-btn" class="btn btn-secondary" onclick="openEngineManagement()">
+                ממשק ניהול מנועים
+            </button>
             <button id="export-btn" class="btn btn-secondary" onclick="exportWorkbook()">
                 ⬇ Export / Download
                 <kbd class="kbd-hint">Ctrl+S</kbd>
@@ -133,6 +136,7 @@
     <script src="/static/js/report.js?v={{ v_report_js }}"></script>
     <script src="/static/js/grid.js?v={{ v_grid_js }}"></script>
     <script src="/static/js/edit.js?v={{ v_edit_js }}"></script>
+    <script src="/static/js/column_mapping.js?v={{ v_column_mapping_js }}"></script>
     <script src="/static/js/upload.js?v={{ v_upload_js }}"></script>
     <script src="/static/js/export.js?v={{ v_export_js }}"></script>
     <script src="/static/app.js?v={{ v_js }}"></script>

@@ -3,7 +3,13 @@
 from fastapi import APIRouter, Depends, Response
 
 from webapp.dependencies import get_session_service, get_workbook_service
-from webapp.models.responses import SheetDataResponse, WorkbookSummary
+from webapp.models.requests import ColumnMappingRequest
+from webapp.models.responses import (
+    ColumnMappingResponse,
+    ColumnSchemaResponse,
+    SheetDataResponse,
+    WorkbookSummary,
+)
 from webapp.services.session_service import SessionService
 from webapp.services.workbook_service import WorkbookService
 
@@ -30,6 +36,46 @@ def get_sheet_data(
 ) -> SheetDataResponse:
     """Return all rows for a specific sheet."""
     return workbook_service.get_sheet_data(session_id, sheet_name)
+
+
+@router.get("/workbook/column-schema", response_model=ColumnSchemaResponse)
+def get_column_schema(
+    workbook_service: WorkbookService = Depends(get_workbook_service),
+) -> ColumnSchemaResponse:
+    """Return standardized field names available for manual column mapping."""
+    return workbook_service.get_column_schema()
+
+
+@router.post(
+    "/workbook/{session_id}/sheet/{sheet_name}/column-mapping",
+    response_model=ColumnMappingResponse,
+)
+def update_column_mapping(
+    session_id: str,
+    sheet_name: str,
+    request: ColumnMappingRequest,
+    workbook_service: WorkbookService = Depends(get_workbook_service),
+) -> ColumnMappingResponse:
+    """Map one loaded source column to a standardized field name."""
+    return workbook_service.update_column_mapping(
+        session_id,
+        sheet_name,
+        request.old_name,
+        request.new_name,
+    )
+
+
+@router.post(
+    "/workbook/{session_id}/sheet/{sheet_name}/reload-mapping",
+    response_model=ColumnSchemaResponse,
+)
+def reload_column_mapping(
+    session_id: str,
+    sheet_name: str,
+    workbook_service: WorkbookService = Depends(get_workbook_service),
+) -> ColumnSchemaResponse:
+    """Reload column mapping schema and re-apply stored mappings to this sheet."""
+    return workbook_service.reload_column_mapping(session_id, sheet_name)
 
 
 @router.delete("/workbook/{session_id}", status_code=204)

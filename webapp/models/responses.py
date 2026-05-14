@@ -1,7 +1,7 @@
 """Pydantic response models for the API layer."""
 
 from typing import Any, Dict, List
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class UploadResponse(BaseModel):
@@ -32,6 +32,25 @@ class SheetDataResponse(BaseModel):
     sheet_name: str
     field_names: List[str]
     rows: List[Dict[str, Any]]
+    column_mappings: Dict[str, str] = Field(default_factory=dict)
+
+
+class ColumnSchemaResponse(BaseModel):
+    """System-supported target field names for manual column mapping."""
+
+    fields: List[str]
+    mappings: Dict[str, List[str]] = Field(default_factory=dict)
+    suggestions: List[str] = Field(default_factory=list)
+
+
+class ColumnMappingResponse(BaseModel):
+    """Response after applying a column mapping."""
+
+    sheet_name: str
+    old_name: str
+    new_name: str
+    field_names: List[str]
+    column_mappings: Dict[str, str]
 
 
 class PerSheetStat(BaseModel):

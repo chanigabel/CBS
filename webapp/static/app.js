@@ -77,4 +77,10 @@ function initApp() {
     onScopeChange();
 }
 
+function openEngineManagement() {
+    window.location.href = '/engine-management';
+}
+
 document.addEventListener('DOMContentLoaded', initApp);
+
+Object.assign(window, { openEngineManagement });

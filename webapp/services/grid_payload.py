@@ -132,6 +132,7 @@ def build_sheet_grid_payload(
     session_mosad_id: str = "",
     active_mosad_type: str | None = None,
     metadata_mosad_id: str | None = None,
+    column_mappings: Mapping[str, str] | None = None,
 ) -> SheetDataResponse:
     """Build the sheet payload exactly as the UI expects it."""
     original_fields = list(sheet.field_names)
@@ -166,4 +167,5 @@ def build_sheet_grid_payload(
         sheet_name=sheet.sheet_name,
         field_names=display_columns,
         rows=clean_rows,
+        column_mappings=dict(column_mappings or {}),
     )

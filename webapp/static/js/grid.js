@@ -265,6 +265,16 @@ function renderGrid(sheetData, rows, targetContainer) {
 
         const label = document.createElement('span');
         label.textContent = col;
+        if (typeof isSourceColumnName === 'function' && isSourceColumnName(col)) {
+            label.className = 'editable-column-label';
+            label.title = 'Click to map this header to a standard field';
+            label.addEventListener('click', e => {
+                e.stopPropagation();
+                if (typeof beginHeaderMappingEdit === 'function') {
+                    beginHeaderMappingEdit(label, col);
+                }
+            });
+        }
         headerWrap.appendChild(label);
 
         const filterBtn = document.createElement('button');

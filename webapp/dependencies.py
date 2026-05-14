@@ -12,6 +12,7 @@ from pathlib import Path
 from webapp.services.session_service import SessionService
 from webapp.services.upload_service import UploadService
 from webapp.services.workbook_service import WorkbookService
+from webapp.services.column_mapping_schema import ColumnMappingSchemaService
 from webapp.services.standardization_service import StandardizationService
 from webapp.services.edit_service import EditService
 from webapp.services.export_service import ExportService
@@ -49,13 +50,16 @@ for _d in (UPLOADS_DIR, WORK_DIR, OUTPUT_DIR, CONFIG_DIR):
 _session_service = SessionService()
 _processing_report_service = ProcessingReportService(_session_service)
 _engine_manager = EngineManager(CONFIG_DIR / "engine_config.json")
+_column_mapping_schema_service = ColumnMappingSchemaService(
+    CONFIG_DIR / "column_mapping_schema.json"
+)
 _upload_service = UploadService(
     _session_service,
     UPLOADS_DIR,
     WORK_DIR,
     _processing_report_service,
 )
-_workbook_service = WorkbookService(_session_service)
+_workbook_service = WorkbookService(_session_service, _column_mapping_schema_service)
 _standardization_service = StandardizationService(
     _session_service,
     _processing_report_service,
@@ -95,3 +99,7 @@ def get_processing_report_service() -> ProcessingReportService:
 
 def get_engine_manager() -> EngineManager:
     return _engine_manager
+
+
+def get_column_mapping_schema_service() -> ColumnMappingSchemaService:
+    return _column_mapping_schema_service

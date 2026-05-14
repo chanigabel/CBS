@@ -52,6 +52,7 @@ installer/Output/
 *.json
 !config/
 !config/engine_config.json
+!config/column_mapping_schema.json
 
 # Logs
 *.log

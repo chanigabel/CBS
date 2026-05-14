@@ -61,6 +61,8 @@ class SessionRecord:
                      take precedence over the legacy mosad_types[0] workbook-level
                      default during export.
         processing_report: Latest non-sensitive ProcessingReport for this session.
+        column_mappings: Per-sheet source column mappings applied before
+                    standardization, shaped as {sheet_name: {old_name: new_name}}.
     """
 
     session_id: str
@@ -75,3 +77,4 @@ class SessionRecord:
     mosad_types: List[str] = field(default_factory=list)
     sug_mosad_configs: List[SugMosadConfig] = field(default_factory=list)
     processing_report: Optional[ProcessingReport] = None
+    column_mappings: dict = field(default_factory=dict)

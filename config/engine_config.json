@@ -1,5 +1,5 @@
 {
-  "config_version": "2026.05.14-001",
+  "config_version": "2026-05-14T13:33:20.290304Z",
   "engines": {
     "name": {
       "engine_key": "name",
@@ -13,8 +13,16 @@
       "on_error": "continue",
       "settings": {},
       "permissions": {
-        "can_view": ["engine_admin", "operator", "system_admin", "viewer"],
-        "can_modify": ["engine_admin", "system_admin"]
+        "can_view": [
+          "engine_admin",
+          "operator",
+          "system_admin",
+          "viewer"
+        ],
+        "can_modify": [
+          "engine_admin",
+          "system_admin"
+        ]
       }
     },
     "gender": {
@@ -29,8 +37,16 @@
       "on_error": "continue",
       "settings": {},
       "permissions": {
-        "can_view": ["engine_admin", "operator", "system_admin", "viewer"],
-        "can_modify": ["engine_admin", "system_admin"]
+        "can_view": [
+          "engine_admin",
+          "operator",
+          "system_admin",
+          "viewer"
+        ],
+        "can_modify": [
+          "engine_admin",
+          "system_admin"
+        ]
       }
     },
     "date": {
@@ -45,8 +61,16 @@
       "on_error": "continue",
       "settings": {},
       "permissions": {
-        "can_view": ["engine_admin", "operator", "system_admin", "viewer"],
-        "can_modify": ["engine_admin", "system_admin"]
+        "can_view": [
+          "engine_admin",
+          "operator",
+          "system_admin",
+          "viewer"
+        ],
+        "can_modify": [
+          "engine_admin",
+          "system_admin"
+        ]
       }
     },
     "identifier": {
@@ -61,8 +85,16 @@
       "on_error": "continue",
       "settings": {},
       "permissions": {
-        "can_view": ["engine_admin", "operator", "system_admin", "viewer"],
-        "can_modify": ["engine_admin", "system_admin"]
+        "can_view": [
+          "engine_admin",
+          "operator",
+          "system_admin",
+          "viewer"
+        ],
+        "can_modify": [
+          "engine_admin",
+          "system_admin"
+        ]
       }
     }
   }

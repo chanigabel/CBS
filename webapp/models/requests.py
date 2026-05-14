@@ -37,6 +37,20 @@ class DeleteRowRequest(BaseModel):
     row_uids: List[str]
 
 
+class ColumnMappingRequest(BaseModel):
+    """Request body for renaming one source column to a standardized field."""
+
+    old_name: str
+    new_name: str
+
+
+class ColumnSchemaMappingRequest(BaseModel):
+    """Request body for admin edits to the column mapping schema."""
+
+    standard_name: str
+    synonym: str
+
+
 # ---------------------------------------------------------------------------
 # Scoped SugMosad (institution type) apply models
 # ---------------------------------------------------------------------------

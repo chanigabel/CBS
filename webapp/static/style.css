@@ -223,6 +223,73 @@ header h1 {
     border-radius: 6px;
 }
 
+.editable-column-label {
+    cursor: text;
+    border-bottom: 1px dotted transparent;
+    padding: 2px 1px;
+}
+
+.editable-column-label:hover {
+    border-bottom-color: #4299e1;
+    color: #2b6cb0;
+}
+
+.column-mapping-popover {
+    position: absolute;
+    z-index: 2000;
+    width: 260px;
+    padding: 12px;
+    background: #fff;
+    border: 1px solid #bcccdc;
+    border-radius: 8px;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
+    direction: ltr;
+}
+
+.column-mapping-title {
+    margin-bottom: 8px;
+    color: #334e68;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.column-mapping-select {
+    width: 100%;
+    min-height: 36px;
+    padding: 6px 8px;
+    border: 1px solid #bcccdc;
+    border-radius: 6px;
+    background: #fff;
+    font: inherit;
+}
+
+.column-mapping-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: 10px;
+}
+
+.column-mapping-actions button {
+    min-height: 32px;
+    border: 0;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.column-mapping-apply {
+    background: #2f80ed;
+    color: #fff;
+}
+
+.column-mapping-cancel {
+    background: #e2e8f0;
+    color: #334e68;
+}
+
 .institution-label {
     font-weight: 600;
     font-size: 13px;

@@ -63,6 +63,7 @@ class StandardizationService:
             # Load the workbook when no sheet has been accessed yet.
             try:
                 wbd = extract_workbook_dataset(record.working_copy_path)
+                self._apply_record_column_mappings(record, wbd.sheets)
                 self.session_service.update(session_id, workbook_dataset=wbd)
                 self.processing_report_service.complete_stage(session_id, "extract")
                 self.processing_report_service.update_workbook_counts(session_id, wbd)
@@ -111,6 +112,7 @@ class StandardizationService:
             try:
                 existing = record.workbook_dataset.get_sheet_by_name(sheet_name)
                 fresh = extract_sheet_dataset(record.working_copy_path, sheet_name)
+                self._apply_record_column_mappings(record, [fresh])
                 mosad_id = existing.get_metadata("MosadID") if existing is not None else None
                 if mosad_id is not None:
                     fresh.set_metadata("MosadID", mosad_id)
@@ -167,6 +169,7 @@ class StandardizationService:
                     sheets_to_normalize = []
                     for sname in get_workbook_sheet_names(record.working_copy_path):
                         fresh = extract_sheet_dataset(record.working_copy_path, sname)
+                        self._apply_record_column_mappings(record, [fresh])
                         existing = record.workbook_dataset.get_sheet_by_name(sname)
                         mosad_id = existing.get_metadata("MosadID") if existing is not None else None
                         if mosad_id is not None:
@@ -357,6 +360,28 @@ class StandardizationService:
     # alias תפעולי ל־standardize עבור endpoints או קריאות קיימות.
     def normalize(self, session_id: str, sheet_name: Optional[str] = None) -> StandardizeResponse:
         return self.standardize(session_id, sheet_name=sheet_name)
+
+    def _apply_record_column_mappings(self, record, sheets: List[SheetDataset]) -> None:
+        """Apply stored manual column mappings to freshly extracted sheets."""
+        mappings_by_sheet = getattr(record, "column_mappings", {}) or {}
+        if not mappings_by_sheet:
+            return
+        for sheet in sheets:
+            mappings = mappings_by_sheet.get(sheet.sheet_name, {})
+            if not mappings:
+                continue
+            for old_name, new_name in mappings.items():
+                if old_name == new_name or old_name not in sheet.field_names:
+                    continue
+                if new_name in sheet.field_names:
+                    continue
+                sheet.field_names = [
+                    new_name if field == old_name else field
+                    for field in sheet.field_names
+                ]
+                for row in sheet.rows:
+                    if old_name in row:
+                        row[new_name] = row.pop(old_name)
 
     # בונה pipeline עם כל המנועים שה־Web flow מפעיל בפועל.
     def _build_pipeline(self) -> StandardizationPipeline:

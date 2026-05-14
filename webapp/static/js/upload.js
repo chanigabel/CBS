@@ -254,6 +254,9 @@ async function loadSheet(sheetName) {
         const data = await apiCall('GET', `/api/workbook/${state.sessionId}/sheet/${encodeURIComponent(sheetName)}`);
         state.sheetData = data;
         renderGrid(data, getFilteredRows(data.rows));
+        if (typeof refreshColumnMappingControls === 'function') {
+            await refreshColumnMappingControls(data);
+        }
     } catch (err) {
         showError(`Failed to load sheet '${sheetName}': ${err.message}`);
         gridContainer.innerHTML = '';

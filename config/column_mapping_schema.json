@@ -1,0 +1,19 @@
+{
+  "version": "2026.05.14-001",
+  "fields": {
+    "first_name": ["first name", "firstname", "שם פרטי", "שם"],
+    "last_name": ["last name", "lastname", "surname", "family name", "שם משפחה"],
+    "father_name": ["father name", "fathername", "שם האב"],
+    "gender": ["gender", "sex", "מין"],
+    "id_number": ["id number", "id", "מספר זהות", "תעודת זהות", "ת.ז"],
+    "passport": ["passport", "מספר דרכון", "דרכון"],
+    "birth_date": ["birth date", "date of birth", "dob", "תאריך לידה"],
+    "birth_year": ["birth year", "שנת לידה"],
+    "birth_month": ["birth month", "חודש לידה"],
+    "birth_day": ["birth day", "יום לידה"],
+    "entry_date": ["entry date", "admission date", "תאריך כניסה"],
+    "entry_year": ["entry year", "שנת כניסה"],
+    "entry_month": ["entry month", "חודש כניסה"],
+    "entry_day": ["entry day", "יום כניסה"]
+  }
+}

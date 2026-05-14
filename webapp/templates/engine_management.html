@@ -115,6 +115,29 @@
             color: #52616f;
         }
         .message.error { color: #b42318; }
+        .mapping-list {
+            display: grid;
+            gap: 8px;
+            max-height: 300px;
+            overflow: auto;
+            margin-top: 12px;
+            padding-right: 2px;
+        }
+        .mapping-row {
+            border: 1px solid #e6edf3;
+            border-radius: 6px;
+            padding: 8px;
+            background: #f8fafc;
+            font-size: 13px;
+        }
+        .mapping-field {
+            margin-bottom: 4px;
+            font-weight: 700;
+        }
+        .mapping-synonyms {
+            color: #52616f;
+            line-height: 1.45;
+        }
         .stack {
             display: grid;
             gap: 16px;
@@ -186,6 +209,25 @@
                 </div>
                 <div class="message" id="message"></div>
             </section>
+
+            <section class="panel">
+                <h2>Column Schema</h2>
+                <div class="field">
+                    <label for="mapping-standard-name">Standard Field</label>
+                    <input type="text" id="mapping-standard-name" placeholder="first_name">
+                </div>
+                <div class="field">
+                    <label for="mapping-synonym">Synonym</label>
+                    <input type="text" id="mapping-synonym" placeholder="First Name">
+                </div>
+                <div class="button-row">
+                    <button type="button" onclick="addColumnMapping()">Add Mapping</button>
+                    <button class="danger" type="button" onclick="removeColumnMapping()">Remove Mapping</button>
+                    <button class="secondary" type="button" onclick="reloadColumnMappings()">Reload Mapping Config</button>
+                </div>
+                <div class="message" id="mapping-message"></div>
+                <div id="mapping-list" class="mapping-list"></div>
+            </section>
         </div>
     </section>
 </main>
@@ -203,6 +245,12 @@
 
     function setMessage(text, isError = false) {
         const message = document.getElementById("message");
+        message.textContent = text || "";
+        message.className = isError ? "message error" : "message";
+    }
+
+    function setMappingMessage(text, isError = false) {
+        const message = document.getElementById("mapping-message");
         message.textContent = text || "";
         message.className = isError ? "message error" : "message";
     }
@@ -272,6 +320,34 @@
             }
         } catch (error) {
             setMessage(error.message, true);
+        }
+    }
+
+    async function loadColumnMappings() {
+        try {
+            const data = await requestJson("/api/engines/mappings", {
+                headers: { "X-Engine-Role": "viewer" }
+            });
+            renderColumnMappings(data.mappings || {});
+        } catch (error) {
+            setMappingMessage(error.message, true);
+        }
+    }
+
+    function renderColumnMappings(mappings) {
+        const list = document.getElementById("mapping-list");
+        list.innerHTML = "";
+        for (const field of Object.keys(mappings).sort()) {
+            const row = document.createElement("div");
+            row.className = "mapping-row";
+            const title = document.createElement("div");
+            title.className = "mapping-field";
+            title.textContent = field;
+            const synonyms = document.createElement("div");
+            synonyms.className = "mapping-synonyms";
+            synonyms.textContent = (mappings[field] || []).join(", ") || "No synonyms";
+            row.append(title, synonyms);
+            list.appendChild(row);
         }
     }
 
@@ -349,7 +425,58 @@
         }
     }
 
-    window.addEventListener("load", getEngines);
+    function mappingPayload() {
+        return {
+            standard_name: document.getElementById("mapping-standard-name").value.trim(),
+            synonym: document.getElementById("mapping-synonym").value.trim()
+        };
+    }
+
+    async function addColumnMapping() {
+        try {
+            await requestJson("/api/engines/add-mapping", {
+                method: "POST",
+                headers: writeHeaders,
+                body: JSON.stringify(mappingPayload())
+            });
+            setMappingMessage("Column mapping added.");
+            await loadColumnMappings();
+        } catch (error) {
+            setMappingMessage(error.message, true);
+        }
+    }
+
+    async function removeColumnMapping() {
+        try {
+            await requestJson("/api/engines/remove-mapping", {
+                method: "DELETE",
+                headers: writeHeaders,
+                body: JSON.stringify(mappingPayload())
+            });
+            setMappingMessage("Column mapping removed.");
+            await loadColumnMappings();
+        } catch (error) {
+            setMappingMessage(error.message, true);
+        }
+    }
+
+    async function reloadColumnMappings() {
+        try {
+            const data = await requestJson("/api/engines/reload-mapping", {
+                method: "POST",
+                headers: operateHeaders
+            });
+            renderColumnMappings(data.mappings || {});
+            setMappingMessage("Column mapping configuration reloaded.");
+        } catch (error) {
+            setMappingMessage(error.message, true);
+        }
+    }
+
+    window.addEventListener("load", () => {
+        getEngines();
+        loadColumnMappings();
+    });
 </script>
 </body>
 </html>

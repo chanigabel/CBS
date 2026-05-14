@@ -12,7 +12,9 @@ from src.excel_standardization.engine_management import (
     PASSTHROUGH_ENGINE_CLASS,
     ROLE_VIEWER,
 )
-from webapp.dependencies import get_engine_manager
+from webapp.dependencies import get_column_mapping_schema_service, get_engine_manager
+from webapp.models.requests import ColumnSchemaMappingRequest
+from webapp.services.column_mapping_schema import ColumnMappingSchemaService
 
 
 router = APIRouter(tags=["engines"])
@@ -192,5 +194,90 @@ def engine_audit_history(
     try:
         manager.authorize(role, {"operator", "engine_admin", "system_admin"})
         return {"audit": manager.audit_log, "executions": manager.execution_log}
+    except Exception as exc:
+        _handle_error(exc)
+
+
+@router.post("/engines/add-mapping")
+def add_column_schema_mapping(
+    request: ColumnSchemaMappingRequest,
+    role: str = Depends(_role),
+    user: str = Depends(_user),
+    schema_service: ColumnMappingSchemaService = Depends(get_column_mapping_schema_service),
+) -> Dict[str, Any]:
+    try:
+        if role not in {"engine_admin", "system_admin"}:
+            raise EngineAccessError(f"Role '{role}' is not allowed to perform this operation")
+        mappings = schema_service.add_mapping(request.standard_name, request.synonym)
+        return {"updated_by": user, "mappings": mappings}
+    except Exception as exc:
+        _handle_error(exc)
+
+
+@router.get("/engines/mappings")
+def list_column_schema_mappings(
+    role: str = Depends(_role),
+    schema_service: ColumnMappingSchemaService = Depends(get_column_mapping_schema_service),
+) -> Dict[str, Any]:
+    try:
+        if role not in {"viewer", "operator", "engine_admin", "system_admin"}:
+            raise EngineAccessError(f"Role '{role}' is not allowed to perform this operation")
+        return {
+            "fields": schema_service.fields(),
+            "mappings": schema_service.mappings(),
+            "suggestions": schema_service.suggestions(),
+        }
+    except Exception as exc:
+        _handle_error(exc)
+
+
+@router.post("/engines/remove-mapping")
+def remove_column_schema_mapping(
+    request: ColumnSchemaMappingRequest,
+    role: str = Depends(_role),
+    user: str = Depends(_user),
+    schema_service: ColumnMappingSchemaService = Depends(get_column_mapping_schema_service),
+) -> Dict[str, Any]:
+    try:
+        if role not in {"engine_admin", "system_admin"}:
+            raise EngineAccessError(f"Role '{role}' is not allowed to perform this operation")
+        mappings = schema_service.remove_mapping(request.standard_name, request.synonym)
+        return {"updated_by": user, "mappings": mappings}
+    except Exception as exc:
+        _handle_error(exc)
+
+
+@router.delete("/engines/remove-mapping")
+def delete_column_schema_mapping(
+    request: ColumnSchemaMappingRequest,
+    role: str = Depends(_role),
+    user: str = Depends(_user),
+    schema_service: ColumnMappingSchemaService = Depends(get_column_mapping_schema_service),
+) -> Dict[str, Any]:
+    try:
+        if role not in {"engine_admin", "system_admin"}:
+            raise EngineAccessError(f"Role '{role}' is not allowed to perform this operation")
+        mappings = schema_service.remove_mapping(request.standard_name, request.synonym)
+        return {"updated_by": user, "mappings": mappings}
+    except Exception as exc:
+        _handle_error(exc)
+
+
+@router.post("/engines/reload-mapping")
+def reload_column_schema_mapping(
+    role: str = Depends(_role),
+    user: str = Depends(_user),
+    schema_service: ColumnMappingSchemaService = Depends(get_column_mapping_schema_service),
+) -> Dict[str, Any]:
+    try:
+        if role not in {"operator", "engine_admin", "system_admin"}:
+            raise EngineAccessError(f"Role '{role}' is not allowed to perform this operation")
+        schema_service.reload()
+        return {
+            "updated_by": user,
+            "fields": schema_service.fields(),
+            "mappings": schema_service.mappings(),
+            "suggestions": schema_service.suggestions(),
+        }
     except Exception as exc:
         _handle_error(exc)

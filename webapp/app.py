@@ -151,6 +151,7 @@ def index(request: Request) -> HTMLResponse:
             "v_upload_js": _file_hash(_STATIC_DIR / "js" / "upload.js"),
             "v_grid_js": _file_hash(_STATIC_DIR / "js" / "grid.js"),
             "v_edit_js": _file_hash(_STATIC_DIR / "js" / "edit.js"),
+            "v_column_mapping_js": _file_hash(_STATIC_DIR / "js" / "column_mapping.js"),
             "v_export_js": _file_hash(_STATIC_DIR / "js" / "export.js"),
             "v_report_js": _file_hash(_STATIC_DIR / "js" / "report.js"),
             "v_css": _file_hash(_STATIC_DIR / "style.css"),
