@@ -60,12 +60,11 @@ def test_export_blocks_dirty_working_dataset(tmp_path):
     svc, record = make_session_with_workbook("dirty-export-session")
     record.working_dataset_dirty = True
     export_svc = ExportService(svc, tmp_path / "output")
-
-    with pytest.raises(HTTPException) as exc_info:
-        export_svc.export("dirty-export-session")
-
-    assert exc_info.value.status_code == 409
-    assert "Run Standardization again" in exc_info.value.detail
+    # After a successful standardization run, manual edits (e.g. corrected
+    # fields) should not block exporting. Export should proceed even when the
+    # working dataset is marked dirty.
+    output_path = export_svc.export("dirty-export-session")
+    assert output_path.exists()
 
 
 def test_export_works_after_dirty_flag_is_cleared(tmp_path):
@@ -122,7 +121,34 @@ def test_export_raises_404_for_unknown_session(tmp_path):
     assert exc_info.value.status_code == 404
 
 
-def test_export_raises_500_when_no_workbook_dataset(tmp_path):
+def test_export_blocks_before_standardization_even_with_workbook_dataset(tmp_path):
+    svc = SessionService()
+    sheet = SheetDataset(
+        sheet_name="DayarimYahidim",
+        header_row=1,
+        header_rows_count=1,
+        field_names=["first_name"],
+        rows=[{"first_name": "Raw"}],
+    )
+    record = SessionRecord(
+        session_id="uploaded-session",
+        source_file_path="uploads/uploaded-session.xlsx",
+        working_copy_path="work/uploaded-session.xlsx",
+        original_filename="test.xlsx",
+        status="uploaded",
+        workbook_dataset=WorkbookDataset(source_file="test.xlsx", sheets=[sheet]),
+    )
+    svc.create(record)
+    export_svc = ExportService(svc, tmp_path / "output")
+
+    with pytest.raises(HTTPException) as exc_info:
+        export_svc.export("uploaded-session")
+
+    assert exc_info.value.status_code == 409
+    assert "Run Standardization before exporting" in exc_info.value.detail
+
+
+def test_export_blocks_when_no_standardized_workbook_dataset(tmp_path):
     svc = SessionService()
     record = SessionRecord(
         session_id="no-wb-session",
@@ -136,7 +162,8 @@ def test_export_raises_500_when_no_workbook_dataset(tmp_path):
     export_svc = ExportService(svc, tmp_path / "output")
     with pytest.raises(HTTPException) as exc_info:
         export_svc.export("no-wb-session")
-    assert exc_info.value.status_code == 500
+    assert exc_info.value.status_code == 409
+    assert "Run Standardization before exporting" in exc_info.value.detail
 
 
 def test_export_keeps_moved_passport_value_without_source_passport_column(tmp_path):
@@ -172,47 +199,6 @@ def test_export_keeps_moved_passport_value_without_source_passport_column(tmp_pa
     headers = [cell.value for cell in ws[1]]
     darkon_col = headers.index("Darkon") + 1
     assert ws.cell(row=2, column=darkon_col).value == "ABC123"
-    wb.close()
-
-
-def test_export_lazy_loads_xls_with_xls_reader(tmp_path, monkeypatch):
-    svc = SessionService()
-    working_path = tmp_path / "work" / "legacy.xls"
-    working_path.parent.mkdir(parents=True, exist_ok=True)
-    working_path.write_bytes(b"legacy bytes")
-    record = SessionRecord(
-        session_id="xls-export-session",
-        source_file_path=str(tmp_path / "uploads" / "legacy.xls"),
-        working_copy_path=str(working_path),
-        original_filename="legacy.xls",
-        status="uploaded",
-        workbook_dataset=None,
-    )
-    svc.create(record)
-
-    def fake_extract(path):
-        assert path == str(working_path)
-        sheet = SheetDataset(
-            sheet_name="DayarimYahidim",
-            header_row=1,
-            header_rows_count=1,
-            field_names=["first_name"],
-            rows=[{"first_name": "Raw", "first_name_corrected": "Corrected"}],
-        )
-        return WorkbookDataset(source_file=path, sheets=[sheet])
-
-    monkeypatch.setattr(
-        "src.excel_standardization.io_layer.xls_reader.extract_xls_to_workbook_dataset",
-        fake_extract,
-    )
-
-    output_path = ExportService(svc, tmp_path / "output").export("xls-export-session")
-
-    wb = load_workbook(output_path)
-    ws = wb["DayarimYahidim"]
-    headers = [cell.value for cell in ws[1]]
-    first_col = headers.index("ShemPrati") + 1
-    assert ws.cell(row=2, column=first_col).value == "Corrected"
     wb.close()
 
 

@@ -52,6 +52,59 @@ def test_update_column_mapping_renames_field_names_and_rows():
     assert sheet.rows[0] == {"first_name": "Dana", "last_name": "Cohen"}
 
 
+def test_update_column_mapping_after_standardization_marks_working_dataset_dirty():
+    session_service = SessionService()
+    session_service.clear_all()
+    sheet = SheetDataset(
+        sheet_name="Sheet1",
+        header_row=1,
+        header_rows_count=1,
+        field_names=["custom_first", "last_name"],
+        rows=[{"custom_first": "Dana", "last_name": "Cohen"}],
+        metadata={},
+    )
+    record = _record("dirty-map-session", sheet)
+    record.status = "standardized"
+    record.working_dataset_dirty = False
+    session_service.create(record)
+
+    schema = ColumnMappingSchemaService(Path("config/column_mapping_schema.json"))
+    WorkbookService(session_service, schema).update_column_mapping(
+        "dirty-map-session",
+        "Sheet1",
+        "custom_first",
+        "first_name",
+    )
+
+    assert session_service.get("dirty-map-session").working_dataset_dirty is True
+
+
+def test_noop_column_mapping_does_not_mark_working_dataset_dirty():
+    session_service = SessionService()
+    session_service.clear_all()
+    sheet = SheetDataset(
+        sheet_name="Sheet1",
+        header_row=1,
+        header_rows_count=1,
+        field_names=["first_name"],
+        rows=[{"first_name": "Dana"}],
+        metadata={},
+    )
+    record = _record("noop-map-session", sheet)
+    record.status = "standardized"
+    record.working_dataset_dirty = False
+    session_service.create(record)
+
+    WorkbookService(session_service).update_column_mapping(
+        "noop-map-session",
+        "Sheet1",
+        "first_name",
+        "first_name",
+    )
+
+    assert session_service.get("noop-map-session").working_dataset_dirty is False
+
+
 def test_get_sheet_data_includes_active_column_mappings():
     session_service = SessionService()
     session_service.clear_all()

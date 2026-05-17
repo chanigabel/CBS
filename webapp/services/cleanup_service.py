@@ -22,10 +22,23 @@ class CleanupService:
         Missing directories are skipped. The directories themselves are kept so
         services can continue to write into them after startup cleanup.
         """
+        logger.info(
+            "runtime_cleanup_started",
+            extra={
+                "event": "runtime_cleanup_started",
+                "cleanup_reason": reason,
+                "directory_count": len(self.allowed_runtime_dirs),
+            },
+        )
+        total_deleted = 0
+        total_failed = 0
         for directory in self.allowed_runtime_dirs:
             try:
-                self._cleanup_directory(directory, reason=reason)
+                deleted, failed = self._cleanup_directory(directory, reason=reason)
+                total_deleted += deleted
+                total_failed += failed
             except Exception:
+                total_failed += 1
                 logger.exception(
                     "runtime_cleanup_failed",
                     extra={
@@ -34,8 +47,17 @@ class CleanupService:
                         "runtime_dir": str(directory),
                     },
                 )
+        logger.info(
+            "runtime_cleanup_finished",
+            extra={
+                "event": "runtime_cleanup_finished",
+                "cleanup_reason": reason,
+                "deleted_entries": total_deleted,
+                "failed_entries": total_failed,
+            },
+        )
 
-    def _cleanup_directory(self, directory: Path, *, reason: str) -> None:
+    def _cleanup_directory(self, directory: Path, *, reason: str) -> tuple[int, int]:
         allowed_root = directory.resolve(strict=False)
 
         if not directory.exists():
@@ -47,7 +69,7 @@ class CleanupService:
                     "runtime_dir": str(allowed_root),
                 },
             )
-            return
+            return 0, 0
 
         if not directory.is_dir():
             logger.warning(
@@ -58,7 +80,7 @@ class CleanupService:
                     "runtime_dir": str(allowed_root),
                 },
             )
-            return
+            return 0, 1
 
         if self._is_protected_directory(allowed_root):
             logger.error(
@@ -69,7 +91,7 @@ class CleanupService:
                     "runtime_dir": str(allowed_root),
                 },
             )
-            return
+            return 0, 1
 
         deleted = 0
         failed = 0
@@ -99,6 +121,7 @@ class CleanupService:
                 "failed_entries": failed,
             },
         )
+        return deleted, failed
 
     def _delete_child(self, child: Path, allowed_root: Path) -> bool:
         resolved_child = child.resolve(strict=False)

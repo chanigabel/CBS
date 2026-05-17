@@ -36,6 +36,7 @@ async function runstandardization() {
             .join(' | ');
         document.getElementById('grid-stats').textContent =
             `standardization complete (${result.sheets_processed} sheet${result.sheets_processed !== 1 ? 's' : ''}) — ${stats}`;
+        await refreshProcessingReport();
     } catch (err) {
         showError(`standardization failed: ${err.message}`);
     } finally {
@@ -61,6 +62,7 @@ async function exportWorkbook() {
         const report = await apiCall('GET', `/api/workbook/${state.sessionId}/processing-report`);
         document.getElementById('grid-stats').textContent =
             `Export complete (${report.status}) - ${formatProcessingReportSummary(report)}`;
+        await refreshProcessingReport();
     } catch (err) {
         showError(`Export failed: ${err.message}`);
     } finally {
@@ -141,83 +143,5 @@ async function _downloadFile(url, method, defaultFilename) {
     document.body.removeChild(a);
     URL.revokeObjectURL(objUrl);
 }
-
-// ---------------------------------------------------------------------------
-// Initial wiring
-// ---------------------------------------------------------------------------
-
-document.addEventListener('DOMContentLoaded', () => {
-    const form = document.getElementById('upload-form');
-    if (form) form.addEventListener('submit', handleUpload);
-
-    const fileInput = document.getElementById('file-input');
-    if (fileInput) {
-        fileInput.addEventListener('change', () => {
-            const label = document.querySelector('.file-label');
-            if (!label) return;
-            const files = Array.from(fileInput.files);
-            label.textContent = files.length === 1
-                ? files[0].name
-                : `${files.length} files selected`;
-        });
-    }
-
-    // Keyboard shortcuts.
-    document.addEventListener('keydown', e => {
-        const mod = e.ctrlKey || e.metaKey;
-        if (!mod) return;
-
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            if (state.sessionId) runstandardization();
-        } else if (e.key === 's') {
-            e.preventDefault();
-            if (state.sessionId) exportWorkbook();
-        }
-    });
-
-    // Institution metadata form.
-    const instId    = document.getElementById('inst-id');
-    const instName  = document.getElementById('inst-name');
-    const instType1 = document.getElementById('inst-type-1');
-    const instType2 = document.getElementById('inst-type-2');
-    const instType3 = document.getElementById('inst-type-3');
-
-function saveInstitution() {
-    if (!state.sessionId) return;
-    const rawId = instId ? instId.value.trim() : '';
-    const types = [instType1, instType2, instType3]
-        .map(el => el ? el.value.trim() : '')
-        .filter(v => v !== '');
-        // Validate each mosad_type before saving.
-        for (const t of types) {
-            const tErr = validateNumericMin3(t, 'סוג מוסד');
-            if (tErr) { showError(tErr); return; }
-        }
-        apiCall('PATCH', `/api/workbook/${state.sessionId}/institution`, {
-            mosad_id:    rawId || undefined,
-            mosad_name:  instName ? instName.value : undefined,
-            mosad_types: types,
-        }).catch(err => showError(`Failed to save institution: ${err.message}`));
-    }
-
-    if (instId)    instId.addEventListener('blur', saveInstitution);
-    if (instName)  instName.addEventListener('blur', saveInstitution);
-
-    // Refresh the apply dropdown when a type input changes.
-    [instType1, instType2, instType3].forEach(el => {
-        if (!el) return;
-        el.addEventListener('input', updateMosadTypeDropdown);
-        el.addEventListener('blur', () => { saveInstitution(); updateMosadTypeDropdown(); });
-    });
-});
-
-// ---------------------------------------------------------------------------
-// Institution metadata helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Rebuild the apply dropdown from the current type values.
- */
 
 Object.assign(window, { runstandardization, exportWorkbook, exportBulk, exportSelected, _downloadFile });

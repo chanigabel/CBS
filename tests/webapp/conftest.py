@@ -51,13 +51,17 @@ def client(tmp_path, monkeypatch):
     from webapp.services.edit_service import EditService
     from webapp.services.export_service import ExportService
     from webapp.services.processing_report_service import ProcessingReportService
+    from webapp.services.report_export_service import ReportExportService
+    from webapp.services.report_service import ReportService
 
     report_svc = ProcessingReportService(svc)
+    workbook_report_svc = ReportService(svc)
     upload_svc = UploadService(svc, tmp_path / "uploads", tmp_path / "work", report_svc)
     workbook_svc = WorkbookService(svc)
     norm_svc = StandardizationService(svc, report_svc)
     edit_svc = EditService(svc)
     export_svc = ExportService(svc, tmp_path / "output", report_svc)
+    report_export_svc = ReportExportService(svc, workbook_report_svc, tmp_path / "output")
 
     monkeypatch.setattr(deps, "_session_service", svc)
     monkeypatch.setattr(deps, "_upload_service", upload_svc)
@@ -66,6 +70,8 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setattr(deps, "_edit_service", edit_svc)
     monkeypatch.setattr(deps, "_export_service", export_svc)
     monkeypatch.setattr(deps, "_processing_report_service", report_svc)
+    monkeypatch.setattr(deps, "_report_service", workbook_report_svc)
+    monkeypatch.setattr(deps, "_report_export_service", report_export_svc)
 
     from webapp.app import app
     with TestClient(app) as c:

@@ -28,7 +28,7 @@
                     <input
                         type="file"
                         id="file-input"
-                        accept=".xlsx,.xlsm"
+                        accept=".xlsx,.xlsm,.xls"
                         multiple
                         required
                         aria-label="Select Excel files"
@@ -107,6 +107,35 @@
                 ⬇ Export / Download
                 <kbd class="kbd-hint">Ctrl+S</kbd>
             </button>
+            <button id="report-preview-btn" class="btn btn-secondary" onclick="openProcessingReportPreview()">
+                תצוגה מקדימה לדוח
+            </button>
+            <button id="report-export-btn" class="btn btn-secondary" onclick="downloadProcessingReport()">
+                ייצוא דוח עיבוד
+            </button>
+            </div>
+        </div>
+
+        <!-- Processing Report -->
+        <section id="processing-report-section" class="card report-card hidden">
+            <div class="report-header">
+                <h2>&#1491;&#1493;&#1495; &#1506;&#1497;&#1489;&#1493;&#1491;</h2>
+                <span id="report-status" class="report-status"></span>
+            </div>
+            <div id="report-summary" class="report-summary"></div>
+            <div id="report-details" class="report-details"></div>
+        </section>
+
+        <div id="processing-report-modal" class="report-modal hidden" role="dialog" aria-modal="true" aria-label="&#1491;&#1493;&#1495; &#1506;&#1497;&#1489;&#1493;&#1491;">
+            <div class="report-modal-panel">
+                <div class="report-modal-header">
+                    <h2>תצוגה מקדימה לדוח</h2>
+                    <div class="report-modal-actions">
+                        <button type="button" class="btn btn-secondary" onclick="downloadProcessingReport()">ייצוא דוח עיבוד</button>
+                        <button type="button" class="btn btn-secondary" onclick="closeProcessingReportPreview()">סגור</button>
+                    </div>
+                </div>
+                <div id="processing-report-preview" class="report-preview"></div>
             </div>
         </div>
 

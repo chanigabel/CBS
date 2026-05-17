@@ -26,10 +26,12 @@ from webapp.api import (
     institution,
     process_file,
     processing_report,
+    report,
     standardize,
     upload,
     workbook,
 )
+from webapp.logging_config import configure_logging
 
 # ---------------------------------------------------------------------------
 # Asset path resolution — works both in development and inside a PyInstaller
@@ -54,10 +56,7 @@ _TEMPLATES_DIR = _ASSET_BASE / "templates"
 # Logging
 # ---------------------------------------------------------------------------
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-)
+configure_logging()
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -127,6 +126,7 @@ app.include_router(export.router, prefix="/api")
 app.include_router(institution.router, prefix="/api")
 app.include_router(process_file.router, prefix="/api")
 app.include_router(processing_report.router, prefix="/api")
+app.include_router(report.router, prefix="/api")
 
 
 def _file_hash(path: Path, length: int = 8) -> str:

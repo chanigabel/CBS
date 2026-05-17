@@ -42,25 +42,59 @@ class WorkbookService:
 
         working_path = record.working_copy_path
         is_xls = workbook_suffix(working_path) == ".xls"
+        session_id = getattr(record, "session_id", "")
 
         if record.workbook_dataset is not None:
             if record.workbook_dataset.get_sheet_by_name(sheet_name) is not None:
                 return
             if not sheet_exists(working_path, sheet_name):
+                logger.warning(
+                    "sheet_load_rejected_not_found",
+                    extra={
+                        "event": "sheet_load_rejected_not_found",
+                        "session_id": session_id,
+                        "sheet_name": sheet_name,
+                    },
+                )
                 raise HTTPException(
                     status_code=404,
                     detail=f"Sheet '{sheet_name}' not found in this workbook.",
                 )
 
         try:
+            logger.info(
+                "sheet_load_started",
+                extra={
+                    "event": "sheet_load_started",
+                    "session_id": session_id,
+                    "sheet_name": sheet_name,
+                    "lazy_extraction": True,
+                },
+            )
             sheet_dataset = extract_sheet_dataset(working_path, sheet_name)
         except KeyError:
+            logger.warning(
+                "sheet_load_rejected_not_found",
+                extra={
+                    "event": "sheet_load_rejected_not_found",
+                    "session_id": session_id,
+                    "sheet_name": sheet_name,
+                },
+            )
             raise HTTPException(
                 status_code=404,
                 detail=f"Sheet '{sheet_name}' not found in this workbook.",
             )
         except WorkbookLoadError as exc:
-            logger.error("Failed to extract sheet '%s': %s", sheet_name, exc, exc_info=True)
+            logger.exception(
+                "sheet_load_failed",
+                extra={
+                    "event": "sheet_load_failed",
+                    "session_id": session_id,
+                    "sheet_name": sheet_name,
+                    "error_type": type(exc).__name__,
+                },
+            )
             raise HTTPException(status_code=422 if not is_xls else 500, detail=str(exc))
 
         if record.workbook_dataset is None:
@@ -79,6 +113,18 @@ class WorkbookService:
         mappings = record.column_mappings.get(sheet_name, {})
         if mappings:
             self.apply_column_mappings_to_sheet(sheet_dataset, mappings)
+
+        logger.info(
+            "sheet_load_completed",
+            extra={
+                "event": "sheet_load_completed",
+                "session_id": session_id,
+                "sheet_name": sheet_name,
+                "row_count": len(sheet_dataset.rows),
+                "column_count": len(sheet_dataset.field_names),
+                "lazy_extraction": True,
+            },
+        )
 
     def get_column_schema(self) -> ColumnSchemaResponse:
         """Return the supported generic target field names for column mapping."""
@@ -144,6 +190,14 @@ class WorkbookService:
 
         sheet = record.workbook_dataset.get_sheet_by_name(sheet_name)
         if sheet is None:
+            logger.warning(
+                "sheet_data_not_found_after_load",
+                extra={
+                    "event": "sheet_data_not_found_after_load",
+                    "session_id": session_id,
+                    "sheet_name": sheet_name,
+                },
+            )
             raise HTTPException(
                 status_code=404,
                 detail=f"Sheet '{sheet_name}' not found in this workbook.",
@@ -156,6 +210,16 @@ class WorkbookService:
         session_mosad_id = record.mosad_id or None
         meta_mosad_id = session_mosad_id or sheet.get_metadata("MosadID")
         active_mosad_type = record.mosad_types[0] if record.mosad_types else None
+        logger.info(
+            "sheet_data_returned",
+            extra={
+                "event": "sheet_data_returned",
+                "session_id": session_id,
+                "sheet_name": sheet_name,
+                "row_count": len(sheet.rows),
+                "column_count": len(sheet.field_names),
+            },
+        )
         return build_sheet_grid_payload(
             sheet,
             session_mosad_id=session_mosad_id or "",
@@ -226,6 +290,8 @@ class WorkbookService:
             else:
                 updated_edits[(edit_sheet, row_uid, field_name)] = value
         record.edits = updated_edits
+        if record.status == "standardized":
+            record.working_dataset_dirty = True
 
         return ColumnMappingResponse(
             sheet_name=sheet_name,

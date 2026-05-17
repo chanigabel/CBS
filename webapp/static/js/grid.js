@@ -236,10 +236,15 @@ function renderGrid(sheetData, rows, targetContainer) {
     function isEditableDataColumn(col) {
         if (!col) return false;
         if (col === '_row_uid' || col === 'row_uid') return false;
-        if (col === '_validation_status' || col === '_validation_ok') return false;
+        // Keep only true internal fields blocked.
         if (col === '_standardization_failures') return false;
-        if (col.startsWith('_')) return false;
-        if (col.endsWith('_corrected') || col.endsWith('_status')) return false;
+        // Allow visible validation/status fields (e.g. '_validation_status')
+        // to be editable if they are included in the displayed columns.
+        if (col.startsWith('_')) {
+            if (col === '_validation_status') return true;
+            return false;
+        }
+        // Allow source fields, *_corrected and *_status fields to be editable.
         return true;
     }
 

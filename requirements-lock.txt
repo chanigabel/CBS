@@ -13,9 +13,9 @@
 # due to PyInstaller environment bleed. See docs/DEPENDENCY_INVENTORY.md,
 # Section 5 for the full as-shipped inventory.
 #
-# This file contains ONLY the packages this project actually declares
-# and requires at runtime (5 direct + 15 transitive).
-# It does NOT include dev, test, or build tools.
+# This file contains the packages this project declares for the packaged
+# runtime, plus the minimal TestClient dependency needed to run webapp tests.
+# It does NOT include formatter, type-checker, coverage, or build tools.
 #
 # To produce a clean installer using this lock file:
 #   python -m venv venv-release
@@ -48,3 +48,8 @@ annotated-types==0.7.0
 typing-inspection==0.4.1
 colorama==0.4.6
 annotated-doc==0.0.4
+
+# --- Minimal test dependency for FastAPI TestClient ---
+httpx==0.28.1
+httpcore==1.0.9
+certifi==2026.4.22

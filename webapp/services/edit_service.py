@@ -13,7 +13,6 @@ logger = logging.getLogger(__name__)
 _BLOCKED_FIELDS = {
     "_row_uid",
     "row_uid",
-    "_validation_status",
     "_validation_ok",
     "_standardization_failures",
 }
@@ -25,9 +24,12 @@ def is_editable_source_field(field_name: str) -> bool:
         return False
     if field_name in _BLOCKED_FIELDS:
         return False
+    # Allow visible validation/status fields and corrected/status fields.
+    # Block true internal prefixed fields (except _validation_status which
+    # is considered user-facing when present).
     if field_name.startswith("_"):
-        return False
-    if field_name.endswith("_corrected") or field_name.endswith("_status"):
+        if field_name == "_validation_status":
+            return True
         return False
     return True
 
@@ -87,9 +89,29 @@ class EditService:
             HTTPException 404: If session, sheet, or row_uid not found
             HTTPException 400: If field_name not found in the row
         """
+        logger.info(
+            "cell_edit_requested",
+            extra={
+                "event": "cell_edit_requested",
+                "session_id": session_id,
+                "sheet_name": sheet_name,
+                "row_uid": req.row_uid,
+                "field_name": req.field_name,
+            },
+        )
         record = self.session_service.get(session_id)
 
         if record.workbook_dataset is None:
+            logger.warning(
+                "cell_edit_failed_no_workbook_dataset",
+                extra={
+                    "event": "cell_edit_failed_no_workbook_dataset",
+                    "session_id": session_id,
+                    "sheet_name": sheet_name,
+                    "row_uid": req.row_uid,
+                    "field_name": req.field_name,
+                },
+            )
             raise HTTPException(
                 status_code=500,
                 detail="Workbook data is not available for this session.",
@@ -97,6 +119,16 @@ class EditService:
 
         sheet = record.workbook_dataset.get_sheet_by_name(sheet_name)
         if sheet is None:
+            logger.warning(
+                "cell_edit_failed_sheet_not_found",
+                extra={
+                    "event": "cell_edit_failed_sheet_not_found",
+                    "session_id": session_id,
+                    "sheet_name": sheet_name,
+                    "row_uid": req.row_uid,
+                    "field_name": req.field_name,
+                },
+            )
             raise HTTPException(
                 status_code=404,
                 detail=f"Sheet '{sheet_name}' not found in this workbook.",
@@ -108,6 +140,16 @@ class EditService:
             None,
         )
         if row_idx is None:
+            logger.warning(
+                "cell_edit_failed_row_not_found",
+                extra={
+                    "event": "cell_edit_failed_row_not_found",
+                    "session_id": session_id,
+                    "sheet_name": sheet_name,
+                    "row_uid": req.row_uid,
+                    "field_name": req.field_name,
+                },
+            )
             raise HTTPException(
                 status_code=404,
                 detail=f"Row with uid '{req.row_uid}' not found in sheet '{sheet_name}'.",
@@ -116,6 +158,16 @@ class EditService:
         # Validate field_name — must exist in the row
         row = sheet.rows[row_idx]
         if req.field_name not in row:
+            logger.warning(
+                "cell_edit_failed_field_not_found",
+                extra={
+                    "event": "cell_edit_failed_field_not_found",
+                    "session_id": session_id,
+                    "sheet_name": sheet_name,
+                    "row_uid": req.row_uid,
+                    "field_name": req.field_name,
+                },
+            )
             raise HTTPException(
                 status_code=400,
                 detail=(
@@ -123,10 +175,24 @@ class EditService:
                     f"Available fields: {list(row.keys())}"
                 ),
             )
-        if req.field_name not in sheet.field_names or not is_editable_source_field(req.field_name):
+        # Allow edits to any field present in the row (visible to the UI),
+        # except for true technical/internal identifiers listed in
+        # `_BLOCKED_FIELDS` or other fields explicitly considered non-editable
+        # by `is_editable_source_field`.
+        if not is_editable_source_field(req.field_name):
+            logger.warning(
+                "cell_edit_rejected_system_field",
+                extra={
+                    "event": "cell_edit_rejected_system_field",
+                    "session_id": session_id,
+                    "sheet_name": sheet_name,
+                    "row_uid": req.row_uid,
+                    "field_name": req.field_name,
+                },
+            )
             raise HTTPException(
                 status_code=400,
-                detail=f"Field '{req.field_name}' is a system or computed field and cannot be edited.",
+                detail=f"Field '{req.field_name}' is an internal field and cannot be edited.",
             )
 
         # F-07: Coerce new_value to the original field's type so that editing a
@@ -141,12 +207,19 @@ class EditService:
         record.edits[(sheet_name, req.row_uid, req.field_name)] = coerced_value
         record.working_dataset_dirty = True
 
-        logger.debug(
-            f"Cell edited: session={session_id}, sheet={sheet_name}, "
-            f"row_uid={req.row_uid}, field={req.field_name}"
+        logger.info(
+            "cell_edit_succeeded",
+            extra={
+                "event": "cell_edit_succeeded",
+                "session_id": session_id,
+                "sheet_name": sheet_name,
+                "row_uid": req.row_uid,
+                "field_name": req.field_name,
+                "working_dataset_dirty": True,
+            },
         )
 
-        _KEEP_INTERNAL = {"_row_uid"}
+        _KEEP_INTERNAL = {"_row_uid", "_validation_status"}
         updated_row = {
             k: v for k, v in sheet.rows[row_idx].items()
             if not k.startswith("_standardization") and (not k.startswith("_") or k in _KEEP_INTERNAL)
@@ -232,8 +305,15 @@ class EditService:
         record.working_dataset_dirty = True
 
         logger.info(
-            f"Deleted {len(indices)} row(s) from sheet '{sheet_name}' "
-            f"in session {session_id}. Remaining: {len(sheet.rows)}"
+            "rows_deleted",
+            extra={
+                "event": "rows_deleted",
+                "session_id": session_id,
+                "sheet_name": sheet_name,
+                "deleted_count": len(indices),
+                "remaining_rows": len(sheet.rows),
+                "working_dataset_dirty": True,
+            },
         )
 
         return DeleteRowResponse(

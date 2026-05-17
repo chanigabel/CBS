@@ -170,6 +170,7 @@ async function activateSession(sessionId) {
 
     document.getElementById('grid-section').classList.add('hidden');
     document.getElementById('grid-container').innerHTML = '';
+    document.getElementById('processing-report-section')?.classList.add('hidden');
 
     // Load institution metadata for this session.
     await loadInstitution();

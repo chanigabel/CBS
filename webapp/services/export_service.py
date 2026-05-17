@@ -16,7 +16,6 @@ from webapp.services.export_schema import EXPORT_MAPPING, canonical_sheet_name, 
 from webapp.services.export_writer import write_export_workbook
 from webapp.services.processing_report_service import ProcessingReportService
 from webapp.services.session_service import SessionService
-from webapp.services.workbook_loader import WorkbookLoadError, extract_workbook_dataset
 
 logger = logging.getLogger(__name__)
 
@@ -41,31 +40,49 @@ class ExportService:
     # מוודא שיש Dataset, כותב קובץ יצוא ומחזיר את נתיב ההורדה.
     def export(self, session_id: str) -> Path:
         """Export the session's workbook using the fixed export schema."""
+        logger.info(
+            "export_requested",
+            extra={"event": "export_requested", "session_id": session_id},
+        )
         record = self.session_service.get(session_id)
 
+        # If the session was already standardized, allow manual edits (e.g.
+        # user-corrected *_corrected fields) without blocking export. Keep a
+        # warning in the log when the working dataset is dirty, but do not
+        # prevent export after a successful standardization run.
         if record.working_dataset_dirty:
-            raise HTTPException(
-                status_code=409,
-                detail="The grid has edits that were not standardized yet. Run Standardization again before exporting.",
+            logger.info(
+                "export_dirty_dataset_allowed",
+                extra={
+                    "event": "export_dirty_dataset_allowed",
+                    "session_id": session_id,
+                    "working_dataset_dirty": True,
+                },
             )
 
-        if record.workbook_dataset is None:
-            try:
-                workbook_dataset = extract_workbook_dataset(record.working_copy_path)
-                self.session_service.update(session_id, workbook_dataset=workbook_dataset)
-                record = self.session_service.get(session_id)
-            except WorkbookLoadError as exc:
-                logger.error("Failed to load workbook for export: %s", exc, exc_info=True)
-                raise HTTPException(status_code=500, detail=str(exc))
-            except Exception as exc:
-                logger.error("Failed to load workbook for export: %s", exc, exc_info=True)
-                raise HTTPException(
-                    status_code=500,
-                    detail="No workbook data available to export. Please upload a file first.",
-                )
+        workbook_dataset = record.workbook_dataset
+        if (
+            record.status != "standardized"
+            or workbook_dataset is None
+            or not getattr(workbook_dataset, "sheets", None)
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="Run Standardization before exporting. Export uses the latest successful Standardization result.",
+            )
 
         output_filename = _build_export_filename(record)
         self.output_dir.mkdir(parents=True, exist_ok=True)
+        logger.info(
+            "export_started",
+            extra={
+                "event": "export_started",
+                "session_id": session_id,
+                "output_filename": output_filename,
+                "sheet_count": len(record.workbook_dataset.sheets),
+                "row_count": sum(len(sheet.rows) for sheet in record.workbook_dataset.sheets),
+            },
+        )
 
         original_stem = Path(record.original_filename).stem
         for old_file in self.output_dir.glob(f"{original_stem}_standardized_*.xlsx"):

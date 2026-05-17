@@ -102,9 +102,6 @@ def test_edit_is_recorded_in_session_edits():
 @pytest.mark.parametrize(
     "field_name",
     [
-        "first_name_corrected",
-        "gender_status",
-        "_validation_status",
         "_standardization_failures",
         "_row_uid",
         "row_uid",
@@ -129,6 +126,42 @@ def test_blocks_computed_and_system_fields(field_name):
     with pytest.raises(HTTPException) as exc_info:
         edit_svc.edit_cell("edit-session", "Sheet1", req)
     assert exc_info.value.status_code == 400
+
+
+def test_edit_corrected_field_succeeds():
+    svc, edit_svc = make_session_with_sheet()
+    record = edit_svc.session_service.get("edit-session")
+    sheet = record.workbook_dataset.get_sheet_by_name("Sheet1")
+    sheet.field_names.append("first_name_corrected")
+    sheet.rows[0]["first_name_corrected"] = "Alice"
+
+    req = CellEditRequest(row_uid="uid-alice-001", field_name="first_name_corrected", new_value="Alicia")
+    resp = edit_svc.edit_cell("edit-session", "Sheet1", req)
+    assert resp.updated_row["first_name_corrected"] == "Alicia"
+
+
+def test_edit_status_field_succeeds():
+    svc, edit_svc = make_session_with_sheet()
+    record = edit_svc.session_service.get("edit-session")
+    sheet = record.workbook_dataset.get_sheet_by_name("Sheet1")
+    sheet.field_names.append("birth_date_status")
+    sheet.rows[0]["birth_date_status"] = ""
+
+    req = CellEditRequest(row_uid="uid-alice-001", field_name="birth_date_status", new_value="תקין")
+    resp = edit_svc.edit_cell("edit-session", "Sheet1", req)
+    assert resp.updated_row["birth_date_status"] == "תקין"
+
+
+def test_edit_prefixed_validation_status_succeeds():
+    svc, edit_svc = make_session_with_sheet()
+    record = edit_svc.session_service.get("edit-session")
+    sheet = record.workbook_dataset.get_sheet_by_name("Sheet1")
+    sheet.field_names.append("_validation_status")
+    sheet.rows[0]["_validation_status"] = "ok"
+
+    req = CellEditRequest(row_uid="uid-alice-001", field_name="_validation_status", new_value="failed")
+    resp = edit_svc.edit_cell("edit-session", "Sheet1", req)
+    assert resp.updated_row["_validation_status"] == "failed"
 
 
 def test_edit_marks_working_dataset_dirty():

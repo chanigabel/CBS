@@ -57,9 +57,25 @@ class UploadService:
             HTTPException 422: If file cannot be opened as a valid Excel workbook
             HTTPException 500: If an IO error occurs while saving the file
         """
+        logger.info(
+            "upload_started",
+            extra={
+                "event": "upload_started",
+                "upload_filename": filename,
+                "upload_size_bytes": len(file_bytes),
+            },
+        )
         # 1. Validate extension
         suffix = Path(filename).suffix.lower()
         if suffix not in ALLOWED_EXTENSIONS:
+            logger.warning(
+                "upload_rejected_invalid_extension",
+                extra={
+                    "event": "upload_rejected_invalid_extension",
+                    "upload_filename": filename,
+                    "extension": suffix,
+                },
+            )
             raise HTTPException(
                 status_code=400,
                 detail=(
@@ -82,8 +98,24 @@ class UploadService:
         try:
             source_path.write_bytes(file_bytes)
             shutil.copy2(source_path, working_path)
+            logger.info(
+                "upload_saved_internal_files",
+                extra={
+                    "event": "upload_saved_internal_files",
+                    "session_id": session_id,
+                    "extension": suffix,
+                    "upload_size_bytes": len(file_bytes),
+                },
+            )
         except Exception as exc:
-            logger.error(f"Failed to save uploaded file: {exc}", exc_info=True)
+            logger.exception(
+                "upload_save_failed",
+                extra={
+                    "event": "upload_save_failed",
+                    "session_id": session_id,
+                    "error_type": type(exc).__name__,
+                },
+            )
             raise HTTPException(
                 status_code=500,
                 detail="Failed to save the uploaded file. Please try again.",
@@ -96,12 +128,28 @@ class UploadService:
         except WorkbookLoadError as exc:
             source_path.unlink(missing_ok=True)
             working_path.unlink(missing_ok=True)
-            logger.warning(f"Invalid workbook uploaded '{filename}': {exc}")
+            logger.warning(
+                "upload_rejected_invalid_workbook",
+                extra={
+                    "event": "upload_rejected_invalid_workbook",
+                    "session_id": session_id,
+                    "upload_filename": filename,
+                    "error_type": type(exc).__name__,
+                },
+            )
             raise HTTPException(status_code=422, detail=str(exc))
         except Exception as exc:
             source_path.unlink(missing_ok=True)
             working_path.unlink(missing_ok=True)
-            logger.warning(f"Invalid workbook uploaded '{filename}': {exc}")
+            logger.warning(
+                "upload_rejected_invalid_workbook",
+                extra={
+                    "event": "upload_rejected_invalid_workbook",
+                    "session_id": session_id,
+                    "upload_filename": filename,
+                    "error_type": type(exc).__name__,
+                },
+            )
             raise HTTPException(
                 status_code=422,
                 detail=(
@@ -121,6 +169,14 @@ class UploadService:
             workbook_dataset=None,
         )
         self.session_service.create(record)
+        logger.info(
+            "upload_session_created",
+            extra={
+                "event": "upload_session_created",
+                "session_id": session_id,
+                "sheet_count": len(sheet_names),
+            },
+        )
         self.processing_report_service.start(session_id)
         self.processing_report_service.complete_stage(session_id, "upload")
 

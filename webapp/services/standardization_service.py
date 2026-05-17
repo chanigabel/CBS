@@ -53,18 +53,45 @@ class StandardizationService:
         processed (kept for CLI / batch compatibility).
         """
         record = self.session_service.get(session_id)
+        logger.info(
+            "standardization_started",
+            extra={
+                "event": "standardization_started",
+                "session_id": session_id,
+                "sheet_name": sheet_name,
+                "run_scope": "sheet" if sheet_name else "workbook",
+                "has_working_dataset": record.workbook_dataset is not None,
+                "working_dataset_dirty": record.working_dataset_dirty,
+            },
+        )
 
         pipeline = self._build_pipeline()
 
         if record.workbook_dataset is None:
             # Load the workbook when no sheet has been accessed yet.
             try:
+                logger.info(
+                    "standardization_initial_extraction_started",
+                    extra={
+                        "event": "standardization_initial_extraction_started",
+                        "session_id": session_id,
+                    },
+                )
                 wbd = extract_workbook_dataset(record.working_copy_path)
                 self._apply_record_column_mappings(record, wbd.sheets)
                 self.session_service.update(session_id, workbook_dataset=wbd)
                 self.processing_report_service.complete_stage(session_id, "extract")
                 self.processing_report_service.update_workbook_counts(session_id, wbd)
                 record = self.session_service.get(session_id)
+                logger.info(
+                    "standardization_initial_extraction_completed",
+                    extra={
+                        "event": "standardization_initial_extraction_completed",
+                        "session_id": session_id,
+                        "sheet_count": len(wbd.sheets),
+                        "row_count": sum(len(sheet.rows) for sheet in wbd.sheets),
+                    },
+                )
             except WorkbookLoadError as exc:
                 self.processing_report_service.add_error(
                     session_id,
@@ -108,6 +135,14 @@ class StandardizationService:
         if sheet_name is not None:
             existing = record.workbook_dataset.get_sheet_by_name(sheet_name)
             if existing is None:
+                logger.warning(
+                    "standardization_rejected_sheet_not_found",
+                    extra={
+                        "event": "standardization_rejected_sheet_not_found",
+                        "session_id": session_id,
+                        "sheet_name": sheet_name,
+                    },
+                )
                 raise HTTPException(
                     status_code=404,
                     detail=f"Sheet '{sheet_name}' not found.",
@@ -117,6 +152,16 @@ class StandardizationService:
         else:
             sheets_to_normalize = list(record.workbook_dataset.sheets)
             self.processing_report_service.complete_stage(session_id, "extract")
+        logger.info(
+            "standardization_using_working_dataset",
+            extra={
+                "event": "standardization_using_working_dataset",
+                "session_id": session_id,
+                "run_scope": "sheet" if sheet_name else "workbook",
+                "sheet_count": len(sheets_to_normalize),
+                "row_count": sum(len(sheet.rows) for sheet in sheets_to_normalize),
+            },
+        )
 
         # Normalize
         normalized_sheets: List[SheetDataset] = []
@@ -229,6 +274,14 @@ class StandardizationService:
             session_id,
             status="standardized",
             working_dataset_dirty=False,
+        )
+        logger.info(
+            "working_dataset_dirty_cleared",
+            extra={
+                "event": "working_dataset_dirty_cleared",
+                "session_id": session_id,
+                "working_dataset_dirty": False,
+            },
         )
 
         total_rows = sum(s.rows for s in per_sheet_stats)

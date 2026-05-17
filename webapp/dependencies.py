@@ -18,6 +18,8 @@ from webapp.services.edit_service import EditService
 from webapp.services.export_service import ExportService
 from webapp.services.processing_report_service import ProcessingReportService
 from webapp.services.cleanup_service import CleanupService
+from webapp.services.report_service import ReportService
+from webapp.services.report_export_service import ReportExportService
 from src.excel_standardization.engine_management import EngineManager
 
 
@@ -50,6 +52,8 @@ for _d in (UPLOADS_DIR, WORK_DIR, OUTPUT_DIR, CONFIG_DIR):
 # Shared service instances (singletons for the process lifetime)
 _session_service = SessionService()
 _processing_report_service = ProcessingReportService(_session_service)
+_report_service = ReportService(_session_service)
+_report_export_service = ReportExportService(_session_service, _report_service, OUTPUT_DIR)
 _engine_manager = EngineManager(CONFIG_DIR / "engine_config.json")
 _column_mapping_schema_service = ColumnMappingSchemaService(
     CONFIG_DIR / "column_mapping_schema.json"
@@ -96,6 +100,14 @@ def get_export_service() -> ExportService:
 
 def get_processing_report_service() -> ProcessingReportService:
     return _processing_report_service
+
+
+def get_report_service() -> ReportService:
+    return _report_service
+
+
+def get_report_export_service() -> ReportExportService:
+    return _report_export_service
 
 
 def get_engine_manager() -> EngineManager:

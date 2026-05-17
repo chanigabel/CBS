@@ -20,27 +20,14 @@ from pathlib import Path
 
 import uvicorn
 
+from webapp.logging_config import configure_logging
+
 # ---------------------------------------------------------------------------
 # Logging — write to both console and a log file in the data directory
 # ---------------------------------------------------------------------------
 
 def _setup_logging() -> None:
-    if getattr(sys, "frozen", False):
-        log_dir = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "Excelstandardization"
-    else:
-        log_dir = Path.cwd()
-
-    log_dir.mkdir(parents=True, exist_ok=True)
-    log_file = log_dir / "app.log"
-
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        handlers=[
-            logging.StreamHandler(sys.stdout),
-            logging.FileHandler(str(log_file), encoding="utf-8"),
-        ],
-    )
+    configure_logging()
 
 
 # ---------------------------------------------------------------------------
