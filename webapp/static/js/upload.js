@@ -259,6 +259,10 @@ async function loadSheet(sheetName) {
             await refreshColumnMappingControls(data);
         }
     } catch (err) {
+        if (isSessionNotFoundError(err)) {
+            clearStaleSessionState('הסשן הסתיים. יש להעלות קובץ מחדש.');
+            return;
+        }
         showError(`טעינת הגיליון '${sheetName}' נכשלה: ${err.message}`);
         gridContainer.innerHTML = '';
     }

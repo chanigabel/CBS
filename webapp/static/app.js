@@ -170,6 +170,44 @@ function saveStandardizationUiState() {
     }
 }
 
+function isSessionNotFoundError(err) {
+    return err && err.status === 404 && err.message.includes('Session');
+}
+
+function clearStaleSessionState(message) {
+    sessions.clear();
+    state.sessionId = null;
+    state.currentSheet = null;
+    state.sheetData = null;
+    state.selectedRows.clear();
+    state.columnFilters.clear();
+
+    renderSessionSwitcher();
+
+    const sheetSelector = document.getElementById('sheet-selector');
+    if (sheetSelector) sheetSelector.classList.add('hidden');
+
+    const actionBar = document.getElementById('action-bar');
+    if (actionBar) actionBar.classList.add('hidden');
+
+    const gridSection = document.getElementById('grid-section');
+    if (gridSection) gridSection.classList.add('hidden');
+
+    const reportSection = document.getElementById('processing-report-section');
+    if (reportSection) reportSection.classList.add('hidden');
+
+    const gridContainer = document.getElementById('grid-container');
+    if (gridContainer) gridContainer.innerHTML = '';
+
+    const gridTitle = document.getElementById('grid-title');
+    if (gridTitle) gridTitle.textContent = '';
+
+    const uploadStatus = document.getElementById('upload-status');
+    if (uploadStatus) uploadStatus.textContent = message || '';
+
+    sessionStorage.removeItem(STANDARDIZATION_STATE_KEY);
+}
+
 async function restoreStandardizationUiState() {
     const raw = sessionStorage.getItem(STANDARDIZATION_STATE_KEY);
     if (!raw || sessions.size > 0) return;
@@ -200,16 +238,30 @@ async function restoreStandardizationUiState() {
         });
     });
 
-    renderSessionSwitcher();
-
     const activeSessionId = payload.currentSessionId && sessions.has(payload.currentSessionId)
         ? payload.currentSessionId
         : [...sessions.keys()][0];
-    if (activeSessionId) {
-        const activeSession = sessions.get(activeSessionId);
-        if (payload.currentSheet) activeSession.lastSheet = payload.currentSheet;
-        await activateSession(activeSessionId);
+
+    if (!activeSessionId) {
+        restoreFormState(payload.form);
+        return;
     }
+
+    try {
+        await apiCall('GET', `/api/workbook/${activeSessionId}/summary`);
+    } catch (err) {
+        if (isSessionNotFoundError(err)) {
+            clearStaleSessionState('הסשן הסתיים. יש להעלות קובץ מחדש.');
+            return;
+        }
+        throw err;
+    }
+
+    renderSessionSwitcher();
+
+    const activeSession = sessions.get(activeSessionId);
+    if (payload.currentSheet && activeSession) activeSession.lastSheet = payload.currentSheet;
+    await activateSession(activeSessionId);
 
     state.selectedRows = new Set(payload.selectedRows || []);
     state.columnFilters = new Map((payload.columnFilters || []).map(([column, values]) => [

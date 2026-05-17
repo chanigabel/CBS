@@ -30,7 +30,9 @@ async function apiCall(method, url, body = null) {
     if (!response.ok) {
         let detail = `HTTP ${response.status}`;
         try { const err = await response.json(); detail = err.detail || detail; } catch (_) {}
-        throw new Error(detail);
+        const error = new Error(detail);
+        error.status = response.status;
+        throw error;
     }
 
     const ct = response.headers.get('content-type') || '';
