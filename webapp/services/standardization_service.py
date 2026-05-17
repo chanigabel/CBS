@@ -21,6 +21,8 @@ from webapp.services.session_service import SessionService
 from webapp.services.workbook_loader import (
     WorkbookLoadError,
     extract_workbook_dataset,
+    get_workbook_sheet_names,
+    extract_sheet_dataset,
 )
 
 logger = logging.getLogger(__name__)
@@ -128,6 +130,44 @@ class StandardizationService:
                     status_code=500,
                     detail="No workbook data available. Please load a sheet first.",
                 )
+
+        # If the in-memory Working Dataset exists but the user requests a
+        # full-workbook standardization, ensure all sheets from the original
+        # workbook are present in the Working Dataset.  This avoids a surprising
+        # situation where only previously-loaded sheets are processed.
+        if sheet_name is None and record.workbook_dataset is not None:
+            try:
+                all_names = get_workbook_sheet_names(record.working_copy_path)
+            except Exception:
+                all_names = []
+
+            missing = [n for n in all_names if record.workbook_dataset.get_sheet_by_name(n) is None]
+            if missing:
+                logger.info(
+                    "standardization_loading_missing_sheets",
+                    extra={
+                        "event": "standardization_loading_missing_sheets",
+                        "session_id": session_id,
+                        "missing_sheets": missing,
+                    },
+                )
+                new_sheets = []
+                for name in missing:
+                    try:
+                        sd = extract_sheet_dataset(record.working_copy_path, name)
+                        new_sheets.append(sd)
+                    except Exception:
+                        logger.exception(
+                            "standardization_failed_extract_missing_sheet",
+                            extra={"event": "standardization_failed_extract_missing_sheet", "session_id": session_id, "sheet_name": name},
+                        )
+                if new_sheets:
+                    # Apply any recorded column mappings to the newly extracted
+                    # sheets, then append them to the existing Working Dataset.
+                    self._apply_record_column_mappings(record, new_sheets)
+                    record.workbook_dataset.sheets.extend(new_sheets)
+                    # Update counts in the processing report so the UI shows accurate numbers.
+                    self.processing_report_service.update_workbook_counts(session_id, record.workbook_dataset)
 
         # Determine which Working Dataset sheets to normalize. Once the
         # in-memory dataset exists, standardization must not re-extract from
