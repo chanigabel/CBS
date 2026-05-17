@@ -219,7 +219,7 @@ function renderGrid(sheetData, rows, targetContainer) {
     const displayRows = rows !== undefined ? rows : sheetData.rows;
 
     if (!sheetData.rows || sheetData.rows.length === 0) {
-        container.innerHTML = '<p style="padding:20px;color:#718096">No data rows found in this sheet.</p>';
+        container.innerHTML = '<p style="padding:20px;text-align:center">לא נמצאו שורות בגיליון זה.</p>';
         if (statsDiv) statsDiv.textContent = '';
         if (!targetContainer) updateDeleteButton();
         return;

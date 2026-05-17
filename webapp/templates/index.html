@@ -16,13 +16,13 @@
 
     <div class="container">
         <header>
-            <h1>Excel standardization</h1>
-            <p class="subtitle">Upload, normalize, edit, and export Excel workbooks</p>
+            <h1>תקן קבצי Excel</h1>
+            <p class="subtitle">העלה קובץ, תקן ערכים, ערוך וייצא בתוצרים מסודרים</p>
         </header>
 
         <!-- Upload Section -->
         <section id="upload-section" class="card">
-            <h2>Upload Excel Files</h2>
+            <h2>העלה קובץ Excel</h2>
             <form id="upload-form">
                 <div class="file-input-wrapper">
                     <input
@@ -31,14 +31,14 @@
                         accept=".xlsx,.xlsm,.xls"
                         multiple
                         required
-                        aria-label="Select Excel files"
+                        aria-label="בחר קבצי Excel"
                     >
                     <label for="file-input" class="file-label">
-                        Choose .xlsx, .xlsm, or .xls files (multiple allowed)
+                        בחר קבצים ב-Excel (.xlsx, .xlsm, .xls)
                     </label>
                 </div>
                 <button type="submit" id="upload-btn" class="btn btn-primary">
-                    Upload
+                    העלה
                 </button>
             </form>
             <div id="upload-status" class="status-message"></div>
@@ -60,58 +60,58 @@
         <div id="action-bar" class="action-bar hidden">
             <!-- Institution bar: workbook-level MosadID / MosadType / MosadName -->
             <div id="institution-bar" class="institution-bar">
-                <span class="institution-label">מוסד:</span>
-                <input id="inst-id"   class="inst-input" type="text" placeholder="MosadID"   title="מספר מוסד (ספרות בלבד, לפחות 3)" />
-                <span class="institution-label inst-type-label">סוג מוסד:</span>
-                <input id="inst-type-1" class="inst-input inst-type-input" type="text" placeholder="סוג 1" title="ערך סוג מוסד 1 (ברירת מחדל)" />
-                <input id="inst-type-2" class="inst-input inst-type-input" type="text" placeholder="סוג 2" title="ערך סוג מוסד 2" />
-                <input id="inst-type-3" class="inst-input inst-type-input" type="text" placeholder="סוג 3" title="ערך סוג מוסד 3" />
-                <select id="inst-type-apply-select" class="inst-select inst-type-apply-select" title="בחר ערך להחלה">
-                </select>
-
-                <!-- Scope selector -->
-                <span class="institution-label">החל על:</span>
-                <select id="inst-scope-select" class="inst-select" title="בחר היקף החלה" onchange="onScopeChange()">
-                    <option value="workbook">כל הגיליונות</option>
-                    <option value="sheet">גיליון נבחר</option>
-                    <option value="selected_rows">שורות נבחרות</option>
-                </select>
-
-                <!-- Sheet selector (shown for scope=sheet and scope=selected_rows) -->
-                <select id="inst-sheet-select" class="inst-select inst-sheet-select hidden" title="בחר גיליון">
-                </select>
-
-                <!-- Selected-rows hint (shown for scope=selected_rows) -->
-                <span id="inst-selected-rows-hint" class="inst-selected-rows-hint hidden">
-                    סמן שורות בטבלה ולחץ "החל סוג"
-                </span>
-
-                <button class="btn btn-sm btn-outline" onclick="applyMosadTypeScoped()" title="החל את ערך הסוג הנבחר לפי ההיקף שנבחר">החל סוג</button>
-                <input id="inst-name" class="inst-input inst-name" type="text" placeholder="שם מוסד (לשם הקובץ)" title="שם מוסד" />
+                <div class="institution-group">
+                    <label class="institution-label" for="inst-id">מספר מוסד</label>
+                    <input id="inst-id" class="inst-input" type="text" placeholder="123" title="מספר מוסד (ספרות בלבד, לפחות 3)" />
+                </div>
+                <div class="institution-group">
+                    <label class="institution-label" for="inst-name">שם מוסד</label>
+                    <input id="inst-name" class="inst-input inst-name" type="text" placeholder="שם המוסד" title="שם מוסד" />
+                </div>
+                <div class="institution-group institution-type-group">
+                    <label class="institution-label" for="inst-type-1">סוג מוסד</label>
+                    <input id="inst-type-1" class="inst-input inst-type-input" type="text" placeholder="סוג מוסד" title="ערך סוג מוסד (ברירת מחדל)" />
+                    <input id="inst-type-2" class="inst-input inst-type-input secondary-type" type="text" placeholder="סוג 2" title="ערך סוג מוסד 2" />
+                    <input id="inst-type-3" class="inst-input inst-type-input secondary-type" type="text" placeholder="סוג 3" title="ערך סוג מוסד 3" />
+                </div>
+                <div class="institution-group">
+                    <label class="institution-label" for="inst-type-apply-select">בחר סוג</label>
+                    <select id="inst-type-apply-select" class="inst-select inst-type-apply-select" title="בחר ערך להחלה"></select>
+                </div>
+                <div class="institution-group">
+                    <label class="institution-label" for="inst-scope-select">היקף</label>
+                    <select id="inst-scope-select" class="inst-select" title="בחר היקף החלה" onchange="onScopeChange()">
+                        <option value="workbook">כל הגיליונות</option>
+                        <option value="sheet">גיליון נבחר</option>
+                        <option value="selected_rows">שורות נבחרות</option>
+                    </select>
+                </div>
+                <div class="institution-group inst-scope-extras">
+                    <select id="inst-sheet-select" class="inst-select inst-sheet-select hidden" title="בחר גיליון"></select>
+                    <span id="inst-selected-rows-hint" class="inst-selected-rows-hint hidden">סמן שורות בטבלה ולחץ 'החל סוג'</span>
+                </div>
+                <button class="btn btn-sm btn-outline" onclick="applyMosadTypeScoped()" title="החל את סוג המוסד לפי האפשרויות שנבחרו">החל סוג</button>
             </div>
             <div class="action-buttons">
             <button id="normalize-btn" class="btn btn-success" onclick="runstandardization()">
-                ▶ Run standardization
+                ▶ הרץ סטנדרטיזציה
                 <kbd class="kbd-hint">Ctrl+↵</kbd>
             </button>
             <button id="delete-rows-btn" class="btn btn-danger" onclick="deleteSelectedRows()" disabled>
-                🗑 Delete rows
+                🗑 מחק שורות
             </button>
             <button id="clear-all-filters-btn" class="btn btn-filter-clear hidden" onclick="clearAllFilters()">
-                ✕ נקה כל הסינונים
+                ✕ נקה סינונים
             </button>
             <button id="engine-management-btn" class="btn btn-secondary" onclick="openEngineManagement()">
-                &#1502;&#1502;&#1513;&#1511; &#1504;&#1497;&#1492;&#1493;&#1500; &#1502;&#1504;&#1493;&#1506;&#1497;&#1501;
+               מערכת ניהול
             </button>
             <button id="export-btn" class="btn btn-secondary" onclick="exportWorkbook()">
-                ⬇ Export / Download
+                ⬇ ייצא
                 <kbd class="kbd-hint">Ctrl+S</kbd>
             </button>
             <button id="report-preview-btn" class="btn btn-secondary" onclick="openProcessingReportPreview()">
-                תצוגה מקדימה לדוח
-            </button>
-            <button id="report-export-btn" class="btn btn-secondary" onclick="downloadProcessingReport()">
-                ייצוא דוח עיבוד
+                דוח
             </button>
             </div>
         </div>
@@ -126,12 +126,12 @@
             <div id="report-details" class="report-details"></div>
         </section>
 
-        <div id="processing-report-modal" class="report-modal hidden" role="dialog" aria-modal="true" aria-label="&#1491;&#1493;&#1495; &#1506;&#1497;&#1489;&#1493;&#1491;">
+        <div id="processing-report-modal" class="report-modal hidden" role="dialog" aria-modal="true" aria-label="דוח עיבוד">
             <div class="report-modal-panel">
                 <div class="report-modal-header">
-                    <h2>תצוגה מקדימה לדוח</h2>
+                    <h2>דוח עיבוד</h2>
                     <div class="report-modal-actions">
-                        <button type="button" class="btn btn-secondary" onclick="downloadProcessingReport()">ייצוא דוח עיבוד</button>
+                        <button type="button" class="btn btn-secondary" onclick="downloadProcessingReport()">ייצוא דוח</button>
                         <button type="button" class="btn btn-secondary" onclick="closeProcessingReportPreview()">סגור</button>
                     </div>
                 </div>

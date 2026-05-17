@@ -32,11 +32,11 @@ function formatProcessingReportSummary(report) {
     const missingRequired = (report.missing_required_fields || [])
         .map(item => `${item.field}: ${item.count}`)
         .join(', ');
-    if (missingRequired) parts.push(`Missing required fields: ${missingRequired}`);
-    if (summary.total_rows != null) parts.push(`Rows: ${summary.total_rows}`);
-    if (summary.rows_with_warnings != null) parts.push(`Warnings: ${summary.rows_with_warnings}`);
-    if (summary.rows_with_errors != null) parts.push(`Errors: ${summary.rows_with_errors}`);
-    if (summary.corrected_fields != null) parts.push(`Corrected fields: ${summary.corrected_fields}`);
+    if (missingRequired) parts.push(`שדות חסרים: ${missingRequired}`);
+    if (summary.total_rows != null) parts.push(`שורות: ${summary.total_rows}`);
+    if (summary.rows_with_warnings != null) parts.push(`אזהרות: ${summary.rows_with_warnings}`);
+    if (summary.rows_with_errors != null) parts.push(`שגיאות: ${summary.rows_with_errors}`);
+    if (summary.corrected_fields != null) parts.push(`שדות מתוקנים: ${summary.corrected_fields}`);
     if (report.export_blocked_reason) parts.push(report.export_blocked_reason);
     return parts.join(' | ');
 }

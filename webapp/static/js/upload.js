@@ -59,9 +59,9 @@ async function handleUpload(event) {
     for (const file of files) {
         try {
             // Show per-file upload progress.
-            statusDiv.textContent = `Uploading ${file.name}: 0%`;
+            statusDiv.textContent = `העלה ${file.name}: 0%`;
             const data = await uploadWithProgress(file, pct => {
-                statusDiv.textContent = `Uploading ${file.name}: ${pct}%`;
+                statusDiv.textContent = `העלה ${file.name}: ${pct}%`;
             });
             sessions.set(data.session_id, {
                 sessionId: data.session_id,
@@ -78,7 +78,7 @@ async function handleUpload(event) {
         }
     }
 
-    if (errors.length) showError(`Some uploads failed:\n${errors.join('\n')}`);
+    if (errors.length) showError(`העלאות נכשלו:\n${errors.join('\n')}`);
 
     if (successCount === 0) {
         statusDiv.textContent = '';
@@ -86,7 +86,7 @@ async function handleUpload(event) {
         return;
     }
 
-    statusDiv.textContent = `${successCount} file(s) uploaded.`;
+    statusDiv.textContent = `הועלו ${successCount} קובץ(ים).`;
     renderSessionSwitcher();
 
     const lastSession = [...sessions.values()].at(-1);
@@ -259,7 +259,7 @@ async function loadSheet(sheetName) {
             await refreshColumnMappingControls(data);
         }
     } catch (err) {
-        showError(`Failed to load sheet '${sheetName}': ${err.message}`);
+        showError(`טעינת הגיליון '${sheetName}' נכשלה: ${err.message}`);
         gridContainer.innerHTML = '';
     }
 }

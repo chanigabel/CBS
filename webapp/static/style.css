@@ -224,12 +224,31 @@ header h1 {
 .institution-bar {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     flex-wrap: wrap;
-    padding: 8px 12px;
+    padding: 12px 14px;
     background: #f0f4ff;
     border: 1px solid #c3d0f0;
-    border-radius: 6px;
+    border-radius: 10px;
+}
+
+.institution-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    min-width: 130px;
+}
+
+.institution-type-group {
+    min-width: 240px;
+}
+
+.inst-scope-extras {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 180px;
 }
 
 .editable-column-label {
@@ -372,6 +391,20 @@ header h1 {
 }
 
 /* Grid */
+.grid-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.grid-section-header h2 {
+    margin: 0;
+    font-size: 18px;
+    color: #2d3748;
+}
+
 .grid-stats {
     font-size: 13px;
     color: #718096;

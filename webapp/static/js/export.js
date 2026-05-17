@@ -32,10 +32,10 @@ async function runstandardization() {
         if (state.currentSheet) await loadSheet(state.currentSheet);
 
         const stats = result.per_sheet_stats
-            .map(s => `${s.sheet_name}: ${s.rows} rows (${(s.success_rate * 100).toFixed(1)}% success)`)
+            .map(s => `${s.sheet_name}: ${s.rows} שורות (${(s.success_rate * 100).toFixed(1)}% מוצלח)`)
             .join(' | ');
         document.getElementById('grid-stats').textContent =
-            `standardization complete (${result.sheets_processed} sheet${result.sheets_processed !== 1 ? 's' : ''}) — ${stats}`;
+            `תקנון הושלם (${result.sheets_processed} גיליון${result.sheets_processed !== 1 ? 'ים' : ''}) — ${stats}`;
         await refreshProcessingReport();
     } catch (err) {
         showError(`standardization failed: ${err.message}`);
@@ -55,13 +55,13 @@ async function exportWorkbook() {
 
     const btn = document.getElementById('export-btn');
     btn.disabled = true;
-    btn.innerHTML = '⏳ Exporting... <span class="loading"></span>';
+    btn.innerHTML = '⏳ מייצא... <span class="loading"></span>';
 
     try {
         await _downloadFile(`/api/workbook/${state.sessionId}/export`, 'POST', 'normalized.xlsx');
         const report = await apiCall('GET', `/api/workbook/${state.sessionId}/processing-report`);
         document.getElementById('grid-stats').textContent =
-            `Export complete (${report.status}) - ${formatProcessingReportSummary(report)}`;
+            `ייצוא הושלם (${report.status}) - ${formatProcessingReportSummary(report)}`;
         await refreshProcessingReport();
     } catch (err) {
         showError(`Export failed: ${err.message}`);
