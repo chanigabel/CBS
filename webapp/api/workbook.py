@@ -2,14 +2,16 @@
 
 from fastapi import APIRouter, Depends, Response
 
-from webapp.dependencies import get_session_service, get_workbook_service
-from webapp.models.requests import ColumnMappingRequest
+from webapp.dependencies import get_edit_service, get_session_service, get_workbook_service
+from webapp.models.requests import ColumnMappingRequest, WorkbookCellUpdateRequest
 from webapp.models.responses import (
+    CellEditResponse,
     ColumnMappingResponse,
     ColumnSchemaResponse,
     SheetDataResponse,
     WorkbookSummary,
 )
+from webapp.services.edit_service import EditService
 from webapp.services.session_service import SessionService
 from webapp.services.workbook_service import WorkbookService
 
@@ -36,6 +38,25 @@ def get_sheet_data(
 ) -> SheetDataResponse:
     """Return all rows for a specific sheet."""
     return workbook_service.get_sheet_data(session_id, sheet_name)
+
+
+@router.patch(
+    "/workbook/{session_id}/cell",
+    response_model=CellEditResponse,
+)
+def update_workbook_cell(
+    session_id: str,
+    request: WorkbookCellUpdateRequest,
+    edit_service: EditService = Depends(get_edit_service),
+) -> CellEditResponse:
+    """Update one editable source cell in the session Working Dataset."""
+    return edit_service.update_cell(
+        session_id,
+        request.sheet_name,
+        request.row_uid,
+        request.field,
+        request.value,
+    )
 
 
 @router.get("/workbook/column-schema", response_model=ColumnSchemaResponse)

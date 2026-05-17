@@ -56,6 +56,28 @@ def test_successful_export_returns_path_with_normalized_suffix(tmp_path):
     assert output_path.exists()
 
 
+def test_export_blocks_dirty_working_dataset(tmp_path):
+    svc, record = make_session_with_workbook("dirty-export-session")
+    record.working_dataset_dirty = True
+    export_svc = ExportService(svc, tmp_path / "output")
+
+    with pytest.raises(HTTPException) as exc_info:
+        export_svc.export("dirty-export-session")
+
+    assert exc_info.value.status_code == 409
+    assert "Run Standardization again" in exc_info.value.detail
+
+
+def test_export_works_after_dirty_flag_is_cleared(tmp_path):
+    svc, record = make_session_with_workbook("clean-after-standardization-session")
+    record.working_dataset_dirty = False
+    export_svc = ExportService(svc, tmp_path / "output")
+
+    output_path = export_svc.export("clean-after-standardization-session")
+
+    assert output_path.exists()
+
+
 def test_export_failure_raises_500_and_preserves_session(tmp_path):
     svc, record = make_session_with_workbook()
     original_dataset = record.workbook_dataset

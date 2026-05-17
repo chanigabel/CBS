@@ -97,3 +97,43 @@ def test_edit_is_recorded_in_session_edits():
     record = svc.get("edit-session")
     assert ("Sheet1", "uid-alice-001", "first_name") in record.edits
     assert record.edits[("Sheet1", "uid-alice-001", "first_name")] == "Dave"
+
+
+@pytest.mark.parametrize(
+    "field_name",
+    [
+        "first_name_corrected",
+        "gender_status",
+        "_validation_status",
+        "_standardization_failures",
+        "_row_uid",
+        "row_uid",
+    ],
+)
+def test_blocks_computed_and_system_fields(field_name):
+    _, edit_svc = make_session_with_sheet()
+    record = edit_svc.session_service.get("edit-session")
+    sheet = record.workbook_dataset.get_sheet_by_name("Sheet1")
+    sheet.field_names.extend(["first_name_corrected", "gender_status"])
+    sheet.rows[0].update(
+        {
+            "first_name_corrected": "Alice",
+            "gender_status": "",
+            "_validation_status": "",
+            "_standardization_failures": [],
+            "row_uid": "public-row-id",
+        }
+    )
+
+    req = CellEditRequest(row_uid="uid-alice-001", field_name=field_name, new_value="Blocked")
+    with pytest.raises(HTTPException) as exc_info:
+        edit_svc.edit_cell("edit-session", "Sheet1", req)
+    assert exc_info.value.status_code == 400
+
+
+def test_edit_marks_working_dataset_dirty():
+    svc, edit_svc = make_session_with_sheet()
+    req = CellEditRequest(row_uid="uid-alice-001", field_name="first_name", new_value="Dirty")
+    edit_svc.edit_cell("edit-session", "Sheet1", req)
+
+    assert svc.get("edit-session").working_dataset_dirty is True

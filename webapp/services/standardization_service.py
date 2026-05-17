@@ -20,9 +20,7 @@ from webapp.services.processing_report_service import ProcessingReportService
 from webapp.services.session_service import SessionService
 from webapp.services.workbook_loader import (
     WorkbookLoadError,
-    extract_sheet_dataset,
     extract_workbook_dataset,
-    get_workbook_sheet_names,
 )
 
 logger = logging.getLogger(__name__)
@@ -58,7 +56,6 @@ class StandardizationService:
 
         pipeline = self._build_pipeline()
 
-        loaded_workbook_now = False
         if record.workbook_dataset is None:
             # Load the workbook when no sheet has been accessed yet.
             try:
@@ -68,7 +65,6 @@ class StandardizationService:
                 self.processing_report_service.complete_stage(session_id, "extract")
                 self.processing_report_service.update_workbook_counts(session_id, wbd)
                 record = self.session_service.get(session_id)
-                loaded_workbook_now = True
             except WorkbookLoadError as exc:
                 self.processing_report_service.add_error(
                     session_id,
@@ -106,109 +102,21 @@ class StandardizationService:
                     detail="No workbook data available. Please load a sheet first.",
                 )
 
-        # Determine which sheets to re-extract and normalize.
+        # Determine which Working Dataset sheets to normalize. Once the
+        # in-memory dataset exists, standardization must not re-extract from
+        # the uploaded or working-copy Excel file; user edits already live here.
         if sheet_name is not None:
-            # Single-sheet path.
-            try:
-                existing = record.workbook_dataset.get_sheet_by_name(sheet_name)
-                fresh = extract_sheet_dataset(record.working_copy_path, sheet_name)
-                self._apply_record_column_mappings(record, [fresh])
-                mosad_id = existing.get_metadata("MosadID") if existing is not None else None
-                if mosad_id is not None:
-                    fresh.set_metadata("MosadID", mosad_id)
-                sheets_to_normalize = [fresh]
-                self.processing_report_service.complete_stage(session_id, "extract")
-            except KeyError:
+            existing = record.workbook_dataset.get_sheet_by_name(sheet_name)
+            if existing is None:
                 raise HTTPException(
                     status_code=404,
                     detail=f"Sheet '{sheet_name}' not found.",
                 )
-            except WorkbookLoadError as exc:
-                self.processing_report_service.add_error(
-                    session_id,
-                    str(exc),
-                )
-                logger.error(
-                    "standardization_sheet_extract_failed",
-                    exc_info=True,
-                    extra={
-                        "event": "standardization_sheet_extract_failed",
-                        "session_id": session_id,
-                        "sheet_name": sheet_name,
-                        "error_type": type(exc).__name__,
-                    },
-                )
-                raise HTTPException(status_code=500, detail=str(exc))
-            except HTTPException:
-                raise
-            except Exception as exc:
-                self.processing_report_service.add_error(
-                    session_id,
-                    f"Failed to extract sheet '{sheet_name}'.",
-                )
-                logger.error(
-                    "standardization_sheet_extract_failed",
-                    exc_info=True,
-                    extra={
-                        "event": "standardization_sheet_extract_failed",
-                        "session_id": session_id,
-                        "sheet_name": sheet_name,
-                        "error_type": type(exc).__name__,
-                    },
-                )
-                raise HTTPException(
-                    status_code=500,
-                    detail="Failed to read the working copy for standardization.",
-                )
+            sheets_to_normalize = [existing]
+            self.processing_report_service.complete_stage(session_id, "extract")
         else:
-            # Full-workbook path.
-            try:
-                if loaded_workbook_now:
-                    sheets_to_normalize = list(record.workbook_dataset.sheets)
-                else:
-                    sheets_to_normalize = []
-                    for sname in get_workbook_sheet_names(record.working_copy_path):
-                        fresh = extract_sheet_dataset(record.working_copy_path, sname)
-                        self._apply_record_column_mappings(record, [fresh])
-                        existing = record.workbook_dataset.get_sheet_by_name(sname)
-                        mosad_id = existing.get_metadata("MosadID") if existing is not None else None
-                        if mosad_id is not None:
-                            fresh.set_metadata("MosadID", mosad_id)
-                        sheets_to_normalize.append(fresh)
-                self.processing_report_service.complete_stage(session_id, "extract")
-            except WorkbookLoadError as exc:
-                self.processing_report_service.add_error(
-                    session_id,
-                    str(exc),
-                )
-                logger.error(
-                    "standardization_extract_failed",
-                    exc_info=True,
-                    extra={
-                        "event": "standardization_extract_failed",
-                        "session_id": session_id,
-                        "error_type": type(exc).__name__,
-                    },
-                )
-                raise HTTPException(status_code=500, detail=str(exc))
-            except Exception as exc:
-                self.processing_report_service.add_error(
-                    session_id,
-                    "Failed to extract workbook for standardization.",
-                )
-                logger.error(
-                    "standardization_extract_failed",
-                    exc_info=True,
-                    extra={
-                        "event": "standardization_extract_failed",
-                        "session_id": session_id,
-                        "error_type": type(exc).__name__,
-                    },
-                )
-                raise HTTPException(
-                    status_code=500,
-                    detail="Failed to read the working copy for standardization.",
-                )
+            sheets_to_normalize = list(record.workbook_dataset.sheets)
+            self.processing_report_service.complete_stage(session_id, "extract")
 
         # Normalize
         normalized_sheets: List[SheetDataset] = []
@@ -317,22 +225,11 @@ class StandardizationService:
                 "Workbook-level institution-report validation skipped: %s", _wv_exc
             )
 
-        # Replay manual edits recorded before standardization.
-        if record.edits:
-            for (edit_sheet, edit_row_uid, edit_field), edit_value in record.edits.items():
-                sheet_obj = record.workbook_dataset.get_sheet_by_name(edit_sheet)
-                if sheet_obj is None:
-                    continue
-                for row in sheet_obj.rows:
-                    if row.get("_row_uid") == edit_row_uid and edit_field in row:
-                        row[edit_field] = edit_value
-                        break
-            logger.debug(
-                f"Replayed {len(record.edits)} manual edit(s) after standardization "
-                f"for session {session_id}"
-            )
-
-        self.session_service.update(session_id, status="standardized")
+        self.session_service.update(
+            session_id,
+            status="standardized",
+            working_dataset_dirty=False,
+        )
 
         total_rows = sum(s.rows for s in per_sheet_stats)
         record = self.session_service.get(session_id)

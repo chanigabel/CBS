@@ -233,6 +233,16 @@ function renderGrid(sheetData, rows, targetContainer) {
         return 'original';
     }
 
+    function isEditableDataColumn(col) {
+        if (!col) return false;
+        if (col === '_row_uid' || col === 'row_uid') return false;
+        if (col === '_validation_status' || col === '_validation_ok') return false;
+        if (col === '_standardization_failures') return false;
+        if (col.startsWith('_')) return false;
+        if (col.endsWith('_corrected') || col.endsWith('_status')) return false;
+        return true;
+    }
+
     const table = document.createElement('table');
     table.className = 'data-grid';
 
@@ -369,7 +379,10 @@ function renderGrid(sheetData, rows, targetContainer) {
                 td.className = statusText !== '' ? 'status-cell status-error' : 'status-cell status-ok';
             }
 
-            if (cls !== 'status') td.addEventListener('click', () => makeEditable(td, row._row_uid, col));
+            if (isEditableDataColumn(col)) {
+                td.classList.add('editable-cell');
+                td.addEventListener('click', () => makeEditable(td, row._row_uid, col));
+            }
             tr.appendChild(td);
         });
 

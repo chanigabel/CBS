@@ -10,6 +10,27 @@ from webapp.services.session_service import SessionService
 
 logger = logging.getLogger(__name__)
 
+_BLOCKED_FIELDS = {
+    "_row_uid",
+    "row_uid",
+    "_validation_status",
+    "_validation_ok",
+    "_standardization_failures",
+}
+
+
+def is_editable_source_field(field_name: str) -> bool:
+    """Return whether a field can be manually edited in the Working Dataset."""
+    if not field_name:
+        return False
+    if field_name in _BLOCKED_FIELDS:
+        return False
+    if field_name.startswith("_"):
+        return False
+    if field_name.endswith("_corrected") or field_name.endswith("_status"):
+        return False
+    return True
+
 
 # ממיר ערך ערוך מה־UI לסוג המקורי של התא ככל האפשר.
 def _coerce_to_original_type(new_value: str, original_value: Any) -> Any:
@@ -102,6 +123,11 @@ class EditService:
                     f"Available fields: {list(row.keys())}"
                 ),
             )
+        if req.field_name not in sheet.field_names or not is_editable_source_field(req.field_name):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Field '{req.field_name}' is a system or computed field and cannot be edited.",
+            )
 
         # F-07: Coerce new_value to the original field's type so that editing a
         # numeric field (e.g. birth_year=1990 int) stores an int, not a string.
@@ -113,6 +139,7 @@ class EditService:
 
         # Record the edit in the session keyed by (sheet_name, row_uid, field_name)
         record.edits[(sheet_name, req.row_uid, req.field_name)] = coerced_value
+        record.working_dataset_dirty = True
 
         logger.debug(
             f"Cell edited: session={session_id}, sheet={sheet_name}, "
@@ -125,6 +152,21 @@ class EditService:
             if not k.startswith("_standardization") and (not k.startswith("_") or k in _KEEP_INTERNAL)
         }
         return CellEditResponse(row_uid=req.row_uid, updated_row=updated_row)
+
+    def update_cell(
+        self,
+        session_id: str,
+        sheet_name: str,
+        row_uid: str,
+        field: str,
+        value: str,
+    ) -> CellEditResponse:
+        """Edit one cell using the workbook-level PATCH request shape."""
+        return self.edit_cell(
+            session_id,
+            sheet_name,
+            CellEditRequest(row_uid=row_uid, field_name=field, new_value=value),
+        )
 
     # מסמן או מסיר שורות שנמחקו כדי שלא יופיעו בתצוגה וביצוא.
     def delete_rows(
@@ -187,6 +229,7 @@ class EditService:
         # Remove rows in reverse index order so earlier indices stay valid
         for idx in sorted(indices, reverse=True):
             sheet.rows.pop(idx)
+        record.working_dataset_dirty = True
 
         logger.info(
             f"Deleted {len(indices)} row(s) from sheet '{sheet_name}' "

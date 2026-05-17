@@ -8,6 +8,8 @@ from fastapi import HTTPException
 
 from src.excel_standardization.data_types import SheetDataset, WorkbookDataset
 from webapp.models.session import SessionRecord
+from webapp.models.requests import CellEditRequest
+from webapp.services.edit_service import EditService
 from webapp.services.session_service import SessionService
 from webapp.services.standardization_service import StandardizationService
 
@@ -90,6 +92,50 @@ def test_standardization_updates_workbook_dataset(session_with_file):
     record = svc.get("test-session")
     assert record.workbook_dataset is not None
     assert len(record.workbook_dataset.sheets) >= 1
+
+
+def test_standardization_uses_edited_working_dataset_not_excel_file(session_with_file):
+    svc, norm_svc = session_with_file
+    record = svc.get("test-session")
+    source_bytes_before = Path(record.source_file_path).read_bytes()
+    sheet = record.workbook_dataset.get_sheet_by_name("Sheet1")
+    sheet.rows[0]["_row_uid"] = "row-alice"
+
+    EditService(svc).edit_cell(
+        "test-session",
+        "Sheet1",
+        CellEditRequest(
+            row_uid="row-alice",
+            field_name="first_name",
+            new_value="  Carol  ",
+        ),
+    )
+
+    assert svc.get("test-session").working_dataset_dirty is True
+    norm_svc.normalize("test-session")
+
+    record = svc.get("test-session")
+    row = record.workbook_dataset.get_sheet_by_name("Sheet1").rows[0]
+    assert row["first_name"] == "  Carol  "
+    assert row["first_name_corrected"] == "Carol"
+    assert record.working_dataset_dirty is False
+    assert Path(record.source_file_path).read_bytes() == source_bytes_before
+
+
+def test_standardization_does_not_extract_when_working_dataset_exists(session_with_file, monkeypatch):
+    _, norm_svc = session_with_file
+
+    def fail_extract(_path):
+        raise AssertionError("standardization should use the existing Working Dataset")
+
+    monkeypatch.setattr(
+        "webapp.services.standardization_service.extract_workbook_dataset",
+        fail_extract,
+    )
+
+    response = norm_svc.normalize("test-session")
+
+    assert response.status == "standardized"
 
 
 def test_standardization_lazy_loads_xls_with_xls_reader(tmp_path, monkeypatch):

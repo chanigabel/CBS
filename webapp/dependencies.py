@@ -17,6 +17,7 @@ from webapp.services.standardization_service import StandardizationService
 from webapp.services.edit_service import EditService
 from webapp.services.export_service import ExportService
 from webapp.services.processing_report_service import ProcessingReportService
+from webapp.services.cleanup_service import CleanupService
 from src.excel_standardization.engine_management import EngineManager
 
 
@@ -103,3 +104,14 @@ def get_engine_manager() -> EngineManager:
 
 def get_column_mapping_schema_service() -> ColumnMappingSchemaService:
     return _column_mapping_schema_service
+
+
+def get_cleanup_service() -> CleanupService:
+    """Return cleanup service for the current process runtime directories."""
+    return CleanupService(
+        (
+            _upload_service.uploads_dir,
+            _upload_service.work_dir,
+            _export_service.output_dir,
+        )
+    )

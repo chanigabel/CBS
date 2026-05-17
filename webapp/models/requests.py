@@ -32,6 +32,15 @@ class CellEditRequest(BaseModel):
     new_value: str
 
 
+class WorkbookCellUpdateRequest(BaseModel):
+    """Request body for editing one Working Dataset cell."""
+
+    sheet_name: str
+    row_uid: str
+    field: str
+    value: str
+
+
 class DeleteRowRequest(BaseModel):
     """Request body for deleting one or more rows from a sheet."""
     row_uids: List[str]

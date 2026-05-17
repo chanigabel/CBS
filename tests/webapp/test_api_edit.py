@@ -54,6 +54,37 @@ def test_valid_edit_returns_200_with_updated_row(client):
     assert data["updated_row"][field_name] == "NewValue"
 
 
+def test_workbook_level_cell_endpoint_updates_by_row_uid(client):
+    session_id, sheet_name, field_name, row_uid = upload_and_get_sheet(client)
+    response = client.patch(
+        f"/api/workbook/{session_id}/cell",
+        json={
+            "sheet_name": sheet_name,
+            "row_uid": row_uid,
+            "field": field_name,
+            "value": "WorkbookLevelValue",
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["row_uid"] == row_uid
+    assert data["updated_row"][field_name] == "WorkbookLevelValue"
+
+
+def test_workbook_level_cell_endpoint_blocks_system_fields(client):
+    session_id, sheet_name, _, row_uid = upload_and_get_sheet(client)
+    response = client.patch(
+        f"/api/workbook/{session_id}/cell",
+        json={
+            "sheet_name": sheet_name,
+            "row_uid": row_uid,
+            "field": "_row_uid",
+            "value": "blocked",
+        },
+    )
+    assert response.status_code == 400
+
+
 def test_unknown_row_uid_returns_404(client):
     session_id, sheet_name, field_name, _ = upload_and_get_sheet(client)
     response = client.patch(

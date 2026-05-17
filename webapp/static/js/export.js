@@ -2,15 +2,7 @@ async function runstandardization() {
     if (!state.sessionId) return;
     dismissError();
 
-    // Prompt before dropping unsaved manual edits.
     const session = sessions.get(state.sessionId);
-    if (session && session.hasEdits) {
-        const confirmed = confirm(
-            'Running standardization will discard your manual cell edits.\n\n' +
-            'Continue?'
-        );
-        if (!confirmed) return;
-    }
 
     const btn = document.getElementById('normalize-btn');
     btn.disabled = true;

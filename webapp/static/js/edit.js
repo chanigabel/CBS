@@ -29,6 +29,8 @@ async function _deleteRows(rowUids) {
 
         // Clear deleted rows from the selection set.
         uidSet.forEach(uid => state.selectedRows.delete(uid));
+        const session = sessions.get(state.sessionId);
+        if (session) session.hasEdits = true;
 
         const filtered = getFilteredRows(state.sheetData.rows);
         renderGrid(state.sheetData, filtered);
@@ -68,8 +70,13 @@ function makeEditable(td, rowUid, fieldName) {
         try {
             await apiCall(
                 'PATCH',
-                `/api/workbook/${state.sessionId}/sheet/${encodeURIComponent(state.currentSheet)}/cell`,
-                { row_uid: rowUid, field_name: fieldName, new_value: newValue }
+                `/api/workbook/${state.sessionId}/cell`,
+                {
+                    sheet_name: state.currentSheet,
+                    row_uid: rowUid,
+                    field: fieldName,
+                    value: newValue
+                }
             );
             // Update the cached row data.
             const editedRow = state.sheetData?.rows.find(r => r._row_uid === rowUid);

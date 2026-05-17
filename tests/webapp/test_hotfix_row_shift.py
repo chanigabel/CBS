@@ -192,7 +192,7 @@ class TestEditServiceRowUid:
         
         # Edit Rachel
         edit_svc = EditService(session_svc)
-        req = CellEditRequest(row_uid=rachel_uid, field_name="first_name_corrected",
+        req = CellEditRequest(row_uid=rachel_uid, field_name="first_name",
                               new_value="Racheli")
         edit_svc.edit_cell(session_id, "Sheet1", req)
         
@@ -200,15 +200,15 @@ class TestEditServiceRowUid:
         record = session_svc.get(session_id)
         sheet_obj = record.workbook_dataset.get_sheet_by_name("Sheet1")
         
-        # Find Rachel and Yotam by their original values
+        # Find edited Rachel by UID and Yotam by original value
         rachel_idx = next(i for i, r in enumerate(sheet_obj.rows)
-                          if r.get("first_name") == "Rachel")
+                          if r.get("_row_uid") == rachel_uid)
         yotam_idx = next(i for i, r in enumerate(sheet_obj.rows)
                          if r.get("first_name") == "Yotam")
         
-        assert sheet_obj.rows[rachel_idx]["first_name_corrected"] == "Racheli", \
+        assert sheet_obj.rows[rachel_idx]["first_name"] == "Racheli", \
             "Rachel must be updated to Racheli"
-        assert sheet_obj.rows[yotam_idx]["first_name_corrected"] == "Yotam", \
+        assert sheet_obj.rows[yotam_idx]["first_name"] == "Yotam", \
             "Yotam must NOT be overwritten — row-shift bug!"
 
     def test_edit_with_empty_row_filtered(self, tmp_path):
@@ -223,7 +223,7 @@ class TestEditServiceRowUid:
         rachel_uid = rachel_row["_row_uid"]
         
         edit_svc = EditService(session_svc)
-        req = CellEditRequest(row_uid=rachel_uid, field_name="first_name_corrected",
+        req = CellEditRequest(row_uid=rachel_uid, field_name="first_name",
                               new_value="Racheli")
         edit_svc.edit_cell(session_id, "Sheet1", req)
         
@@ -231,12 +231,12 @@ class TestEditServiceRowUid:
         sheet_obj = record.workbook_dataset.get_sheet_by_name("Sheet1")
         
         rachel_idx = next(i for i, r in enumerate(sheet_obj.rows)
-                          if r.get("first_name") == "Rachel")
+                          if r.get("_row_uid") == rachel_uid)
         yotam_idx = next(i for i, r in enumerate(sheet_obj.rows)
                          if r.get("first_name") == "Yotam")
         
-        assert sheet_obj.rows[rachel_idx]["first_name_corrected"] == "Racheli"
-        assert sheet_obj.rows[yotam_idx]["first_name_corrected"] == "Yotam"
+        assert sheet_obj.rows[rachel_idx]["first_name"] == "Racheli"
+        assert sheet_obj.rows[yotam_idx]["first_name"] == "Yotam"
 
     def test_edit_nonexistent_uid_returns_404(self, tmp_path):
         """Editing a nonexistent row_uid must return 404."""
@@ -354,7 +354,7 @@ class TestCombinedOperations:
         edit_svc.delete_rows(session_id, "Sheet1", delete_req)
         
         # Edit Danny
-        edit_req = CellEditRequest(row_uid=danny_uid, field_name="first_name_corrected",
+        edit_req = CellEditRequest(row_uid=danny_uid, field_name="first_name",
                                     new_value="Daniel")
         edit_svc.edit_cell(session_id, "Sheet1", edit_req)
         
@@ -366,8 +366,8 @@ class TestCombinedOperations:
         assert "Rachel" not in names
         
         danny_idx = next(i for i, r in enumerate(sheet_obj.rows)
-                         if r.get("first_name") == "Danny")
-        assert sheet_obj.rows[danny_idx]["first_name_corrected"] == "Daniel"
+                         if r.get("_row_uid") == danny_uid)
+        assert sheet_obj.rows[danny_idx]["first_name"] == "Daniel"
 
     def test_edit_then_delete(self, tmp_path):
         """Edit Rachel to Racheli, then delete Yotam."""
@@ -384,7 +384,7 @@ class TestCombinedOperations:
         edit_svc = EditService(session_svc)
         
         # Edit Rachel
-        edit_req = CellEditRequest(row_uid=rachel_uid, field_name="first_name_corrected",
+        edit_req = CellEditRequest(row_uid=rachel_uid, field_name="first_name",
                                     new_value="Racheli")
         edit_svc.edit_cell(session_id, "Sheet1", edit_req)
         
@@ -400,19 +400,19 @@ class TestCombinedOperations:
         assert "Yotam" not in names
         
         rachel_idx = next(i for i, r in enumerate(sheet_obj.rows)
-                          if r.get("first_name") == "Rachel")
-        assert sheet_obj.rows[rachel_idx]["first_name_corrected"] == "Racheli"
+                          if r.get("_row_uid") == rachel_uid)
+        assert sheet_obj.rows[rachel_idx]["first_name"] == "Racheli"
 
 
 # ---------------------------------------------------------------------------
-# 5. standardization edit replay
+# 5. Working Dataset edit state
 # ---------------------------------------------------------------------------
 
-class TeststandardizationEditReplay:
-    """Test that edits are replayed correctly after standardization."""
+class TestWorkingDatasetEdits:
+    """Test that source edits are stored directly in the Working Dataset."""
 
     def test_edit_survives_standardization(self, tmp_path):
-        """Manual edit must survive re-standardization."""
+        """Manual source edit is recorded in the Working Dataset by row_uid."""
         session_svc = _make_session_service()
         sheet = _sheet_with_helper_row()
         session_id = _register_session(session_svc, sheet, tmp_path)
@@ -423,22 +423,17 @@ class TeststandardizationEditReplay:
         
         # Edit Rachel
         edit_svc = EditService(session_svc)
-        req = CellEditRequest(row_uid=rachel_uid, field_name="first_name_corrected",
+        req = CellEditRequest(row_uid=rachel_uid, field_name="first_name",
                               new_value="Racheli")
         edit_svc.edit_cell(session_id, "Sheet1", req)
         
         # Verify edit is recorded
         record = session_svc.get(session_id)
-        assert ("Sheet1", rachel_uid, "first_name_corrected") in record.edits
-        assert record.edits[("Sheet1", rachel_uid, "first_name_corrected")] == "Racheli"
-        
-        # Simulate standardization replay
-        from webapp.services.standardization_service import StandardizationService
-        norm_svc = StandardizationService(session_svc)
-        
-        # The standardization service replays edits by row_uid
-        # We'll verify the edit is still there after a simulated reload
+        assert ("Sheet1", rachel_uid, "first_name") in record.edits
+        assert record.edits[("Sheet1", rachel_uid, "first_name")] == "Racheli"
+        assert record.working_dataset_dirty is True
+
         sheet_obj = record.workbook_dataset.get_sheet_by_name("Sheet1")
         rachel_idx = next(i for i, r in enumerate(sheet_obj.rows)
                           if r.get("_row_uid") == rachel_uid)
-        assert sheet_obj.rows[rachel_idx]["first_name_corrected"] == "Racheli"
+        assert sheet_obj.rows[rachel_idx]["first_name"] == "Racheli"

@@ -43,6 +43,12 @@ class ExportService:
         """Export the session's workbook using the fixed export schema."""
         record = self.session_service.get(session_id)
 
+        if record.working_dataset_dirty:
+            raise HTTPException(
+                status_code=409,
+                detail="The grid has edits that were not standardized yet. Run Standardization again before exporting.",
+            )
+
         if record.workbook_dataset is None:
             try:
                 workbook_dataset = extract_workbook_dataset(record.working_copy_path)

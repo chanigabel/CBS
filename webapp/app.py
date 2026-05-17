@@ -67,15 +67,23 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Ensure runtime directories exist on startup."""
+    """Clean stale runtime files and ensure runtime directories exist."""
+    from webapp.dependencies import get_cleanup_service
+
+    cleanup_service = get_cleanup_service()
+    cleanup_service.cleanup_runtime_files(reason="startup")
+
     # Dependencies module already creates them; this is a belt-and-suspenders guard.
-    from webapp.dependencies import UPLOADS_DIR, WORK_DIR, OUTPUT_DIR
-    for directory in (UPLOADS_DIR, WORK_DIR, OUTPUT_DIR):
+    for directory in cleanup_service.allowed_runtime_dirs:
         directory.mkdir(parents=True, exist_ok=True)
     logger.info("Excel standardization Web App started.")
     logger.info(f"Static assets: {_STATIC_DIR}")
     logger.info(f"Templates:     {_TEMPLATES_DIR}")
-    yield
+    try:
+        yield
+    finally:
+        cleanup_service.cleanup_runtime_files(reason="shutdown")
+        logger.info("Excel standardization Web App stopped.")
 
 
 # ---------------------------------------------------------------------------
