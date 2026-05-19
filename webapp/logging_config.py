@@ -65,7 +65,7 @@ def configure_logging(
     root.setLevel(level)
     root.addHandler(console_handler)
     root.addHandler(file_handler)
-    root._excel_standardization_logging_configured = True
+    root._excel_standardization_logging_configured = True # type: ignore
 
     logging.getLogger(__name__).info(
         "logging_configured",
