@@ -53,13 +53,6 @@ class ColumnMappingRequest(BaseModel):
     new_name: str
 
 
-class ColumnSchemaMappingRequest(BaseModel):
-    """Request body for admin edits to the column mapping schema."""
-
-    standard_name: str
-    synonym: str
-
-
 # ---------------------------------------------------------------------------
 # Scoped SugMosad (institution type) apply models
 # ---------------------------------------------------------------------------

@@ -83,7 +83,6 @@ function initApp() {
     });
 
     window.addEventListener('pagehide', saveStandardizationUiState);
-    window.addEventListener('popstate', handleEngineManagementPopState);
 }
 
 function readValue(id) {
@@ -280,61 +279,7 @@ async function restoreStandardizationUiState() {
     }
 }
 
-function ensureEngineManagementOverlay() {
-    let overlay = document.getElementById('engine-management-overlay');
-    if (overlay) return overlay;
 
-    overlay = document.createElement('div');
-    overlay.id = 'engine-management-overlay';
-    overlay.className = 'engine-management-overlay hidden';
-    overlay.setAttribute('role', 'dialog');
-    overlay.setAttribute('aria-modal', 'true');
-    overlay.setAttribute('aria-label', '\u05de\u05de\u05e9\u05e7 \u05e0\u05d9\u05d4\u05d5\u05dc \u05de\u05e0\u05d5\u05e2\u05d9\u05dd');
-    overlay.innerHTML = `
-        <div class="engine-management-overlay-bar">
-            <strong>&#1502;&#1502;&#1513;&#1511; &#1504;&#1497;&#1492;&#1493;&#1500; &#1502;&#1504;&#1493;&#1506;&#1497;&#1501;</strong>
-            <button type="button" class="btn btn-secondary" onclick="closeEngineManagement()">&#1495;&#1494;&#1512;&#1492; &#1500;&#1502;&#1502;&#1513;&#1511; &#1492;&#1514;&#1511;&#1504;&#1493;&#1503;</button>
-        </div>
-        <iframe id="engine-management-frame" class="engine-management-frame" title="&#1502;&#1502;&#1513;&#1511; &#1504;&#1497;&#1492;&#1493;&#1500; &#1502;&#1504;&#1493;&#1506;&#1497;&#1501;"></iframe>
-    `;
-    document.body.appendChild(overlay);
-    return overlay;
-}
-
-function openEngineManagement() {
-    saveStandardizationUiState();
-    const overlay = ensureEngineManagementOverlay();
-    const frame = document.getElementById('engine-management-frame');
-    if (frame && !frame.src) {
-        frame.src = '/engine-management';
-    }
-    overlay.classList.remove('hidden');
-    document.body.classList.add('engine-management-open');
-
-    if (window.location.pathname !== '/engine-management') {
-        history.pushState({ view: 'engine-management' }, '', '/engine-management');
-    }
-}
-
-function closeEngineManagement(updateHistory = true) {
-    const overlay = document.getElementById('engine-management-overlay');
-    if (overlay) overlay.classList.add('hidden');
-    document.body.classList.remove('engine-management-open');
-    saveStandardizationUiState();
-
-    if (updateHistory && window.location.pathname === '/engine-management') {
-        history.pushState({ view: 'standardization' }, '', '/');
-    }
-}
-
-function handleEngineManagementPopState(event) {
-    const wantsEngineManagement = event.state && event.state.view === 'engine-management';
-    if (wantsEngineManagement) {
-        openEngineManagement();
-        return;
-    }
-    closeEngineManagement(false);
-}
 
 document.addEventListener('DOMContentLoaded', initApp);
 
