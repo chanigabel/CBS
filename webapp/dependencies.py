@@ -69,6 +69,7 @@ _standardization_service = StandardizationService(
     _session_service,
     _processing_report_service,
     _engine_manager,
+    _workbook_service,
 )
 _edit_service = EditService(_session_service)
 _export_service = ExportService(_session_service, OUTPUT_DIR, _processing_report_service)

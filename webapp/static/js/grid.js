@@ -279,7 +279,10 @@ function renderGrid(sheetData, rows, targetContainer) {
         headerWrap.className = 'col-header-wrap';
 
         const label = document.createElement('span');
-        label.textContent = col;
+        const displayName = sheetData.column_display_names && sheetData.column_display_names[col]
+            ? sheetData.column_display_names[col]
+            : col;
+        label.textContent = displayName;
         if (typeof isSourceColumnName === 'function' && isSourceColumnName(col)) {
             label.className = 'editable-column-label';
             label.title = 'Click to map this header to a standard field';

@@ -163,9 +163,17 @@ def build_sheet_grid_payload(
             insert_pos = 1
         display_columns.insert(insert_pos, "SugMosad")
 
+    effective_mappings = dict(column_mappings or {})
+    column_display_names = {
+        col: f"{col} \u2192 {effective_mappings[col]}"
+        for col in display_columns
+        if effective_mappings.get(col) and effective_mappings[col] != col
+    }
+
     return SheetDataResponse(
         sheet_name=sheet.sheet_name,
         field_names=display_columns,
         rows=clean_rows,
-        column_mappings=dict(column_mappings or {}),
+        column_mappings=effective_mappings,
+        column_display_names=column_display_names,
     )

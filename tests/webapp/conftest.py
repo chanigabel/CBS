@@ -58,7 +58,7 @@ def client(tmp_path, monkeypatch):
     workbook_report_svc = ReportService(svc)
     upload_svc = UploadService(svc, tmp_path / "uploads", tmp_path / "work", report_svc)
     workbook_svc = WorkbookService(svc)
-    norm_svc = StandardizationService(svc, report_svc)
+    norm_svc = StandardizationService(svc, report_svc, workbook_service=workbook_svc)
     edit_svc = EditService(svc)
     export_svc = ExportService(svc, tmp_path / "output", report_svc)
     report_export_svc = ReportExportService(svc, workbook_report_svc, tmp_path / "output")

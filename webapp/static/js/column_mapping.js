@@ -59,11 +59,13 @@ async function beginHeaderMappingEdit(labelEl, columnName) {
 
     const select = document.createElement('select');
     select.className = 'column-mapping-select';
+    const activeMappings = (state.sheetData && state.sheetData.column_mappings) || {};
+    const activeTarget = activeMappings[columnName] || columnName;
     canonicalFields.forEach(field => {
         const option = document.createElement('option');
         option.value = field;
         option.textContent = field;
-        if (field === columnName) option.selected = true;
+        if (field === activeTarget) option.selected = true;
         select.appendChild(option);
     });
     popover.appendChild(select);
@@ -115,21 +117,9 @@ async function saveInlineColumnMapping(oldName, targetName) {
         { old_name: oldName, new_name: targetName }
     );
 
-    const newName = result.new_name;
     if (state.sheetData) {
         state.sheetData.field_names = result.field_names;
         state.sheetData.column_mappings = result.column_mappings;
-        state.sheetData.rows.forEach(row => {
-            if (Object.prototype.hasOwnProperty.call(row, oldName)) {
-                row[newName] = row[oldName];
-                delete row[oldName];
-            }
-        });
-    }
-    if (state.columnFilters.has(oldName)) {
-        const activeFilter = state.columnFilters.get(oldName);
-        state.columnFilters.delete(oldName);
-        state.columnFilters.set(newName, activeFilter);
     }
     await loadSheet(state.currentSheet);
 }

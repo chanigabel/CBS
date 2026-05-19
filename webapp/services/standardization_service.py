@@ -2,7 +2,7 @@
 
 import logging
 from datetime import date
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 
 from fastapi import HTTPException
 
@@ -25,6 +25,9 @@ from webapp.services.workbook_loader import (
     extract_sheet_dataset,
 )
 
+if TYPE_CHECKING:
+    from webapp.services.workbook_service import WorkbookService
+
 logger = logging.getLogger(__name__)
 
 
@@ -38,12 +41,14 @@ class StandardizationService:
         session_service: SessionService,
         processing_report_service: ProcessingReportService | None = None,
         engine_manager: EngineManager | None = None,
+        workbook_service: Optional["WorkbookService"] = None,
     ) -> None:
         self.session_service = session_service
         self.processing_report_service = (
             processing_report_service or ProcessingReportService(session_service)
         )
         self.engine_manager = engine_manager
+        self.workbook_service = workbook_service
 
     # מחלץ מחדש גיליון או workbook, מריץ pipeline ומחזיר סטטיסטיקות ל־UI.
     def standardize(self, session_id: str, sheet_name: Optional[str] = None) -> StandardizeResponse:
@@ -80,7 +85,6 @@ class StandardizationService:
                     },
                 )
                 wbd = extract_workbook_dataset(record.working_copy_path)
-                self._apply_record_column_mappings(record, wbd.sheets)
                 self.session_service.update(session_id, workbook_dataset=wbd)
                 self.processing_report_service.complete_stage(session_id, "extract")
                 self.processing_report_service.update_workbook_counts(session_id, wbd)
@@ -162,12 +166,15 @@ class StandardizationService:
                             extra={"event": "standardization_failed_extract_missing_sheet", "session_id": session_id, "sheet_name": name},
                         )
                 if new_sheets:
-                    # Apply any recorded column mappings to the newly extracted
-                    # sheets, then append them to the existing Working Dataset.
-                    self._apply_record_column_mappings(record, new_sheets)
                     record.workbook_dataset.sheets.extend(new_sheets)
                     # Update counts in the processing report so the UI shows accurate numbers.
                     self.processing_report_service.update_workbook_counts(session_id, record.workbook_dataset)
+
+        self._prepare_record_column_mappings_for_standardization(
+            session_id,
+            record,
+            sheet_name=sheet_name,
+        )
 
         # Determine which Working Dataset sheets to normalize. Once the
         # in-memory dataset exists, standardization must not re-extract from
@@ -351,27 +358,31 @@ class StandardizationService:
     def normalize(self, session_id: str, sheet_name: Optional[str] = None) -> StandardizeResponse:
         return self.standardize(session_id, sheet_name=sheet_name)
 
-    def _apply_record_column_mappings(self, record, sheets: List[SheetDataset]) -> None:
-        """Apply stored manual column mappings to freshly extracted sheets."""
-        mappings_by_sheet = getattr(record, "column_mappings", {}) or {}
-        if not mappings_by_sheet:
+    def _prepare_record_column_mappings_for_standardization(
+        self,
+        session_id: str,
+        record,
+        sheet_name: Optional[str] = None,
+    ) -> None:
+        """Validate and physically apply pending mappings before normalization."""
+        if not getattr(record, "column_mappings", None):
             return
-        for sheet in sheets:
-            mappings = mappings_by_sheet.get(sheet.sheet_name, {})
-            if not mappings:
-                continue
-            for old_name, new_name in mappings.items():
-                if old_name == new_name or old_name not in sheet.field_names:
-                    continue
-                if new_name in sheet.field_names:
-                    continue
-                sheet.field_names = [
-                    new_name if field == old_name else field
-                    for field in sheet.field_names
-                ]
-                for row in sheet.rows:
-                    if old_name in row:
-                        row[new_name] = row.pop(old_name)
+        workbook_service = self.workbook_service
+        if workbook_service is None:
+            from webapp.services.workbook_service import WorkbookService
+
+            workbook_service = WorkbookService(self.session_service)
+        try:
+            workbook_service.prepare_column_mappings_for_standardization(
+                session_id,
+                sheet_name=sheet_name,
+            )
+        except HTTPException as exc:
+            self.processing_report_service.add_error(
+                session_id,
+                exc.detail if isinstance(exc.detail, str) else "Column mapping validation failed.",
+            )
+            raise
 
     # בונה pipeline עם כל המנועים שה־Web flow מפעיל בפועל.
     def _build_pipeline(self) -> StandardizationPipeline:

@@ -2,6 +2,7 @@
 
 import logging
 import uuid
+
 from fastapi import HTTPException
 
 from webapp.models.responses import (
@@ -11,8 +12,8 @@ from webapp.models.responses import (
     SheetSummary,
     WorkbookSummary,
 )
-from webapp.services.grid_payload import build_sheet_grid_payload
 from webapp.services.column_mapping_schema import ColumnMappingSchemaService
+from webapp.services.grid_payload import build_sheet_grid_payload
 from webapp.services.session_service import SessionService
 from webapp.services.workbook_loader import (
     WorkbookLoadError,
@@ -35,6 +36,65 @@ class WorkbookService:
     ) -> None:
         self.session_service = session_service
         self.column_schema_service = column_schema_service
+
+    def validate_column_mappings_before_standardization(
+        self,
+        session_id: str,
+        sheet_name: str | None = None,
+    ) -> None:
+        """Block standardization when duplicate effective standard targets exist."""
+        record = self.session_service.get(session_id)
+
+        if record.workbook_dataset is None:
+            return
+
+        duplicate_messages: list[str] = []
+
+        for sheet in record.workbook_dataset.sheets:
+            if sheet_name is not None and sheet.sheet_name != sheet_name:
+                continue
+
+            mappings = record.column_mappings.get(sheet.sheet_name, {})
+
+            for target_name, source_names in self._target_to_sources(sheet, mappings).items():
+                if len(source_names) > 1:
+                    duplicate_messages.append(
+                        f"Cannot start standardization. In sheet '{sheet.sheet_name}', "
+                        f"the field '{target_name}' is mapped to more than one column "
+                        f"({', '.join(source_names)}). Please fix the column mapping so "
+                        "each standard field appears only once."
+                    )
+
+        if duplicate_messages:
+            raise HTTPException(status_code=400, detail=" ".join(duplicate_messages))
+
+    def prepare_column_mappings_for_standardization(
+        self,
+        session_id: str,
+        sheet_name: str | None = None,
+    ) -> None:
+        """Validate and apply stored column mappings immediately before standardization."""
+        record = self.session_service.get(session_id)
+
+        if record.workbook_dataset is None:
+            return
+
+        self.validate_column_mappings_before_standardization(
+            session_id,
+            sheet_name=sheet_name,
+        )
+
+        for sheet in record.workbook_dataset.sheets:
+            if sheet_name is not None and sheet.sheet_name != sheet_name:
+                continue
+
+            mappings = record.column_mappings.get(sheet.sheet_name, {})
+            if mappings:
+                self.apply_column_mappings_to_sheet(sheet, mappings)
+                record.column_mappings.pop(sheet.sheet_name, None)
+
+        if not record.column_mappings:
+            record.column_mappings = {}
 
     def _ensure_sheet_loaded(self, record, sheet_name: str) -> None:
         """Lazily extract a single sheet from disk if not yet in the dataset."""
@@ -102,6 +162,7 @@ class WorkbookService:
                 all_names = get_workbook_sheet_names(working_path)
             except Exception:
                 all_names = [sheet_name]
+
             record.workbook_dataset = WorkbookDataset(
                 source_file=working_path,
                 sheets=[sheet_dataset],
@@ -109,10 +170,6 @@ class WorkbookService:
             )
         else:
             record.workbook_dataset.sheets.append(sheet_dataset)
-
-        mappings = record.column_mappings.get(sheet_name, {})
-        if mappings:
-            self.apply_column_mappings_to_sheet(sheet_dataset, mappings)
 
         logger.info(
             "sheet_load_completed",
@@ -130,28 +187,134 @@ class WorkbookService:
         """Return the supported generic target field names for column mapping."""
         if self.column_schema_service is None:
             return ColumnSchemaResponse(fields=[])
+
         return ColumnSchemaResponse(
             fields=self.column_schema_service.fields(),
             mappings=self.column_schema_service.mappings(),
             suggestions=self.column_schema_service.suggestions(),
         )
 
+    def _resolve_explicit_mapping_target(self, target_name: str) -> str:
+        """Resolve only a target chosen explicitly by the user."""
+        target_name = (target_name or "").strip()
+
+        if self.column_schema_service is not None:
+            return self.column_schema_service.resolve(target_name)
+
+        return target_name
+
+    def _is_supported_standard_field(self, field_name: str) -> bool:
+        """Return True only for already-standard field names.
+
+        Important:
+        This must not call resolve(), because source/display columns such as
+        'מס_סידורי' are not standardized fields and should not fail validation.
+        """
+        if not field_name:
+            return False
+
+        if self.column_schema_service is None:
+            return True
+
+        return field_name in set(self.column_schema_service.fields())
+
+    def _target_to_sources(self, sheet, mappings: dict) -> dict[str, list[str]]:
+        """Build target-to-source mapping for duplicate validation.
+
+        Only explicit user mappings are resolved against the schema.
+        Unmapped non-standard columns are ignored for duplicate-standard-field validation.
+        """
+        target_to_sources: dict[str, list[str]] = {}
+
+        for source_name in sheet.field_names:
+            if not source_name or source_name.startswith("_"):
+                continue
+
+            if source_name in mappings:
+                target_name = self._resolve_explicit_mapping_target(mappings[source_name])
+            elif self._is_supported_standard_field(source_name):
+                target_name = source_name
+            else:
+                continue
+
+            target_to_sources.setdefault(target_name, []).append(source_name)
+
+        return target_to_sources
+
     def apply_column_mappings_to_sheet(self, sheet, mappings: dict) -> None:
-        """Apply stored source-to-standard field mappings to a SheetDataset."""
-        for old_name, new_name in mappings.items():
-            if old_name == new_name:
-                continue
-            if old_name not in sheet.field_names:
-                continue
-            if new_name in sheet.field_names and new_name != old_name:
-                continue
-            sheet.field_names = [
-                new_name if field == old_name else field
-                for field in sheet.field_names
-            ]
-            for row in sheet.rows:
-                if old_name in row:
-                    row[new_name] = row.pop(old_name)
+        """Apply source-to-standard field mappings safely and atomically.
+
+        Unmapped columns are preserved unchanged.
+        Only explicit mapping targets are resolved against the standardized schema.
+        """
+        if not mappings:
+            return
+
+        original_field_names = list(sheet.field_names)
+        target_by_source: dict[str, str] = {}
+
+        for source_name in original_field_names:
+            if source_name in mappings:
+                target_by_source[source_name] = self._resolve_explicit_mapping_target(
+                    mappings[source_name]
+                )
+            else:
+                target_by_source[source_name] = source_name
+
+        new_field_names = [target_by_source[field] for field in original_field_names]
+
+        duplicates = sorted(
+            target for target in set(new_field_names) if new_field_names.count(target) > 1
+        )
+        if duplicates:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Cannot apply column mappings in sheet '{sheet.sheet_name}'. "
+                    f"Duplicate target field(s): {', '.join(duplicates)}."
+                ),
+            )
+
+        new_rows = []
+
+        for row in sheet.rows:
+            new_row = {}
+
+            for source_name in original_field_names:
+                target_name = target_by_source[source_name]
+
+                if source_name in row:
+                    if target_name in new_row:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=(
+                                f"Cannot apply column mappings in sheet '{sheet.sheet_name}'. "
+                                f"Field '{target_name}' would be overwritten."
+                            ),
+                        )
+
+                    new_row[target_name] = row[source_name]
+
+            for key, value in row.items():
+                if key not in target_by_source:
+                    if key in new_row:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=(
+                                f"Cannot apply column mappings in sheet '{sheet.sheet_name}'. "
+                                f"Field '{key}' would be overwritten."
+                            ),
+                        )
+
+                    new_row[key] = value
+
+            new_rows.append(new_row)
+
+        sheet.field_names = new_field_names
+
+        for row, new_row in zip(sheet.rows, new_rows):
+            row.clear()
+            row.update(new_row)
 
     def get_summary(self, session_id: str) -> WorkbookSummary:
         """Return a summary of all sheets in the workbook."""
@@ -167,6 +330,7 @@ class WorkbookService:
                     status_code=500,
                     detail="Workbook data is not available for this session.",
                 )
+
             sheets = [
                 SheetSummary(sheet_name=n, row_count=0, field_names=[])
                 for n in names
@@ -181,6 +345,7 @@ class WorkbookService:
             )
             for sheet in record.workbook_dataset.sheets
         ]
+
         return WorkbookSummary(session_id=session_id, sheets=sheets)
 
     def get_sheet_data(self, session_id: str, sheet_name: str) -> SheetDataResponse:
@@ -188,7 +353,7 @@ class WorkbookService:
         record = self.session_service.get(session_id)
         self._ensure_sheet_loaded(record, sheet_name)
 
-        sheet = record.workbook_dataset.get_sheet_by_name(sheet_name)
+        sheet = record.workbook_dataset.get_sheet_by_name(sheet_name)  # type: ignore[union-attr]
         if sheet is None:
             logger.warning(
                 "sheet_data_not_found_after_load",
@@ -210,6 +375,7 @@ class WorkbookService:
         session_mosad_id = record.mosad_id or None
         meta_mosad_id = session_mosad_id or sheet.get_metadata("MosadID")
         active_mosad_type = record.mosad_types[0] if record.mosad_types else None
+
         logger.info(
             "sheet_data_returned",
             extra={
@@ -220,6 +386,7 @@ class WorkbookService:
                 "column_count": len(sheet.field_names),
             },
         )
+
         return build_sheet_grid_payload(
             sheet,
             session_mosad_id=session_mosad_id or "",
@@ -235,62 +402,47 @@ class WorkbookService:
         old_name: str,
         new_name: str,
     ) -> ColumnMappingResponse:
-        """Rename a loaded source column and persist the mapping for normalization."""
+        """Persist a source-to-standard column mapping without mutating row data."""
         old_name = (old_name or "").strip()
         new_name = (new_name or "").strip()
+
         if not old_name or not new_name:
-            raise HTTPException(status_code=400, detail="old_name and new_name are required.")
-        if self.column_schema_service is not None:
-            new_name = self.column_schema_service.resolve(new_name)
+            raise HTTPException(
+                status_code=400,
+                detail="old_name and new_name are required.",
+            )
+
+        new_name = self._resolve_explicit_mapping_target(new_name)
 
         record = self.session_service.get(session_id)
         self._ensure_sheet_loaded(record, sheet_name)
-        sheet = record.workbook_dataset.get_sheet_by_name(sheet_name)
+
+        sheet = record.workbook_dataset.get_sheet_by_name(sheet_name)  # type: ignore[union-attr]
         if sheet is None:
             raise HTTPException(
                 status_code=404,
                 detail=f"Sheet '{sheet_name}' not found in this workbook.",
             )
+
         if old_name not in sheet.field_names:
             raise HTTPException(
                 status_code=404,
                 detail=f"Column '{old_name}' not found in sheet '{sheet_name}'.",
             )
-        if old_name == new_name:
-            mappings = record.column_mappings.setdefault(sheet_name, {})
-            return ColumnMappingResponse(
-                sheet_name=sheet_name,
-                old_name=old_name,
-                new_name=new_name,
-                field_names=list(sheet.field_names),
-                column_mappings=dict(mappings),
-            )
-        if new_name in sheet.field_names:
-            raise HTTPException(
-                status_code=409,
-                detail=f"Column '{new_name}' already exists in sheet '{sheet_name}'.",
-            )
-
-        sheet.field_names = [
-            new_name if field == old_name else field
-            for field in sheet.field_names
-        ]
-        for row in sheet.rows:
-            if old_name in row:
-                row[new_name] = row.pop(old_name)
 
         mappings = record.column_mappings.setdefault(sheet_name, {})
-        mappings[old_name] = new_name
+        before = dict(mappings)
 
-        # Manual cell edits are keyed by field name; keep those references valid.
-        updated_edits = {}
-        for (edit_sheet, row_uid, field_name), value in record.edits.items():
-            if edit_sheet == sheet_name and field_name == old_name:
-                updated_edits[(edit_sheet, row_uid, new_name)] = value
-            else:
-                updated_edits[(edit_sheet, row_uid, field_name)] = value
-        record.edits = updated_edits
-        if record.status == "standardized":
+        if old_name == new_name:
+            mappings.pop(old_name, None)
+        else:
+            mappings[old_name] = new_name
+
+        if not mappings:
+            record.column_mappings.pop(sheet_name, None)
+
+        current = record.column_mappings.get(sheet_name, {})
+        if record.status == "standardized" and before != current:
             record.working_dataset_dirty = True
 
         return ColumnMappingResponse(
@@ -298,7 +450,7 @@ class WorkbookService:
             old_name=old_name,
             new_name=new_name,
             field_names=list(sheet.field_names),
-            column_mappings=dict(mappings),
+            column_mappings=dict(current),
         )
 
     def reload_column_mapping(
@@ -306,18 +458,18 @@ class WorkbookService:
         session_id: str,
         sheet_name: str,
     ) -> ColumnSchemaResponse:
-        """Reload central mapping config and re-apply stored mappings to a sheet."""
+        """Reload central mapping config without mutating the loaded sheet data."""
         if self.column_schema_service is not None:
             self.column_schema_service.reload()
+
         record = self.session_service.get(session_id)
         self._ensure_sheet_loaded(record, sheet_name)
-        sheet = record.workbook_dataset.get_sheet_by_name(sheet_name)
+
+        sheet = record.workbook_dataset.get_sheet_by_name(sheet_name)  # type: ignore[union-attr]
         if sheet is None:
             raise HTTPException(
                 status_code=404,
                 detail=f"Sheet '{sheet_name}' not found in this workbook.",
             )
-        mappings = record.column_mappings.get(sheet_name, {})
-        if mappings:
-            self.apply_column_mappings_to_sheet(sheet, mappings)
+
         return self.get_column_schema()

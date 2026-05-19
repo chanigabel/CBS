@@ -33,6 +33,7 @@ class SheetDataResponse(BaseModel):
     field_names: List[str]
     rows: List[Dict[str, Any]]
     column_mappings: Dict[str, str] = Field(default_factory=dict)
+    column_display_names: Dict[str, str] = Field(default_factory=dict)
 
 
 class ColumnSchemaResponse(BaseModel):
