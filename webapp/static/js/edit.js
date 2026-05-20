@@ -6,7 +6,7 @@ async function deleteSelectedRows() {
     // Confirm multi-row deletes.
     if (n > 1) {
         const confirmed = confirm(
-            `Delete ${n} rows?\n\nThis cannot be undone without re-running standardization.`
+            `למחוק ${n} שורות?\n\nלא ניתן לבטל פעולה זו ללא טעינה מחדש של הקובץ.`
         );
         if (!confirmed) return;
     }
@@ -35,9 +35,9 @@ async function _deleteRows(rowUids) {
         const filtered = getFilteredRows(state.sheetData.rows);
         renderGrid(state.sheetData, filtered);
         document.getElementById('grid-stats').textContent =
-            `Deleted ${result.deleted_count} row(s). ${result.remaining_rows} rows remaining.`;
+            `נמחקו ${result.deleted_count} שורות. נותרו ${result.remaining_rows} שורות.`;
     } catch (err) {
-        showError(`Delete failed: ${err.message}`);
+        showError(`מחיקת השורות נכשלה: ${err.message}`);
         updateDeleteButton();
     }
 }
@@ -68,7 +68,7 @@ function makeEditable(td, rowUid, fieldName) {
             return;
         }
         try {
-            await apiCall(
+            const response = await apiCall(
                 'PATCH',
                 `/api/workbook/${state.sessionId}/cell`,
                 {
@@ -80,21 +80,29 @@ function makeEditable(td, rowUid, fieldName) {
             );
             // Update the cached row data.
             const editedRow = state.sheetData?.rows.find(r => r._row_uid === rowUid);
-            if (editedRow) editedRow[fieldName] = newValue;
-            td.textContent = newValue;
+            const updatedRow = response && response.updated_row ? response.updated_row : null;
+            if (editedRow) {
+                if (updatedRow) Object.assign(editedRow, updatedRow);
+                else editedRow[fieldName] = newValue;
+            }
+            const displayValue = updatedRow && Object.prototype.hasOwnProperty.call(updatedRow, fieldName)
+                ? updatedRow[fieldName]
+                : newValue;
+            td.textContent = displayValue !== null && displayValue !== undefined ? String(displayValue) : '';
             td.className = td.className.replace(' editing', '');
             if (fieldName.endsWith('_corrected')) {
                 // Compare normalized values to avoid false highlights.
                 const origVal = editedRow ? editedRow[fieldName.replace(/_corrected$/, '')] : null;
                 const origStr = (origVal !== null && origVal !== undefined) ? String(origVal).trim() : '';
-                td.className = (newValue.trim() !== '' && newValue.trim() !== origStr)
+                const displayStr = td.textContent.trim();
+                td.className = (displayStr !== '' && displayStr !== origStr)
                     ? 'corrected-changed' : 'corrected-cell';
             }
             // Mark the session as dirty.
             const session = sessions.get(state.sessionId);
             if (session) session.hasEdits = true;
         } catch (err) {
-            showError(`Edit failed: ${err.message}`);
+            showError(`עריכת התא נכשלה: ${err.message}`);
             td.textContent = currentValue;
             td.className = td.className.replace(' editing', '');
         }

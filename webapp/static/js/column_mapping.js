@@ -22,7 +22,7 @@ async function loadColumnMappingSchema(force = false) {
 async function refreshColumnMappingControls(sheetData) {
     await loadColumnMappingSchema(true);
     document.querySelectorAll('.editable-column-label').forEach(label => {
-        label.title = 'Click to map this header to a standard field';
+        label.title = 'לחץ כדי למפות את הכותרת לשדה תקני';
     });
 }
 
@@ -38,13 +38,13 @@ async function beginHeaderMappingEdit(labelEl, columnName) {
     try {
         schema = await loadColumnMappingSchema();
     } catch (err) {
-        showError(`Column schema failed to load: ${err.message}`);
+        showError(`טעינת סכמת העמודות נכשלה: ${err.message}`);
         return;
     }
 
     const canonicalFields = schema.fields || [];
     if (!canonicalFields.length) {
-        showError('No column mapping schema is configured.');
+        showError('לא הוגדרה סכמת מיפוי עמודות.');
         return;
     }
 
@@ -54,7 +54,7 @@ async function beginHeaderMappingEdit(labelEl, columnName) {
 
     const title = document.createElement('div');
     title.className = 'column-mapping-title';
-    title.textContent = `Map "${columnName}"`;
+    title.textContent = `מיפוי "${columnName}"`;
     popover.appendChild(title);
 
     const select = document.createElement('select');
@@ -76,20 +76,20 @@ async function beginHeaderMappingEdit(labelEl, columnName) {
     const applyBtn = document.createElement('button');
     applyBtn.type = 'button';
     applyBtn.className = 'column-mapping-apply';
-    applyBtn.textContent = 'Apply Mapping';
+    applyBtn.textContent = 'החל מיפוי';
     applyBtn.addEventListener('click', async () => {
         try {
             await saveInlineColumnMapping(columnName, select.value);
             closeHeaderMappingPopover();
         } catch (err) {
-            showError(`Column mapping failed: ${err.message}`);
+            showError(`מיפוי העמודה נכשל: ${err.message}`);
         }
     });
 
     const cancelBtn = document.createElement('button');
     cancelBtn.type = 'button';
     cancelBtn.className = 'column-mapping-cancel';
-    cancelBtn.textContent = 'Cancel';
+    cancelBtn.textContent = 'ביטול';
     cancelBtn.addEventListener('click', closeHeaderMappingPopover);
 
     actions.append(applyBtn, cancelBtn);

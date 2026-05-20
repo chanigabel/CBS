@@ -17,7 +17,7 @@ function initApp() {
             const files = Array.from(fileInput.files);
             label.textContent = files.length === 1
                 ? files[0].name
-                : `${files.length} files selected`;
+                : `נבחרו ${files.length} קבצים`;
         });
     }
 
@@ -56,7 +56,7 @@ function initApp() {
             mosad_id: rawId || undefined,
             mosad_name: instName ? instName.value.trim() || undefined : undefined,
             mosad_types: types,
-        }).catch(err => showError(`Failed to save institution metadata: ${err.message}`));
+        }).catch(err => showError(`שמירת פרטי המוסד נכשלה: ${err.message}`));
     }
 
     [instId, instName, instType1, instType2, instType3].forEach(el => {
@@ -284,8 +284,6 @@ async function restoreStandardizationUiState() {
 document.addEventListener('DOMContentLoaded', initApp);
 
 Object.assign(window, {
-    openEngineManagement,
-    closeEngineManagement,
     saveStandardizationUiState,
     restoreStandardizationUiState,
 });

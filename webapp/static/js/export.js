@@ -6,7 +6,7 @@ async function runstandardization() {
 
     const btn = document.getElementById('normalize-btn');
     btn.disabled = true;
-    btn.innerHTML = '⏳ standardizing... <span class="loading"></span>';
+    btn.innerHTML = '⏳ מריץ סטנדרטיזציה... <span class="loading"></span>';
 
     try {
         // Normalize the full workbook from the main action.
@@ -38,10 +38,10 @@ async function runstandardization() {
             `תקנון הושלם (${result.sheets_processed} גיליון${result.sheets_processed !== 1 ? 'ים' : ''}) — ${stats}`;
         await refreshProcessingReport();
     } catch (err) {
-        showError(`standardization failed: ${err.message}`);
+        showError(`הרצת הסטנדרטיזציה נכשלה: ${err.message}`);
     } finally {
         btn.disabled = false;
-        btn.innerHTML = '▶ Run standardization';
+        btn.innerHTML = '▶ הרץ סטנדרטיזציה';
     }
 }
 
@@ -64,10 +64,10 @@ async function exportWorkbook() {
             `ייצוא הושלם (${report.status}) - ${formatProcessingReportSummary(report)}`;
         await refreshProcessingReport();
     } catch (err) {
-        showError(`Export failed: ${err.message}`);
+        showError(`הייצוא נכשל: ${err.message}`);
     } finally {
         btn.disabled = false;
-        btn.innerHTML = '⬇ Export / Download';
+        btn.innerHTML = '⬇ ייצא';
     }
 }
 
@@ -80,7 +80,7 @@ async function exportBulk(sessionIds) {
     dismissError();
 
     const btn = document.getElementById('export-all-btn') || document.querySelector('.bulk-export-bar .btn');
-    if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Exporting... <span class="loading"></span>'; }
+    if (btn) { btn.disabled = true; btn.innerHTML = '⏳ מייצא... <span class="loading"></span>'; }
 
     try {
         const response = await fetch('/api/export/bulk', {
@@ -91,7 +91,12 @@ async function exportBulk(sessionIds) {
 
         if (!response.ok) {
             let detail = `HTTP ${response.status}`;
-            try { const err = await response.json(); detail = err.detail || detail; } catch (_) {}
+            try {
+                const err = await response.json();
+                detail = typeof formatApiErrorDetail === 'function'
+                    ? formatApiErrorDetail(err.detail || detail)
+                    : (err.detail || detail);
+            } catch (_) {}
             throw new Error(detail);
         }
 
@@ -104,9 +109,9 @@ async function exportBulk(sessionIds) {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
     } catch (err) {
-        showError(`Bulk export failed: ${err.message}`);
+        showError(`ייצוא הקבצים נכשל: ${err.message}`);
     } finally {
-        if (btn) { btn.disabled = false; btn.innerHTML = '⬇ Export all as ZIP'; }
+        if (btn) { btn.disabled = false; btn.innerHTML = '⬇ ייצא הכל כ-ZIP'; }
     }
 }
 
@@ -115,7 +120,7 @@ async function exportSelected() {
     const checked = [...document.querySelectorAll('.file-tab-check:checked')]
         .map(cb => cb.dataset.sessionId);
     if (!checked.length) {
-        showError('Select at least one file to export.');
+        showError('בחר לפחות קובץ אחד לייצוא.');
         return;
     }
     await exportBulk(checked);
@@ -129,7 +134,12 @@ async function _downloadFile(url, method, defaultFilename) {
     const response = await fetch(url, { method });
     if (!response.ok) {
         let detail = `HTTP ${response.status}`;
-        try { const err = await response.json(); detail = err.detail || detail; } catch (_) {}
+        try {
+            const err = await response.json();
+            detail = typeof formatApiErrorDetail === 'function'
+                ? formatApiErrorDetail(err.detail || detail)
+                : (err.detail || detail);
+        } catch (_) {}
         throw new Error(detail);
     }
     const blob = await response.blob();

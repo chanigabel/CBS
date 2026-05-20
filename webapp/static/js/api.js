@@ -12,6 +12,29 @@ function dismissError() {
     document.getElementById('error-banner').classList.add('hidden');
 }
 
+function formatApiErrorDetail(detail) {
+    if (Array.isArray(detail)) {
+        const messages = detail
+            .map(item => {
+                if (typeof item === 'string') return item;
+                if (!item || typeof item !== 'object') return '';
+                const field = Array.isArray(item.loc)
+                    ? item.loc.filter(part => part !== 'body').join('.')
+                    : '';
+                const message = item.msg || item.message || '';
+                return field && message ? `${field}: ${message}` : message;
+            })
+            .filter(Boolean);
+        return messages.length
+            ? `הבקשה לא תקינה: ${messages.join(' | ')}`
+            : 'הבקשה לא תקינה. בדוק את הערכים שהוזנו ונסה שוב.';
+    }
+    if (detail && typeof detail === 'object') {
+        return detail.message || detail.msg || 'הבקשה לא תקינה. בדוק את הערכים שהוזנו ונסה שוב.';
+    }
+    return detail || '';
+}
+
 // ---------------------------------------------------------------------------
 // API Helpers
 // ---------------------------------------------------------------------------
@@ -29,7 +52,10 @@ async function apiCall(method, url, body = null) {
 
     if (!response.ok) {
         let detail = `HTTP ${response.status}`;
-        try { const err = await response.json(); detail = err.detail || detail; } catch (_) {}
+        try {
+            const err = await response.json();
+            detail = formatApiErrorDetail(err.detail || detail);
+        } catch (_) {}
         const error = new Error(detail);
         error.status = response.status;
         throw error;
@@ -42,4 +68,4 @@ async function apiCall(method, url, body = null) {
     return response.json();
 }
 
-Object.assign(window, { showError, dismissError, apiCall });
+Object.assign(window, { showError, dismissError, apiCall, formatApiErrorDetail });

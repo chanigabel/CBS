@@ -49,10 +49,10 @@ function renderWorkbookReport(report) {
     if (!section || !status || !summary || !details || !report) return;
 
     const s = report.summary || {};
-    status.textContent = report.dirty || report.stale
-        ? 'נדרש רענון'
-        : (report.export_ready ? 'מוכן לייצוא' : 'לא מוכן לייצוא');
-    status.className = `report-status ${report.export_ready && !report.dirty ? 'ready' : 'blocked'}`;
+    status.textContent = report.export_ready
+        ? (report.dirty || report.stale ? 'מוכן לייצוא עם עריכות ידניות' : 'מוכן לייצוא')
+        : 'לא מוכן לייצוא';
+    status.className = `report-status ${report.export_ready ? 'ready' : 'blocked'}`;
 
     summary.innerHTML = `
         <div class="report-meta">
@@ -68,8 +68,8 @@ function renderWorkbookReport(report) {
             <strong>${report.export_ready ? 'מוכן' : 'חסום'}</strong>
         </div>
         <div class="report-meta">
-            <span class="report-meta-label">מסומן כלא מעודכן</span>
-            <strong>${report.dirty ? 'כן' : 'לא'}</strong>
+            <span class="report-meta-label">עריכות ידניות</span>
+            <strong>${report.dirty ? 'כן, הייצוא יכלול אותן' : 'לא'}</strong>
         </div>
         <div class="report-meta">
             <span class="report-meta-label">גיליונות</span>
@@ -172,7 +172,7 @@ function renderProcessingReportPreview(report) {
             <div><span>קובץ</span><strong>${escapeHtml(report.file_name || '—')}</strong></div>
             <div><span>מצב</span><strong>${escapeHtml(report.status || '—')}</strong></div>
             <div><span>מוכן לייצוא</span><strong>${report.export_ready ? 'כן' : 'לא'}</strong></div>
-            <div><span>לא מעודכן</span><strong>${report.dirty ? 'כן' : 'לא'}</strong></div>
+            <div><span>עריכות לאחר תקנון</span><strong>${report.dirty ? 'כן' : 'לא'}</strong></div>
             <div><span>גיליונות</span><strong>${summary.total_sheets || 0}</strong></div>
             <div><span>שורות</span><strong>${summary.total_rows || 0}</strong></div>
             <div><span>עריכות</span><strong>${summary.edited_cells || 0}</strong></div>

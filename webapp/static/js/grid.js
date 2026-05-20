@@ -148,7 +148,7 @@ function applyFilters() {
     if (state.columnFilters.size > 0) {
         statsDiv.textContent = `מציג ${shown} מתוך ${total} שורות × ${cols} עמודות`;
     } else {
-        statsDiv.textContent = `${total} rows × ${cols} columns`;
+        statsDiv.textContent = `${total} שורות × ${cols} עמודות`;
     }
 
     // Re-render the grid with filtered rows
@@ -259,7 +259,7 @@ function renderGrid(sheetData, rows, targetContainer) {
     thCheck.className = 'col-select';
     const selectAll = document.createElement('input');
     selectAll.type = 'checkbox';
-    selectAll.title = 'Select all rows';
+    selectAll.title = 'בחר את כל השורות';
     selectAll.addEventListener('change', () => toggleSelectAll(selectAll.checked, displayRows));
     thCheck.appendChild(selectAll);
     headerRow.appendChild(thCheck);
@@ -285,7 +285,7 @@ function renderGrid(sheetData, rows, targetContainer) {
         label.textContent = displayName;
         if (typeof isSourceColumnName === 'function' && isSourceColumnName(col)) {
             label.className = 'editable-column-label';
-            label.title = 'Click to map this header to a standard field';
+            label.title = 'לחץ כדי למפות את הכותרת לשדה תקני';
             label.addEventListener('click', e => {
                 e.stopPropagation();
                 if (typeof beginHeaderMappingEdit === 'function') {
@@ -352,7 +352,7 @@ function renderGrid(sheetData, rows, targetContainer) {
         const delBtn = document.createElement('button');
         delBtn.className = 'btn-row-delete';
         delBtn.textContent = '✕';
-        delBtn.title = 'Delete this row';
+        delBtn.title = 'מחק שורה זו';
         delBtn.addEventListener('click', () => deleteSingleRow(row._row_uid));
         tdDel.appendChild(delBtn);
 
@@ -362,7 +362,7 @@ function renderGrid(sheetData, rows, targetContainer) {
             badge.className = 'change-badge';
             badge.textContent = changedFields.length;
             const fieldNames = changedFields.map(f => f.replace(/_corrected$/, '')).join(', ');
-            badge.title = `${changedFields.length} field(s) corrected: ${fieldNames}`;
+            badge.title = `${changedFields.length} שדות תוקנו: ${fieldNames}`;
             tdDel.appendChild(badge);
         }
 
@@ -407,7 +407,7 @@ function renderGrid(sheetData, rows, targetContainer) {
         if (state.columnFilters.size > 0) {
             statsDiv.textContent = `מציג ${shown} מתוך ${total} שורות × ${displayColumns.length} עמודות`;
         } else {
-            statsDiv.textContent = `${total} rows × ${displayColumns.length} columns`;
+            statsDiv.textContent = `${total} שורות × ${displayColumns.length} עמודות`;
         }
     }
     if (!targetContainer) updateDeleteButton();
@@ -435,7 +435,7 @@ function updateDeleteButton() {
     if (!btn) return;
     const n = state.selectedRows.size;
     btn.disabled = n === 0;
-    btn.textContent = n > 0 ? `🗑 Delete ${n} row${n > 1 ? 's' : ''}` : '🗑 Delete rows';
+    btn.textContent = n > 0 ? `🗑 מחק ${n} שורות` : '🗑 מחק שורות';
 }
 
 // ---------------------------------------------------------------------------

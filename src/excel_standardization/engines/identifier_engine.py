@@ -13,6 +13,15 @@ from ..data_types import IdentifierResult
 logger = logging.getLogger(__name__)
 
 
+def _safe_log_value(value: Any) -> str:
+    """Return a masked identifier representation for logs."""
+    text = "" if value is None else str(value)
+    if not text:
+        return "<empty>"
+    suffix = text[-4:] if len(text) > 4 else "*" * len(text)
+    return f"<masked len={len(text)} last4={suffix!r}>"
+
+
 # המנוע אחראי לניקוי, סיווג ואימות תעודות זהות ודרכונים.
 class IdentifierEngine:
     engine_key = "identifier"
@@ -186,7 +195,10 @@ class IdentifierEngine:
                 # Move to passport only if passport currently empty; otherwise keep it
                 if not cleaned_passport:
                     cleaned_passport = self.clean_passport(id_str)
-                logger.warning("ID moved to passport: %r (Reason: Contains non-digit characters)", id_str)
+                logger.warning(
+                    "ID moved to passport: %s (Reason: Contains non-digit characters)",
+                    _safe_log_value(id_str),
+                )
                 # moved_to_passport = True, no cleaned_digits, checksum_valid=False
                 return "", True, cleaned_passport, False
 
@@ -195,7 +207,7 @@ class IdentifierEngine:
 
         # All zeros => invalid, do not move
         if digits and all(ch == "0" for ch in digits):
-            logger.info("All-zeros ID rejected: %r (Status: לא תקין)", digits)
+            logger.info("All-zeros ID rejected: %s (Status: לא תקין)", _safe_log_value(digits))
             return "", False, cleaned_passport, False
 
         digit_count = len(digits)
@@ -203,13 +215,13 @@ class IdentifierEngine:
         # Too few digits (<4) => invalid ID. Numeric-only values must not move
         # to passport just because of length.
         if digit_count < 4:
-            logger.warning("Invalid ID length: %r (Reason: < 4 digits)", id_str)
+            logger.warning("Invalid ID length: %s (Reason: < 4 digits)", _safe_log_value(id_str))
             return digits, False, cleaned_passport, False
 
         # Too many digits (>9) => invalid ID. Numeric-only values must not move
         # to passport just because of length.
         if digit_count > 9:
-            logger.warning("Invalid ID length: %r (Reason: > 9 digits)", id_str)
+            logger.warning("Invalid ID length: %s (Reason: > 9 digits)", _safe_log_value(id_str))
             return digits, False, cleaned_passport, False
 
         # 4–9 digits: pad to 9 and validate checksum
@@ -217,17 +229,17 @@ class IdentifierEngine:
 
         # Reject all-zero padded (already handled by digits check, but keep parity)
         if padded == "000000000":
-            logger.info("All-zeros padded ID rejected: %r", padded)
+            logger.info("All-zeros padded ID rejected: %s", _safe_log_value(padded))
             return "", False, cleaned_passport, False
 
         # Reject all-identical-digit padded sequences (e.g., "111111111")
         if len(set(padded)) == 1:
-            logger.info("Identical-digit ID rejected: %r", padded)
+            logger.info("Identical-digit ID rejected: %s", _safe_log_value(padded))
             return "", False, cleaned_passport, False
 
         is_valid = self.validate_israeli_id(padded)
         if not is_valid:
-            logger.warning("Invalid ID checksum: %r", padded)
+            logger.warning("Invalid ID checksum: %s", _safe_log_value(padded))
         return padded, False, cleaned_passport, is_valid
 
     # ------------------------------------------------------------------

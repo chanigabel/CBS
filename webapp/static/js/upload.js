@@ -23,17 +23,22 @@ function uploadWithProgress(file, onProgress) {
                 try {
                     resolve(JSON.parse(xhr.responseText));
                 } catch (_) {
-                    reject(new Error('Invalid server response'));
+                    reject(new Error('תגובת השרת אינה תקינה'));
                 }
             } else {
                 let detail = `HTTP ${xhr.status}`;
-                try { detail = JSON.parse(xhr.responseText).detail || detail; } catch (_) {}
+                try {
+                    const err = JSON.parse(xhr.responseText);
+                    detail = typeof formatApiErrorDetail === 'function'
+                        ? formatApiErrorDetail(err.detail || detail)
+                        : (err.detail || detail);
+                } catch (_) {}
                 reject(new Error(detail));
             }
         });
 
-        xhr.addEventListener('error', () => reject(new Error('Network error during upload')));
-        xhr.addEventListener('abort', () => reject(new Error('Upload cancelled')));
+        xhr.addEventListener('error', () => reject(new Error('שגיאת רשת במהלך העלאת הקובץ')));
+        xhr.addEventListener('abort', () => reject(new Error('העלאת הקובץ בוטלה')));
 
         xhr.open('POST', '/api/upload');
         xhr.send(fd);
@@ -201,7 +206,7 @@ function renderSheetSelector(sheetNames, sheetStats) {
         const stat = (sheetStats || {})[name];
         if (stat && stat.success_rate < 1.0) {
             btn.textContent = `${name} ⚠ ${Math.round(stat.success_rate * 100)}%`;
-            btn.title = `${stat.rows} rows — ${Math.round(stat.success_rate * 100)}% normalized successfully`;
+            btn.title = `${stat.rows} שורות — ${Math.round(stat.success_rate * 100)}% תוקננו בהצלחה`;
             btn.classList.add('sheet-tab-warning');
         } else {
             btn.textContent = name;
@@ -248,7 +253,7 @@ async function loadSheet(sheetName) {
     const gridContainer = document.getElementById('grid-container');
 
     gridTitle.textContent = sheetName;
-    gridContainer.innerHTML = '<div style="padding:20px;text-align:center">Loading... <span class="loading"></span></div>';
+    gridContainer.innerHTML = '<div style="padding:20px;text-align:center">טוען... <span class="loading"></span></div>';
     gridSection.classList.remove('hidden');
 
     try {
@@ -393,7 +398,7 @@ async function applyMosadType() {
             `סוג מוסד "${mosadType}" הוחל על ${result.updated_rows} שורות`;
         if (state.currentSheet) await loadSheet(state.currentSheet);
     } catch (err) {
-        showError(`Failed to apply MosadType: ${err.message}`);
+        showError(`החלת סוג המוסד נכשלה: ${err.message}`);
     }
 }
 

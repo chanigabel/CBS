@@ -11,7 +11,7 @@
     <!-- Error Banner -->
     <div id="error-banner" class="error-banner hidden" role="alert">
         <span id="error-message"></span>
-        <button class="dismiss-btn" onclick="dismissError()" aria-label="Dismiss error">✕</button>
+        <button class="dismiss-btn" onclick="dismissError()" aria-label="סגור הודעת שגיאה">✕</button>
     </div>
 
     <div class="container">
@@ -46,13 +46,13 @@
 
         <!-- Session Switcher — always shown once any file is loaded -->
         <section id="session-switcher" class="card hidden">
-            <h2>Open Files</h2>
+            <h2>קבצים פתוחים</h2>
             <div id="session-tabs" class="sheet-tabs" role="tablist"></div>
         </section>
 
         <!-- Sheet Selector -->
         <section id="sheet-selector" class="card hidden">
-            <h2>Select Sheet</h2>
+            <h2>בחירת גיליון</h2>
             <div id="sheet-tabs" class="sheet-tabs" role="tablist"></div>
         </section>
 
@@ -62,7 +62,7 @@
             <div id="institution-bar" class="institution-bar">
                 <div class="institution-group">
                     <label class="institution-label" for="inst-id">מספר מוסד</label>
-                    <input id="inst-id" class="inst-input" type="text" placeholder="123" title="מספר מוסד (ספרות בלבד, לפחות 3)" />
+                    <input id="inst-id" class="inst-input" type="text" placeholder="123" title="מספר מוסד" />
                 </div>
                 <div class="institution-group">
                     <label class="institution-label" for="inst-name">שם מוסד</label>
