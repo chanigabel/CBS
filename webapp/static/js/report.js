@@ -49,76 +49,61 @@ function renderWorkbookReport(report) {
     if (!section || !status || !summary || !details || !report) return;
 
     const s = report.summary || {};
+    const currentSheet = state.currentSheet || '';
+    const shownRows = Array.isArray(state.sheetData?.rows)
+        ? state.sheetData.rows.length
+        : (s.total_rows || 0);
+    const warningCount = Number(s.rows_with_warnings || 0);
+    const errorCount = Number(s.rows_with_errors || 0);
+    const hasAttention = Boolean(report.export_blocked_reason) || warningCount > 0 || errorCount > 0;
+    const attentionCount = warningCount + errorCount + (report.export_blocked_reason ? 1 : 0);
+
     status.textContent = report.export_ready
-        ? (report.dirty || report.stale ? 'מוכן לייצוא עם עריכות ידניות' : 'מוכן לייצוא')
-        : 'לא מוכן לייצוא';
+        ? (report.dirty || report.stale ? 'מוכן לייצוא עם עריכות ידניות' : 'מוכן לעבודה')
+        : 'נדרשת בדיקה';
     status.className = `report-status ${report.export_ready ? 'ready' : 'blocked'}`;
 
     summary.innerHTML = `
         <div class="report-meta">
-            <span class="report-meta-label">קובץ</span>
-            <strong>${escapeHtml(report.file_name || '—')}</strong>
+            <span class="report-meta-label">מצב קובץ</span>
+            <strong>${report.export_ready ? 'מוכן לעבודה' : 'נדרשת בדיקה'}</strong>
         </div>
         <div class="report-meta">
-            <span class="report-meta-label">מצב</span>
-            <strong>${escapeHtml(report.status || '—')}</strong>
+            <span class="report-meta-label">גיליון נוכחי</span>
+            <strong>${escapeHtml(currentSheet || 'לא נבחר')}</strong>
         </div>
         <div class="report-meta">
-            <span class="report-meta-label">ייצוא</span>
-            <strong>${report.export_ready ? 'מוכן' : 'חסום'}</strong>
-        </div>
-        <div class="report-meta">
-            <span class="report-meta-label">עריכות ידניות</span>
-            <strong>${report.dirty ? 'כן, הייצוא יכלול אותן' : 'לא'}</strong>
+            <span class="report-meta-label">שורות מוצגות</span>
+            <strong>${shownRows}</strong>
         </div>
         <div class="report-meta">
             <span class="report-meta-label">גיליונות</span>
             <strong>${s.total_sheets || 0}</strong>
         </div>
         <div class="report-meta">
-            <span class="report-meta-label">שורות</span>
-            <strong>${s.total_rows || 0}</strong>
+            <span class="report-meta-label">עריכות ידניות</span>
+            <strong>${report.dirty ? 'כן' : 'לא'}</strong>
         </div>
         <div class="report-meta">
-            <span class="report-meta-label">עריכות</span>
-            <strong>${s.edited_cells || 0}</strong>
+            <span class="report-meta-label">סטטוס ייצוא</span>
+            <strong>${report.export_ready ? 'אפשרי' : 'חסום'}</strong>
         </div>
+        ${hasAttention ? `
         <div class="report-meta">
-            <span class="report-meta-label">אזהרות</span>
-            <strong>${s.rows_with_warnings || 0}</strong>
+            <span class="report-meta-label">נושאים לבדיקה</span>
+            <strong>${attentionCount}</strong>
         </div>
-        <div class="report-meta">
-            <span class="report-meta-label">שגיאות</span>
-            <strong>${s.rows_with_errors || 0}</strong>
-        </div>
-        <div class="report-meta">
-            <span class="report-meta-label">שדות מתוקנים</span>
-            <strong>${s.corrected_fields || 0}</strong>
-        </div>
+        ` : ''}
     `;
-
-    const sheetRows = (report.sheets || []).map(sheet => `
-        <div class="report-sheet-row">
-            <span>${escapeHtml(sheet.sheet_name)}</span>
-            <span>${sheet.row_count} שורות</span>
-            <span>${sheet.column_count} עמודות</span>
-            <span>${sheet.rows_with_warnings} אזהרות</span>
-            <span>${sheet.rows_with_errors} שגיאות</span>
-            <span>${sheet.corrected_fields} מתוקנים</span>
-        </div>
-    `).join('');
 
     const blocked = report.export_blocked_reason
         ? `<div class="report-blocked">${escapeHtml(report.export_blocked_reason)}</div>`
         : '';
+    const warnings = hasAttention && !report.export_blocked_reason
+        ? `<div class="report-note">יש נתונים שכדאי לבדוק לפני הייצוא. פירוט מלא זמין בדוח.</div>`
+        : '';
 
-    details.innerHTML = `
-        ${blocked}
-        <div class="report-sheet-list">
-            <div class="report-subtitle">סיכום גיליונות</div>
-            ${sheetRows || '<div class="report-empty">אין נתוני גיליונות להצגה.</div>'}
-        </div>
-    `;
+    details.innerHTML = `${blocked}${warnings}`;
     section.classList.remove('hidden');
 }
 
