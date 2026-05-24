@@ -204,6 +204,9 @@ header h1 {
 }
 
 .sheet-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
     padding: 8px 16px;
     border: 2px solid #e2e8f0;
     border-radius: 6px;
@@ -211,6 +214,7 @@ header h1 {
     cursor: pointer;
     font-size: 14px;
     transition: all 0.15s;
+    max-width: 100%;
 }
 
 .sheet-tab:hover {
@@ -222,6 +226,57 @@ header h1 {
     background: #4299e1;
     border-color: #4299e1;
     color: white;
+}
+
+.tab-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.2;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.status-badge--success {
+    background: #c6f6d5;
+    border-color: #9ae6b4;
+    color: #276749;
+}
+
+.status-badge--warning {
+    background: #fefcbf;
+    border-color: #faf089;
+    color: #744210;
+}
+
+.status-badge--error {
+    background: #fed7d7;
+    border-color: #feb2b2;
+    color: #9b2c2c;
+}
+
+.status-badge--pending {
+    background: #edf2f7;
+    border-color: #cbd5e0;
+    color: #4a5568;
+}
+
+.status-badge--info {
+    background: #ebf8ff;
+    border-color: #bee3f8;
+    color: #2c5282;
 }
 
 /* Action Bar */
@@ -450,22 +505,148 @@ header h1 {
 }
 
 .report-status {
-    border-radius: 999px;
-    padding: 4px 10px;
+    display: inline-flex;
+    align-items: center;
+}
+
+.report-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.report-sheet-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #fff;
+    overflow: hidden;
+}
+
+.report-sheet-card + .report-sheet-card {
+    margin-top: 10px;
+}
+
+.report-sheet-card summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 12px 14px;
+    background: #f9fafb;
+}
+
+.report-sheet-card summary::-webkit-details-marker {
+    display: none;
+}
+
+.report-sheet-summary-main {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.report-sheet-summary-main strong {
+    font-size: 15px;
+    color: #2d3748;
+}
+
+.report-sheet-summary-sub {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 8px;
+    color: #718096;
     font-size: 12px;
+}
+
+.report-sheet-body {
+    padding: 12px 14px 14px;
+}
+
+.report-sheet-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 8px;
+}
+
+.report-issue-list {
+    display: grid;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.report-issue-group {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 12px;
+    background: #fff;
+    border-inline-start-width: 4px;
+}
+
+.report-issue-group--warning {
+    border-inline-start-color: #d69e2e;
+}
+
+.report-issue-group--error {
+    border-inline-start-color: #c53030;
+}
+
+.report-issue-group--info {
+    border-inline-start-color: #3182ce;
+}
+
+.report-issue-group-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.report-issue-title {
     font-weight: 700;
+    color: #2d3748;
+    overflow-wrap: anywhere;
+}
+
+.report-issue-count {
+    min-width: 32px;
+    padding: 2px 8px;
+    border-radius: 999px;
     background: #edf2f7;
     color: #4a5568;
+    font-weight: 700;
+    text-align: center;
 }
 
-.report-status.ready {
-    background: #c6f6d5;
-    color: #276749;
+.report-issue-meta {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+    color: #718096;
+    font-size: 12px;
+    flex-wrap: wrap;
 }
 
-.report-status.blocked {
-    background: #fefcbf;
-    color: #744210;
+.report-issue-meta strong {
+    color: #2d3748;
+    overflow-wrap: anywhere;
+}
+
+.report-row-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #edf2f7;
+    color: #2d3748;
+    font-size: 12px;
+    margin-inline-end: 4px;
+    margin-top: 4px;
+}
+
+.report-issue-rows-empty {
+    color: #718096;
 }
 
 .report-summary {
@@ -621,6 +802,11 @@ header h1 {
 .report-kv-list {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+    gap: 10px;
+}
+
+.report-preview-sheet-list {
+    display: grid;
     gap: 10px;
 }
 

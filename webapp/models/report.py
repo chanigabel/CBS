@@ -10,9 +10,14 @@ from pydantic import BaseModel, Field
 class ReportSummary(BaseModel):
     total_sheets: int = 0
     total_rows: int = 0
+    source_rows: int = 0
+    current_rows: int = 0
+    rows_deleted: int = 0
     rows_processed: int = 0
     rows_changed_automatically: int = 0
     rows_changed_manually: int = 0
+    manual_edit_rows: int = 0
+    manual_edit_actions: int = 0
     edited_cells: int = 0
     rows_with_warnings: int = 0
     rows_with_errors: int = 0
@@ -22,6 +27,8 @@ class ReportSummary(BaseModel):
 
 class ManualEditsSummary(BaseModel):
     edited_cells: int = 0
+    edited_rows: int = 0
+    edited_actions: int = 0
     edited_sheets: List[str] = Field(default_factory=list)
     edited_fields: List[str] = Field(default_factory=list)
 
@@ -36,19 +43,32 @@ class ReportIssue(BaseModel):
     severity: str = "warning"
 
 
+class ReportIssueGroup(BaseModel):
+    label: str
+    severity: str = "warning"
+    count: int = 0
+    row_numbers: List[int] = Field(default_factory=list)
+    row_uids: List[str] = Field(default_factory=list)
+    field_names: List[str] = Field(default_factory=list)
+
+
 class SheetReport(BaseModel):
     sheet_name: str
     status: str = ""
+    source_row_count: int = 0
+    current_row_count: int = 0
     row_count: int = 0
     rows_processed: int = 0
     rows_changed_automatically: int = 0
     rows_changed_manually: int = 0
+    rows_deleted: int = 0
     column_count: int = 0
     rows_with_warnings: int = 0
     rows_with_errors: int = 0
     corrected_fields: int = 0
     issues_count: int = 0
     status_counts: Dict[str, Dict[str, int]] = Field(default_factory=dict)
+    issue_groups: List[ReportIssueGroup] = Field(default_factory=list)
 
 
 class WorkbookProcessingReport(BaseModel):

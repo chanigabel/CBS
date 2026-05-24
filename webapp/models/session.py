@@ -81,3 +81,4 @@ class SessionRecord:
     sug_mosad_configs: List[SugMosadConfig] = field(default_factory=list)
     processing_report: Optional[ProcessingReport] = None
     column_mappings: dict = field(default_factory=dict)
+    report_baseline_workbook_dataset: Optional[WorkbookDataset] = None

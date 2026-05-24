@@ -1,4 +1,4 @@
-// ---------------------------------------------------------------------------
+﻿// ---------------------------------------------------------------------------
 // Upload flow
 // ---------------------------------------------------------------------------
 
@@ -119,21 +119,24 @@ function renderSessionSwitcher() {
         btn.className = 'sheet-tab file-tab';
         btn.dataset.sessionId = sessionId;
 
-        // Show a warning badge if any sheet has < 100% success rate.
         const hasWarning = sheetStats && Object.values(sheetStats).some(s => s.success_rate < 1.0);
-        let label = filename;
-        if (isNormalized) label += hasWarning ? ' ⚠' : ' ✓';
-        btn.textContent = isNormalized
-            ? `${filename} - ${hasWarning ? 'בוצע עם אזהרות' : 'בוצע'}`
-            : label;
-        btn.title = filename;
+        const statusDescriptor = isNormalized
+            ? (hasWarning
+                ? getStatusDescriptor('warning', '⚠ בוצע עם אזהרות')
+                : getStatusDescriptor('success', '✓ בוצע'))
+            : getStatusDescriptor('pending', '⏳ ממתין לעיבוד');
+        btn.innerHTML = `
+            <span class="tab-label">${escapeHtml(filename)}</span>
+            ${renderStatusBadgeHtml(statusDescriptor.kind, statusDescriptor.text)}
+        `;
+        btn.title = `${filename} — ${statusDescriptor.text}`;
 
         if (sessionId === state.sessionId) btn.classList.add('active');
         btn.onclick = () => activateSession(sessionId);
         tabs.appendChild(btn);
     });
 
-        let bulkBar = document.getElementById('bulk-export-bar');
+    let bulkBar = document.getElementById('bulk-export-bar');
     if (!bulkBar) {
         bulkBar = document.createElement('div');
         bulkBar.id = 'bulk-export-bar';
@@ -208,16 +211,19 @@ function renderSheetSelector(sheetNames, sheetStats) {
         btn.setAttribute('role', 'tab');
         btn.onclick = () => loadSheet(name);
 
-        // Annotate sheet tabs with success-rate badges when available.
         const stat = (sheetStats || {})[name];
+        const statusDescriptor = stat
+            ? (stat.success_rate < 1.0
+                ? getStatusDescriptor('warning', '⚠ בוצע עם אזהרות')
+                : getStatusDescriptor('success', '✓ בוצע'))
+            : getStatusDescriptor('pending', '⏳ ממתין לעיבוד');
+        btn.innerHTML = `
+            <span class="tab-label">${escapeHtml(name)}</span>
+            ${renderStatusBadgeHtml(statusDescriptor.kind, statusDescriptor.text)}
+        `;
+        btn.title = `${name} — ${statusDescriptor.text}`;
         if (stat && stat.success_rate < 1.0) {
-            btn.textContent = `${name} ⚠ ${Math.round(stat.success_rate * 100)}%`;
-            btn.title = `${stat.rows} שורות — ${Math.round(stat.success_rate * 100)}% תוקננו בהצלחה`;
             btn.classList.add('sheet-tab-warning');
-        } else if (stat) {
-            btn.textContent = `${name} - בוצע`;
-        } else {
-            btn.textContent = name;
         }
 
         tabs.appendChild(btn);
@@ -276,6 +282,9 @@ async function loadSheet(sheetName) {
         renderGrid(data, getFilteredRows(data.rows));
         if (typeof refreshColumnMappingControls === 'function') {
             await refreshColumnMappingControls(data);
+        }
+        if (typeof refreshProcessingReport === 'function') {
+            refreshProcessingReport();
         }
     } catch (err) {
         if (isSessionNotFoundError(err)) {
@@ -519,3 +528,6 @@ async function applyMosadTypeScoped() {
 }
 
 Object.assign(window, { uploadWithProgress, handleUpload, renderSessionSwitcher, _highlightActiveSession, activateSession, renderSheetSelector, setActiveSheetTab, loadSheet, updateMosadTypeDropdown, updateInstSheetSelector, onScopeChange, loadInstitution, applyMosadType, validateNumericMin3, applyMosadTypeScoped });
+
+
+

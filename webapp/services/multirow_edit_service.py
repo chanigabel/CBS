@@ -8,6 +8,7 @@ from fastapi import HTTPException
 
 from webapp.models.requests import CellEditRequest
 from webapp.services.edit_service import is_editable_source_field, _coerce_to_original_type
+from webapp.services.report_state import sync_edit_tracking
 from webapp.services.row_identity import missing_row_uid_error, row_lookup
 from webapp.services.session_service import SessionService
 
@@ -195,7 +196,7 @@ class MultiRowEditService:
 
             # Track edit in session edits dict: key is (sheet_name, row_uid, field_name)
             edit_key = (sheet_name, uid, field_name)
-            record.edits[edit_key] = coerced_value
+            sync_edit_tracking(record, sheet_name, uid, field_name, coerced_value)
 
             # Collect updated row for response
             updated_rows[uid] = dict(row)

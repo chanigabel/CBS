@@ -6,6 +6,7 @@ from fastapi import HTTPException
 
 from webapp.models.requests import CellEditRequest, DeleteRowRequest
 from webapp.models.responses import CellEditResponse, DeleteRowResponse
+from webapp.services.report_state import remove_edits_for_row_uids, sync_edit_tracking
 from webapp.services.row_identity import (
     find_row_by_uid,
     missing_row_uid_error,
@@ -211,8 +212,9 @@ class EditService:
         sheet.rows[row_idx][req.field_name] = coerced_value
 
         # Record the edit in the session keyed by (sheet_name, row_uid, field_name)
-        record.edits[(sheet_name, req.row_uid, req.field_name)] = coerced_value
+        sync_edit_tracking(record, sheet_name, req.row_uid, req.field_name, coerced_value)
         record.working_dataset_dirty = True
+        self.session_service.update(session_id, edits=record.edits, working_dataset_dirty=True)
 
         logger.info(
             "cell_edit_succeeded",
@@ -292,9 +294,8 @@ class EditService:
                 detail="row_uids must not be empty.",
             )
 
-        uid_set = set(req.row_uids)
-
         lookup = row_lookup(sheet)
+        uid_set = set(req.row_uids)
         indices = [idx for uid, (idx, _row) in lookup.items() if uid in uid_set]
 
         # Validate all UIDs were found
@@ -311,7 +312,13 @@ class EditService:
         # Remove rows in reverse index order so earlier indices stay valid
         for idx in sorted(indices, reverse=True):
             sheet.rows.pop(idx)
+        remove_edits_for_row_uids(record, sheet_name, req.row_uids)
         record.working_dataset_dirty = True
+        self.session_service.update(
+            session_id,
+            edits=record.edits,
+            working_dataset_dirty=True,
+        )
 
         logger.info(
             "rows_deleted",

@@ -14,6 +14,7 @@ from src.excel_standardization.engines.identifier_engine import IdentifierEngine
 from src.excel_standardization.engines.text_processor import TextProcessor
 from src.excel_standardization.engine_management import EngineManager
 from src.excel_standardization.data_types import SheetDataset
+from webapp.services.report_state import ensure_source_row_count, snapshot_workbook_dataset
 from webapp.services.row_identity import ensure_sheet_row_uids
 
 from webapp.models.responses import StandardizeResponse, PerSheetStat
@@ -86,6 +87,8 @@ class StandardizationService:
                     },
                 )
                 wbd = extract_workbook_dataset(record.working_copy_path)
+                for sheet in wbd.sheets:
+                    ensure_source_row_count(sheet)
                 self.session_service.update(session_id, workbook_dataset=wbd)
                 self.processing_report_service.complete_stage(session_id, "extract")
                 self.processing_report_service.update_workbook_counts(session_id, wbd)
@@ -168,6 +171,8 @@ class StandardizationService:
                         )
                 if new_sheets:
                     record.workbook_dataset.sheets.extend(new_sheets)
+                    for sheet in new_sheets:
+                        ensure_source_row_count(sheet)
                     # Update counts in the processing report so the UI shows accurate numbers.
                     self.processing_report_service.update_workbook_counts(session_id, record.workbook_dataset)
 
@@ -325,6 +330,7 @@ class StandardizationService:
             session_id,
             status="standardized",
             working_dataset_dirty=False,
+            report_baseline_workbook_dataset=snapshot_workbook_dataset(record.workbook_dataset),
         )
         logger.info(
             "working_dataset_dirty_cleared",

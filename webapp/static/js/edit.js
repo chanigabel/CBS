@@ -35,7 +35,10 @@ async function _deleteRows(rowUids) {
         const filtered = getFilteredRows(state.sheetData.rows);
         renderGrid(state.sheetData, filtered);
         document.getElementById('grid-stats').textContent =
-            `נמחקו ${result.deleted_count} שורות. נותרו ${result.remaining_rows} שורות.`;
+            `????? ${result.deleted_count} ?????. ????? ${result.remaining_rows} ?????.`;
+        if (typeof refreshProcessingReport === 'function') {
+            refreshProcessingReport();
+        }
     } catch (err) {
         showError(`מחיקת השורות נכשלה: ${err.message}`);
         updateDeleteButton();
@@ -126,6 +129,9 @@ function makeEditable(td, rowUid, fieldName) {
             markUpdatedCells(affectedUids, fieldName);
             const session = sessions.get(state.sessionId);
             if (session) session.hasEdits = true;
+            if (typeof refreshProcessingReport === 'function') {
+                refreshProcessingReport();
+            }
         } catch (err) {
             showError(`עריכת התא נכשלה: ${err.message}`);
             td.textContent = currentValue;
@@ -175,8 +181,11 @@ async function undoLastGridEdit() {
         renderGrid(state.sheetData, getFilteredRows(state.sheetData.rows));
         markUpdatedCells(action.rowUids, action.fieldName);
         const stats = document.getElementById('grid-stats');
-        if (stats) stats.textContent = 'השינוי האחרון בוטל';
+        if (stats) stats.textContent = '?????? ?????? ????';
         updateUndoButton();
+        if (typeof refreshProcessingReport === 'function') {
+            refreshProcessingReport();
+        }
     } catch (err) {
         showError(`ביטול השינוי נכשל: ${err.message}`);
         state.undoStack.push(action);

@@ -7,11 +7,13 @@ from typing import Any, Iterable
 
 from webapp.models.report import (
     ManualEditsSummary,
+    ReportIssueGroup,
     ReportSummary,
     ReportIssue,
     SheetReport,
     WorkbookProcessingReport,
 )
+from webapp.services.report_state import source_row_count
 from webapp.services.session_service import SessionService
 
 _EXPLICIT_STATUS_FIELDS = {
@@ -84,7 +86,8 @@ class ReportService:
             return report
 
         issues: list[ReportIssue] = []
-        total_rows = 0
+        total_source_rows = 0
+        total_current_rows = 0
         total_warning_rows = 0
         total_error_rows = 0
         total_corrected_fields = 0
@@ -102,7 +105,8 @@ class ReportService:
             sheets.append(sheet_report)
             if include_details:
                 issues.extend(sheet_issues)
-            total_rows += sheet_report.row_count
+            total_source_rows += sheet_report.source_row_count
+            total_current_rows += sheet_report.current_row_count
             total_warning_rows += sheet_report.rows_with_warnings
             total_error_rows += sheet_report.rows_with_errors
             total_corrected_fields += sheet_report.corrected_fields
@@ -111,14 +115,19 @@ class ReportService:
         report.sheets = sheets
         report.summary = ReportSummary(
             total_sheets=len(sheets),
-            total_rows=total_rows,
-            rows_processed=total_rows if record.status == "standardized" else 0,
+            total_rows=total_source_rows,
+            source_rows=total_source_rows,
+            current_rows=total_current_rows,
+            rows_deleted=max(total_source_rows - total_current_rows, 0),
+            rows_processed=total_current_rows if record.status == "standardized" else 0,
             rows_changed_automatically=total_corrected_fields,
             rows_changed_manually=total_manual_rows,
+            manual_edit_rows=total_manual_rows,
+            manual_edit_actions=report.manual_edits.edited_actions,
             edited_cells=report.manual_edits.edited_cells,
             rows_with_warnings=total_warning_rows,
             rows_with_errors=total_error_rows,
-            rows_without_issues=max(total_rows - total_warning_rows - total_error_rows, 0),
+            rows_without_issues=max(total_current_rows - total_warning_rows - total_error_rows, 0),
             corrected_fields=total_corrected_fields,
         )
         if record.status == "standardized":
@@ -144,10 +153,12 @@ class ReportService:
         corrected_fields = 0
         issue_count = 0
         issues: list[ReportIssue] = []
+        issue_groups: dict[tuple[str, str], dict[str, Any]] = {}
 
         for row_number, row in enumerate(sheet.rows, start=1):
             has_warning = False
             has_error = False
+            seen_row_messages: set[tuple[str, str]] = set()
 
             for field_name, raw_status in row.items():
                 if not self._is_status_field(field_name):
@@ -158,6 +169,27 @@ class ReportService:
                         continue
                     status_counts.setdefault(field_name, Counter())[value] += 1
                     severity = self._severity_for_status(field_name, value)
+                    group_key = (severity, value)
+                    if group_key not in seen_row_messages:
+                        group = issue_groups.setdefault(
+                            group_key,
+                            {
+                                "label": value,
+                                "severity": severity,
+                                "count": 0,
+                                "row_numbers": [],
+                                "row_uids": [],
+                                "field_names": [],
+                            },
+                        )
+                        group["count"] += 1
+                        group["row_numbers"].append(row_number)
+                        row_uid = str(row.get("_row_uid") or "")
+                        if row_uid and row_uid not in group["row_uids"]:
+                            group["row_uids"].append(row_uid)
+                        if field_name not in group["field_names"]:
+                            group["field_names"].append(field_name)
+                        seen_row_messages.add(group_key)
                     if severity == "error":
                         has_error = True
                     else:
@@ -182,6 +214,9 @@ class ReportService:
             elif has_warning:
                 warning_rows += 1
 
+        source_rows = source_row_count(sheet)
+        current_rows = len(sheet.rows)
+
         return SheetReport(
             sheet_name=sheet.sheet_name,
             status=self._sheet_display_status(
@@ -189,10 +224,13 @@ class ReportService:
                 rows_with_warnings=warning_rows,
                 rows_with_errors=error_rows,
             ),
-            row_count=len(sheet.rows),
-            rows_processed=len(sheet.rows) if standardized else 0,
+            source_row_count=source_rows,
+            current_row_count=current_rows,
+            row_count=current_rows,
+            rows_processed=current_rows if standardized else 0,
             rows_changed_automatically=corrected_fields,
             rows_changed_manually=manual_row_count,
+            rows_deleted=max(source_rows - current_rows, 0),
             column_count=len(sheet.field_names or []),
             rows_with_warnings=warning_rows,
             rows_with_errors=error_rows,
@@ -202,6 +240,17 @@ class ReportService:
                 field: dict(sorted(counter.items()))
                 for field, counter in sorted(status_counts.items())
             },
+            issue_groups=[
+                ReportIssueGroup(
+                    label=str(group["label"]),
+                    severity=str(group["severity"]),
+                    count=int(group["count"]),
+                    row_numbers=sorted(dict.fromkeys(int(v) for v in group["row_numbers"])),
+                    row_uids=sorted(dict.fromkeys(str(v) for v in group["row_uids"])),
+                    field_names=sorted(dict.fromkeys(str(v) for v in group["field_names"])),
+                )
+                for group in sorted(issue_groups.values(), key=lambda item: (item["severity"], item["label"]))
+            ],
         ), issues
 
     @staticmethod
@@ -225,7 +274,7 @@ class ReportService:
         if rows_with_errors:
             return "נכשל"
         if not standardized:
-            return "טרם בוצע"
+            return "ממתין לעיבוד"
         if rows_with_warnings:
             return "בוצע עם אזהרות"
         return "בוצע"
@@ -233,23 +282,27 @@ class ReportService:
     @staticmethod
     def _workbook_display_status(status: str, workbook_dataset) -> str:
         if status != "standardized":
-            return "טרם בוצע"
+            return "ממתין לעיבוד"
         if workbook_dataset is None:
-            return "טרם בוצע"
+            return "ממתין לעיבוד"
         return "בוצע"
 
     @staticmethod
     def _manual_edits_summary(edits: dict) -> ManualEditsSummary:
         sheets = set()
         fields = set()
+        rows = set()
         for key in edits:
             if not isinstance(key, tuple) or len(key) != 3:
                 continue
             sheet_name, _row_uid, field_name = key
             sheets.add(str(sheet_name))
             fields.add(str(field_name))
+            rows.add((str(sheet_name), str(_row_uid)))
         return ManualEditsSummary(
             edited_cells=len(edits),
+            edited_rows=len(rows),
+            edited_actions=len(edits),
             edited_sheets=sorted(sheets),
             edited_fields=sorted(fields),
         )

@@ -12,6 +12,7 @@ from webapp.models.responses import (
 )
 from webapp.services.column_mapping_schema import ColumnMappingSchemaService
 from webapp.services.grid_payload import build_sheet_grid_payload
+from webapp.services.report_state import ensure_source_row_count
 from webapp.services.row_identity import ensure_sheet_row_uids
 from webapp.services.session_service import SessionService
 from webapp.services.workbook_loader import (
@@ -169,6 +170,8 @@ class WorkbookService:
             )
         else:
             record.workbook_dataset.sheets.append(sheet_dataset)
+
+        ensure_source_row_count(sheet_dataset)
 
         logger.info(
             "sheet_load_completed",
