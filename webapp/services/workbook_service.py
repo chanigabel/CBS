@@ -438,6 +438,27 @@ class WorkbookService:
         else:
             mappings[old_name] = new_name
 
+        # Validate for duplicate standard field mappings
+        test_mappings = dict(mappings)
+        if not test_mappings:
+            record.column_mappings.pop(sheet_name, None)
+        
+        # Check for duplicates
+        target_to_sources = self._target_to_sources(sheet, test_mappings)
+        duplicates = [
+            target for target, sources in target_to_sources.items()
+            if len(sources) > 1
+        ]
+        
+        if duplicates:
+            # Revert the change
+            if sheet_name in record.column_mappings:
+                record.column_mappings[sheet_name] = before
+            raise HTTPException(
+                status_code=400,
+                detail=f"שני עמודות לא יכולות להיות ממופות לאותו שדה סטנדרטי. שדות כפולים: {', '.join(duplicates)}",
+            )
+
         if not mappings:
             record.column_mappings.pop(sheet_name, None)
 

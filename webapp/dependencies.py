@@ -15,6 +15,7 @@ from webapp.services.workbook_service import WorkbookService
 from webapp.services.column_mapping_schema import ColumnMappingSchemaService
 from webapp.services.standardization_service import StandardizationService
 from webapp.services.edit_service import EditService
+from webapp.services.multirow_edit_service import MultiRowEditService
 from webapp.services.export_service import ExportService
 from webapp.services.processing_report_service import ProcessingReportService
 from webapp.services.cleanup_service import CleanupService
@@ -72,6 +73,7 @@ _standardization_service = StandardizationService(
     _workbook_service,
 )
 _edit_service = EditService(_session_service)
+_multirow_edit_service = MultiRowEditService(_session_service)
 _export_service = ExportService(_session_service, OUTPUT_DIR, _processing_report_service)
 
 
@@ -93,6 +95,10 @@ def get_standardization_service() -> StandardizationService:
 
 def get_edit_service() -> EditService:
     return _edit_service
+
+
+def get_multirow_edit_service() -> MultiRowEditService:
+    return _multirow_edit_service
 
 
 def get_export_service() -> ExportService:
