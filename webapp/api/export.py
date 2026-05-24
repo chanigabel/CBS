@@ -56,6 +56,22 @@ def export_workbook(
     )
 
 
+@router.post("/workbook/{session_id}/sheet/{sheet_name}/export")
+def export_sheet(
+    session_id: str,
+    sheet_name: str,
+    export_service: ExportService = Depends(get_export_service),
+) -> FileResponse:
+    """Export a single sheet from a session's workbook as a downloadable Excel file."""
+    output_path = export_service.export_sheet(session_id, sheet_name)
+    return FileResponse(
+        path=str(output_path),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        filename=output_path.name,
+        headers={"Content-Disposition": _content_disposition(output_path.name)},
+    )
+
+
 class BulkExportRequest(BaseModel):
     session_ids: List[str]
 

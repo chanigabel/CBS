@@ -21,6 +21,19 @@ class SummaryCount(BaseModel):
     count: int
 
 
+class ReportSummary(BaseModel):
+    """Summary-level statistics for the entire processing run."""
+    total_rows: int = 0
+    rows_processed: int = 0
+    rows_exported: int = 0
+    rows_changed_automatically: int = 0
+    rows_changed_manually: int = 0
+    sheets_with_warnings: int = 0
+    sheets_completed: int = 0
+    sheets_completed_with_warnings: int = 0
+    sheets_failed: int = 0
+
+
 class MissingRequiredFieldSummary(BaseModel):
     field: str
     count: int
@@ -48,8 +61,13 @@ class InvalidIdentifierValue(BaseModel):
 
 class PerSheetProcessingReport(BaseModel):
     sheet_name: str
+    total_rows: int = 0
     rows_processed: int = 0
     rows_exported: int = 0
+    rows_changed_automatically: int = 0
+    rows_changed_manually: int = 0
+    sheet_status: str = "unknown"  # "בוצע" | "בוצע עם אזהרות" | "נכשל" | "unknown"
+    warning_counts: dict = Field(default_factory=dict)  # e.g., {"invalid_date": 5, "invalid_id": 2}
     warnings: List[str] = Field(default_factory=list)
     errors: List[str] = Field(default_factory=list)
 
@@ -64,6 +82,8 @@ class ProcessingReport(BaseModel):
     sheets_processed: int = 0
     rows_processed: int = 0
     rows_exported: int = 0
+    rows_changed_automatically: int = 0
+    rows_changed_manually: int = 0
     missing_input_columns: List[MissingInputColumnsBySheet] = Field(default_factory=list)
     identifier_summary: List[SummaryCount] = Field(default_factory=list)
     date_summary: List[SummaryCount] = Field(default_factory=list)
@@ -73,6 +93,7 @@ class ProcessingReport(BaseModel):
     invalid_date_values: Optional[List[InvalidDateValue]] = None
     invalid_identifier_values: Optional[List[InvalidIdentifierValue]] = None
     per_sheet_warnings: List[PerSheetProcessingReport] = Field(default_factory=list)
+    summary: Optional[ReportSummary] = None
     warnings: List[str] = Field(default_factory=list)
     errors: List[str] = Field(default_factory=list)
     output_filename: str = ""

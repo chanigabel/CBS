@@ -150,8 +150,165 @@ class ExportService:
 
         return output_path
 
-
-# Backward-compatible aliases for callers and tests that still import helpers
+    def export_sheet(self, session_id: str, sheet_name: str) -> Path:
+        """Export a single sheet from the session's workbook.
+        
+        Args:
+            session_id: Session UUID
+            sheet_name: Name of sheet to export
+            
+        Returns:
+            Path to the exported file
+            
+        Raises:
+            HTTPException if sheet not found or export fails
+        """
+        logger.info(
+            "single_sheet_export_requested",
+            extra={
+                "event": "single_sheet_export_requested",
+                "session_id": session_id,
+                "sheet_name": sheet_name,
+            },
+        )
+        record = self.session_service.get(session_id)
+        
+        workbook_dataset = record.workbook_dataset
+        if (
+            record.status != "standardized"
+            or workbook_dataset is None
+            or not getattr(workbook_dataset, "sheets", None)
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="Run Standardization before exporting. Export uses the latest successful Standardization result.",
+            )
+        
+        # Find the sheet
+        sheet_dataset = workbook_dataset.get_sheet_by_name(sheet_name)
+        if sheet_dataset is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Sheet '{sheet_name}' not found in this workbook.",
+            )
+        
+        # Build filename for single sheet
+        stem = Path(record.original_filename).stem
+        sheet_safe_name = sheet_name.replace(" ", "_").replace("/", "_")
+        output_filename = f"{stem}_{sheet_safe_name}_standardized.xlsx"
+        
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        
+        logger.info(
+            "single_sheet_export_started",
+            extra={
+                "event": "single_sheet_export_started",
+                "session_id": session_id,
+                "sheet_name": sheet_name,
+                "output_filename": output_filename,
+            },
+        )
+        
+        output_path = self.output_dir / output_filename
+        temp_path = output_path.with_name(f"{output_path.name}.tmp")
+        
+        if temp_path.exists():
+            try:
+                temp_path.unlink()
+            except Exception:
+                logger.warning("Could not remove stale temp export file %s", temp_path, exc_info=True)
+        
+        try:
+            # Write workbook with only the selected sheet
+            from openpyxl import Workbook
+            wb = Workbook()
+            if wb.sheetnames:
+                wb.remove(wb[wb.sheetnames[0]])
+            
+            from webapp.services.export_rows import build_row_export_view, resolve_sug_mosad_for_sheet, visible_rows
+            from webapp.services.export_schema import EXPORT_MAPPING, canonical_sheet_name, headers_for_sheet
+            from src.excel_standardization.export.excel_safe import safe_cell_value, safe_sheet_title
+            from openpyxl.styles import Alignment
+            
+            export_name = canonical_sheet_name(sheet_dataset.sheet_name)
+            ws = wb.create_sheet(title=safe_sheet_title(export_name, wb.sheetnames))
+            ws.sheet_view.rightToLeft = True
+            schema = headers_for_sheet(export_name)
+            
+            for col_idx, header in enumerate(schema, start=1):
+                cell = ws.cell(row=1, column=col_idx, value=safe_cell_value(header))
+                cell.alignment = Alignment(horizontal="right")
+            
+            data_rows, _ui_cols = visible_rows(sheet_dataset)
+            active_mosad_type = record.mosad_types[0] if record.mosad_types else ""
+            scoped_type = resolve_sug_mosad_for_sheet(
+                record.sug_mosad_configs,
+                sheet_dataset.sheet_name,
+                active_mosad_type,
+            )
+            
+            out_row = 2
+            sheet_rows_exported = 0
+            for row in data_rows:
+                export_row = build_row_export_view(
+                    row,
+                    mosad_id=record.mosad_id or "",
+                    scoped_sug_mosad=scoped_type,
+                )
+                for col_idx, header in enumerate(schema, start=1):
+                    json_key = EXPORT_MAPPING.get(header)
+                    if json_key is None:
+                        continue
+                    v = export_row.get(json_key)
+                    if v is not None and v != "":
+                        ws.cell(row=out_row, column=col_idx, value=safe_cell_value(v))
+                out_row += 1
+                sheet_rows_exported += 1
+            
+            wb.save(str(temp_path))
+            
+            if output_path.exists():
+                try:
+                    output_path.unlink()
+                except Exception:
+                    logger.warning("Could not remove previous export file %s", output_path, exc_info=True)
+            
+            os.replace(temp_path, output_path)
+            
+            logger.info(
+                "single_sheet_export_successful",
+                extra={
+                    "event": "single_sheet_export_successful",
+                    "session_id": session_id,
+                    "sheet_name": sheet_name,
+                    "output_filename": output_path.name,
+                    "rows_exported": sheet_rows_exported,
+                },
+            )
+            
+        except Exception as exc:
+            if temp_path.exists():
+                try:
+                    temp_path.unlink()
+                except Exception:
+                    logger.warning("Could not remove failed temp export file %s", temp_path, exc_info=True)
+            
+            logger.error(
+                "single_sheet_export_failed",
+                exc_info=True,
+                extra={
+                    "event": "single_sheet_export_failed",
+                    "session_id": session_id,
+                    "sheet_name": sheet_name,
+                    "error_type": type(exc).__name__,
+                },
+            )
+            raise HTTPException(
+                status_code=500,
+                detail=f"Export of sheet '{sheet_name}' failed. Please try again.",
+            )
+        
+        return output_path
 canonical_sheet_name = canonical_sheet_name
 headers_for_sheet = headers_for_sheet
 EXPORT_MAPPING = EXPORT_MAPPING
