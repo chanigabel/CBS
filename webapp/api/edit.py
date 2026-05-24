@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends
 
 from webapp.dependencies import get_edit_service, get_multirow_edit_service
 from webapp.models.requests import CellEditRequest, DeleteRowRequest
-from webapp.models.responses import CellEditResponse, DeleteRowResponse
+from webapp.models.responses import CellEditResponse, DeleteRowResponse, MultiRowEditResponse
 from webapp.services.edit_service import EditService
 from webapp.services.multirow_edit_service import MultiRowEditService
 
@@ -18,13 +18,6 @@ class MultiRowEditRequest(BaseModel):
     row_uids: List[str]
     field_name: str
     new_value: str
-
-
-class MultiRowEditResponse(BaseModel):
-    """Response from multi-row edit."""
-    edited_count: int
-    sheet_name: str
-    field_name: str
 
 
 @router.patch(
@@ -68,6 +61,7 @@ def edit_multiple_rows(
         edited_count=result.edited_count,
         sheet_name=sheet_name,
         field_name=req.field_name,
+        updated_rows=result.updated_rows,
     )
 
 

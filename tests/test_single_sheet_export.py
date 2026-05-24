@@ -2,7 +2,7 @@
 
 import pytest
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from fastapi import HTTPException
 
 from webapp.services.export_service import ExportService
@@ -78,7 +78,7 @@ class TestSingleSheetExport:
         export_service = ExportService(mock_service, tmp_path)
         
         # Mock write to avoid actual file I/O complexity
-        with pytest.mock.patch("openpyxl.Workbook") as mock_wb:
+        with patch("openpyxl.Workbook") as mock_wb:
             mock_wb_instance = MagicMock()
             mock_wb.return_value = mock_wb_instance
             mock_wb_instance.sheetnames = []

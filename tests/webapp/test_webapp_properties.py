@@ -112,6 +112,13 @@ def _make_upload_service(tmp_path: Path):
     return UploadService(svc, uploads, work), svc
 
 
+def _without_row_identity(rows):
+    return [
+        {key: value for key, value in row.items() if key not in {"_row_uid", "row_uid"}}
+        for row in rows
+    ]
+
+
 # ---------------------------------------------------------------------------
 # Property 1: Upload preserves source file integrity
 # Validates: Requirements 1.2, 9.2
@@ -428,7 +435,9 @@ def test_standardization_equivalence(workbook_data):
         # Both paths should produce the same normalized rows
         for sheet_name in webapp_sheets:
             if sheet_name in direct_sheets:
-                assert webapp_sheets[sheet_name] == direct_sheets[sheet_name], (
+                assert _without_row_identity(webapp_sheets[sheet_name]) == _without_row_identity(
+                    direct_sheets[sheet_name]
+                ), (
                     f"standardization mismatch for sheet '{sheet_name}'"
                 )
 

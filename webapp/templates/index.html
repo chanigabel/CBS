@@ -93,20 +93,29 @@
                 <button class="btn btn-sm btn-outline" onclick="applyMosadTypeScoped()" title="החל את סוג המוסד לפי האפשרויות שנבחרו">החל סוג</button>
             </div>
             <div class="action-buttons">
-            <button id="normalize-btn" class="btn btn-success" onclick="runstandardization()">
-                ▶ הרץ סטנדרטיזציה
-                <kbd class="kbd-hint">Ctrl+↵</kbd>
+            <button id="normalize-btn" class="btn btn-success" onclick="runstandardization()" title="הרצת סטנדרטיזציה (Ctrl+Enter)" aria-label="הרצת סטנדרטיזציה (Ctrl+Enter)">
+                ▶ הרצת סטנדרטיזציה
+                <span class="shortcut-hint">Ctrl+Enter</span>
             </button>
-            <button id="delete-rows-btn" class="btn btn-danger" onclick="deleteSelectedRows()" disabled>
-                🗑 מחק שורות
+            <button id="delete-rows-btn" class="btn btn-danger" onclick="deleteSelectedRows()" disabled title="בחר שורות כדי למחוק (Delete)" aria-label="בחר שורות כדי למחוק (Delete)">
+                🗑 מחיקת שורות
+                <span class="shortcut-hint">Delete</span>
             </button>
             <button id="clear-all-filters-btn" class="btn btn-filter-clear hidden" onclick="clearAllFilters()">
                 ✕ נקה סינונים
             </button>
 
-            <button id="export-btn" class="btn btn-secondary" onclick="exportWorkbook()">
-                ⬇ ייצא
-                <kbd class="kbd-hint">Ctrl+S</kbd>
+            <button id="export-btn" class="btn btn-secondary" onclick="exportWorkbook()" title="ייצוא קובץ (Ctrl+S)" aria-label="ייצוא קובץ (Ctrl+S)">
+                ⬇ ייצוא קובץ
+                <span class="shortcut-hint">Ctrl+S</span>
+            </button>
+            <button id="export-sheet-btn" class="btn btn-secondary" onclick="exportCurrentSheet()" title="ייצוא גיליון (Ctrl+Shift+E)" aria-label="ייצוא גיליון (Ctrl+Shift+E)">
+                ייצוא גיליון
+                <span class="shortcut-hint">Ctrl+Shift+E</span>
+            </button>
+            <button id="undo-edit-btn" class="btn btn-secondary" onclick="undoLastGridEdit()" disabled title="אין שינוי לביטול (Ctrl+Z)" aria-label="אין שינוי לביטול (Ctrl+Z)">
+                בטל שינוי אחרון
+                <span class="shortcut-hint">Ctrl+Z</span>
             </button>
             <button id="report-preview-btn" class="btn btn-secondary" onclick="openProcessingReportPreview()">
                 דוח
@@ -143,6 +152,10 @@
                 <h2 id="grid-title"></h2>
                 <button id="expand-grid-btn" class="btn-expand-grid" onclick="openGridOverlay()" title="הגדל טבלה למסך מלא">⛶ הגדל טבלה</button>
             </div>
+            <div id="multi-edit-bar" class="multi-edit-bar hidden">
+                <span id="multi-edit-text"></span>
+                <button type="button" class="btn btn-sm btn-outline" onclick="clearRowSelection()" title="נקה בחירה (Esc)" aria-label="נקה בחירה (Esc)">נקה בחירה <span class="shortcut-hint">Esc</span></button>
+            </div>
             <div id="grid-stats" class="grid-stats"></div>
             <div id="grid-container" class="grid-container"></div>
         </section>
@@ -153,7 +166,7 @@
         <div class="grid-overlay-bar">
             <span id="grid-overlay-title" class="grid-overlay-title"></span>
             <span id="grid-overlay-stats" class="grid-overlay-stats"></span>
-            <button class="btn-overlay-close" onclick="closeGridOverlay()" title="סגור מסך מלא (Esc)">✕ סגור</button>
+            <button class="btn-overlay-close" onclick="closeGridOverlay()" title="סגור מסך מלא (Esc)">✕ סגור <span class="shortcut-hint">Esc</span></button>
         </div>
         <div id="grid-overlay-container" class="grid-overlay-container"></div>
     </div>

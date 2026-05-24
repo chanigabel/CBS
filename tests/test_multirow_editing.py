@@ -75,6 +75,102 @@ class TestMultiRowEditService:
         assert result.updated_rows["row_0"]["age"] == 40
         assert result.updated_rows["row_1"]["age"] == 40
 
+    def test_edit_multiple_rows_with_uids_from_actual_sheet_data(self):
+        rows_data = [
+            {"name": "Alice", "SugMosad": "100"},
+            {"name": "Bob", "SugMosad": "100"},
+        ]
+        mock_service, mock_record = self.create_mock_session_service_with_sheet(rows_data)
+        sheet = mock_record.workbook_dataset.get_sheet_by_name("TestSheet")
+        row_uids = [row["_row_uid"] for row in sheet.rows]
+
+        result = MultiRowEditService(mock_service).edit_multiple_rows(
+            session_id="sess_1",
+            sheet_name="TestSheet",
+            row_uids=row_uids,
+            field_name="SugMosad",
+            new_value="123",
+        )
+
+        assert result.edited_count == 2
+        assert [row["SugMosad"] for row in sheet.rows] == ["123", "123"]
+
+    def test_edit_multiple_rows_missing_uid_returns_clear_error_without_mutation(self):
+        rows_data = [
+            {"name": "Alice", "SugMosad": "100"},
+            {"name": "Bob", "SugMosad": "100"},
+        ]
+        mock_service, mock_record = self.create_mock_session_service_with_sheet(rows_data)
+        sheet = mock_record.workbook_dataset.get_sheet_by_name("TestSheet")
+
+        with pytest.raises(HTTPException) as exc_info:
+            MultiRowEditService(mock_service).edit_multiple_rows(
+                session_id="sess_1",
+                sheet_name="TestSheet",
+                row_uids=["row_0", "missing-row"],
+                field_name="SugMosad",
+                new_value="999",
+            )
+
+        assert exc_info.value.status_code == 404
+        assert exc_info.value.detail["sheet_name"] == "TestSheet"
+        assert exc_info.value.detail["requested_rows"] == 2
+        assert exc_info.value.detail["found_rows"] == 1
+        assert exc_info.value.detail["missing_rows"] == 1
+        assert [row["SugMosad"] for row in sheet.rows] == ["100", "100"]
+        assert mock_record.edits == {}
+
+    def test_edit_multiple_rows_sheet_name_mismatch_returns_clear_error(self):
+        rows_data = [{"name": "Alice"}]
+        mock_service, _mock_record = self.create_mock_session_service_with_sheet(rows_data)
+        mock_service.get.return_value.workbook_dataset.get_sheet_by_name = MagicMock(return_value=None)
+
+        with pytest.raises(HTTPException) as exc_info:
+            MultiRowEditService(mock_service).edit_multiple_rows(
+                session_id="sess_1",
+                sheet_name="WrongSheet",
+                row_uids=["row_0"],
+                field_name="name",
+                new_value="Bob",
+            )
+
+        assert exc_info.value.status_code == 404
+        assert "לא נמצא" in exc_info.value.detail
+
+    def test_edit_multiple_rows_can_create_displayed_institution_field(self):
+        rows_data = [{"name": "Alice"}, {"name": "Bob"}]
+        mock_service, mock_record = self.create_mock_session_service_with_sheet(rows_data)
+        sheet = mock_record.workbook_dataset.get_sheet_by_name("TestSheet")
+
+        MultiRowEditService(mock_service).edit_multiple_rows(
+            session_id="sess_1",
+            sheet_name="TestSheet",
+            row_uids=["row_0", "row_1"],
+            field_name="SugMosad",
+            new_value="222",
+        )
+
+        assert [row["SugMosad"] for row in sheet.rows] == ["222", "222"]
+
+    def test_multirow_edit_values_are_visible_to_export_rows(self):
+        from webapp.services.export_rows import visible_rows
+
+        rows_data = [{"name": "Alice"}, {"name": "Bob"}]
+        mock_service, mock_record = self.create_mock_session_service_with_sheet(rows_data)
+        sheet = mock_record.workbook_dataset.get_sheet_by_name("TestSheet")
+        sheet.field_names = ["name"]
+
+        MultiRowEditService(mock_service).edit_multiple_rows(
+            session_id="sess_1",
+            sheet_name="TestSheet",
+            row_uids=["row_0", "row_1"],
+            field_name="SugMosad",
+            new_value="333",
+        )
+
+        rows, _columns = visible_rows(sheet)
+        assert [row["SugMosad"] for row in rows] == ["333", "333"]
+
     def test_edit_multiple_rows_type_coercion(self):
         """Test that new value is coerced to correct type."""
         rows_data = [
@@ -181,10 +277,11 @@ class TestMultiRowEditService:
                 row_uids=["row_999"],
                 field_name="name",
                 new_value="Bob",
-            )
-        
+        )
+    
         assert exc_info.value.status_code == 404
-        assert "not found" in exc_info.value.detail.lower()
+        assert exc_info.value.detail["message"] == "הבחירה בגריד אינה מעודכנת. נא לבחור את השורות מחדש ולנסות שוב."
+        assert exc_info.value.detail["missing_rows"] == 1
 
     def test_edit_multiple_rows_sheet_not_found_raises_error(self):
         """Test that missing sheet raises HTTPException."""
@@ -205,10 +302,10 @@ class TestMultiRowEditService:
                 row_uids=["row_0"],
                 field_name="name",
                 new_value="Bob",
-            )
-        
+        )
+    
         assert exc_info.value.status_code == 404
-        assert "not found" in exc_info.value.detail.lower()
+        assert "לא נמצא" in exc_info.value.detail
 
 
 class TestUndoStack:

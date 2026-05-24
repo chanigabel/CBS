@@ -83,6 +83,15 @@ class CellEditResponse(BaseModel):
     updated_row: Dict[str, Any]
 
 
+class MultiRowEditResponse(BaseModel):
+    """Response from PATCH /api/workbook/{session_id}/sheet/{sheet_name}/multi-edit."""
+
+    edited_count: int
+    sheet_name: str
+    field_name: str
+    updated_rows: Dict[str, Dict[str, Any]] = Field(default_factory=dict)
+
+
 class DeleteRowResponse(BaseModel):
     """Response from DELETE /api/workbook/{session_id}/sheet/{sheet_name}/rows."""
 

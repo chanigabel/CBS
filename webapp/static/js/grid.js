@@ -192,7 +192,6 @@ function openGridOverlay() {
 
     overlay.classList.remove('hidden');
     document.body.classList.add('grid-overlay-open');
-    document.addEventListener('keydown', _overlayEscHandler);
 }
 
 function closeGridOverlay() {
@@ -200,7 +199,6 @@ function closeGridOverlay() {
     if (!overlay) return;
     overlay.classList.add('hidden');
     document.body.classList.remove('grid-overlay-open');
-    document.removeEventListener('keydown', _overlayEscHandler);
 
     // Sync any changes made inside the overlay back to the normal grid
     if (state.sheetData) {
@@ -317,18 +315,21 @@ function renderGrid(sheetData, rows, targetContainer) {
     // Body
     const tbody = document.createElement('tbody');
     displayRows.forEach((row) => {
+        const rowUid = getRowUid(row);
         const tr = document.createElement('tr');
-        tr.dataset.rowUid = row._row_uid;
+        tr.dataset.rowUid = rowUid;
 
         const tdCheck = document.createElement('td');
         tdCheck.className = 'col-select';
         const cb = document.createElement('input');
         cb.type = 'checkbox';
-        cb.checked = state.selectedRows.has(row._row_uid);
+        cb.checked = state.selectedRows.has(rowUid);
         cb.addEventListener('change', () => {
-            if (cb.checked) { state.selectedRows.add(row._row_uid); tr.classList.add('row-selected'); }
-            else            { state.selectedRows.delete(row._row_uid); tr.classList.remove('row-selected'); }
+            if (cb.checked) { state.selectedRows.add(rowUid); tr.classList.add('row-selected'); }
+            else            { state.selectedRows.delete(rowUid); tr.classList.remove('row-selected'); }
             updateDeleteButton();
+            updateMultiEditBar();
+            refreshMultiEditHighlights();
             const visibleRows = document.querySelectorAll('.data-grid tbody tr').length;
             selectAll.checked = state.selectedRows.size === visibleRows;
             selectAll.indeterminate = state.selectedRows.size > 0 && state.selectedRows.size < visibleRows;
@@ -353,7 +354,7 @@ function renderGrid(sheetData, rows, targetContainer) {
         delBtn.className = 'btn-row-delete';
         delBtn.textContent = '✕';
         delBtn.title = 'מחק שורה זו';
-        delBtn.addEventListener('click', () => deleteSingleRow(row._row_uid));
+        delBtn.addEventListener('click', () => deleteSingleRow(rowUid));
         tdDel.appendChild(delBtn);
 
         if (changedFields.length > 0) {
@@ -389,7 +390,15 @@ function renderGrid(sheetData, rows, targetContainer) {
 
             if (isEditableDataColumn(col)) {
                 td.classList.add('editable-cell');
-                td.addEventListener('click', () => makeEditable(td, row._row_uid, col));
+                td.dataset.rowUid = rowUid;
+                td.dataset.fieldName = col;
+                if (state.selectedRows.has(rowUid) && state.focusedEditColumn === col) {
+                    td.classList.add('multi-edit-target');
+                }
+                if (state.lastUpdatedCells.has(`${rowUid}::${col}`)) {
+                    td.classList.add('cell-updated');
+                }
+                td.addEventListener('click', () => makeEditable(td, rowUid, col));
             }
             tr.appendChild(td);
         });
@@ -410,7 +419,10 @@ function renderGrid(sheetData, rows, targetContainer) {
             statsDiv.textContent = `${total} שורות × ${displayColumns.length} עמודות`;
         }
     }
-    if (!targetContainer) updateDeleteButton();
+    if (!targetContainer) {
+        updateDeleteButton();
+        updateMultiEditBar();
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -428,6 +440,8 @@ function toggleSelectAll(checked, displayRows) {
         else         { tr.classList.remove('row-selected'); }
     });
     updateDeleteButton();
+    updateMultiEditBar();
+    refreshMultiEditHighlights();
 }
 
 function updateDeleteButton() {
@@ -435,10 +449,74 @@ function updateDeleteButton() {
     if (!btn) return;
     const n = state.selectedRows.size;
     btn.disabled = n === 0;
-    btn.textContent = n > 0 ? `🗑 מחק ${n} שורות` : '🗑 מחק שורות';
+    btn.innerHTML = n > 0
+        ? `🗑 מחיקת ${n} שורות <span class="shortcut-hint">Delete</span>`
+        : '🗑 מחיקת שורות <span class="shortcut-hint">Delete</span>';
+    btn.title = n > 0 ? `מחק ${n} שורות נבחרות (Delete)` : 'בחר שורות כדי למחוק (Delete)';
+    btn.setAttribute('aria-label', btn.title);
+}
+
+function clearRowSelection() {
+    state.selectedRows.clear();
+    document.querySelectorAll('.data-grid tbody tr').forEach((tr) => {
+        tr.classList.remove('row-selected');
+        const cb = tr.querySelector('input[type=checkbox]');
+        if (cb) cb.checked = false;
+    });
+    updateDeleteButton();
+    updateMultiEditBar();
+    refreshMultiEditHighlights();
+}
+
+function updateMultiEditBar() {
+    const bar = document.getElementById('multi-edit-bar');
+    const text = document.getElementById('multi-edit-text');
+    if (!bar || !text) return;
+    const n = state.selectedRows.size;
+    if (n === 0) {
+        bar.classList.add('hidden');
+        text.textContent = '';
+        return;
+    }
+    bar.classList.remove('hidden');
+    text.textContent = `נבחרו ${n} שורות. עריכה בתא תחול על כל השורות שנבחרו באותה עמודה.`;
+}
+
+function refreshMultiEditHighlights() {
+    document.querySelectorAll('.data-grid td.multi-edit-target').forEach(td => {
+        td.classList.remove('multi-edit-target');
+    });
+    if (!state.focusedEditColumn || state.selectedRows.size === 0) return;
+    state.selectedRows.forEach(rowUid => {
+        document
+            .querySelectorAll(`.data-grid td[data-row-uid="${CSS.escape(rowUid)}"][data-field-name="${CSS.escape(state.focusedEditColumn)}"]`)
+            .forEach(td => td.classList.add('multi-edit-target'));
+    });
+}
+
+function getRowUid(row) {
+    return row ? (row._row_uid || row.row_uid || '') : '';
+}
+
+function markUpdatedCells(rowUids, fieldName) {
+    state.lastUpdatedCells = new Set(rowUids.map(uid => `${uid}::${fieldName}`));
+    refreshMultiEditHighlights();
+    rowUids.forEach(rowUid => {
+        document
+            .querySelectorAll(`.data-grid td[data-row-uid="${CSS.escape(rowUid)}"][data-field-name="${CSS.escape(fieldName)}"]`)
+            .forEach(td => td.classList.add('cell-updated'));
+    });
+    window.setTimeout(() => {
+        rowUids.forEach(rowUid => {
+            document
+                .querySelectorAll(`.data-grid td[data-row-uid="${CSS.escape(rowUid)}"][data-field-name="${CSS.escape(fieldName)}"]`)
+                .forEach(td => td.classList.remove('cell-updated'));
+        });
+        state.lastUpdatedCells.clear();
+    }, 1400);
 }
 
 // ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
 
-Object.assign(window, { getFilteredRows, getDistinctValues, openFilterDropdown, updateFilterButtonState, applyFilters, clearAllFilters, openGridOverlay, closeGridOverlay, _overlayEscHandler, renderGrid, toggleSelectAll, updateDeleteButton });
+Object.assign(window, { getFilteredRows, getRowUid, getDistinctValues, openFilterDropdown, updateFilterButtonState, applyFilters, clearAllFilters, openGridOverlay, closeGridOverlay, _overlayEscHandler, renderGrid, toggleSelectAll, updateDeleteButton, clearRowSelection, updateMultiEditBar, refreshMultiEditHighlights, markUpdatedCells });

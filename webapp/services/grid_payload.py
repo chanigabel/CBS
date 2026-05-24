@@ -12,6 +12,7 @@ from typing import Any, Iterable, Mapping, Sequence
 from webapp.models.responses import SheetDataResponse
 from webapp.services.derived_columns import apply_derived_columns
 from webapp.services.export_validation import row_has_visible_original_values, row_is_numeric_helper_row
+from webapp.services.row_identity import ensure_sheet_row_uids
 from src.excel_standardization.normalized_row_contract import build_grid_field_metadata
 
 _GRID_METADATA = build_grid_field_metadata()
@@ -135,6 +136,7 @@ def build_sheet_grid_payload(
     column_mappings: Mapping[str, str] | None = None,
 ) -> SheetDataResponse:
     """Build the sheet payload exactly as the UI expects it."""
+    ensure_sheet_row_uids(sheet)
     original_fields = list(sheet.field_names)
     original_field_set = set(original_fields)
     clean_rows = _filter_visible_rows(sheet.rows, original_field_set)

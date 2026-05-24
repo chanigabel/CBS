@@ -6,6 +6,12 @@ from fastapi import HTTPException
 
 from webapp.models.requests import CellEditRequest, DeleteRowRequest
 from webapp.models.responses import CellEditResponse, DeleteRowResponse
+from webapp.services.row_identity import (
+    find_row_by_uid,
+    missing_row_uid_error,
+    row_lookup,
+    row_uid,
+)
 from webapp.services.session_service import SessionService
 
 logger = logging.getLogger(__name__)
@@ -16,6 +22,8 @@ _BLOCKED_FIELDS = {
     "_validation_ok",
     "_standardization_failures",
 }
+
+_CREATABLE_GRID_FIELDS = {"MosadID", "SugMosad"}
 
 
 def is_editable_source_field(field_name: str) -> bool:
@@ -134,12 +142,8 @@ class EditService:
                 detail=f"Sheet '{sheet_name}' not found in this workbook.",
             )
 
-        # Find row by _row_uid
-        row_idx = next(
-            (i for i, r in enumerate(sheet.rows) if r.get("_row_uid") == req.row_uid),
-            None,
-        )
-        if row_idx is None:
+        found = find_row_by_uid(sheet, req.row_uid)
+        if found is None:
             logger.warning(
                 "cell_edit_failed_row_not_found",
                 extra={
@@ -150,13 +154,16 @@ class EditService:
                     "field_name": req.field_name,
                 },
             )
-            raise HTTPException(
-                status_code=404,
-                detail=f"Row with uid '{req.row_uid}' not found in sheet '{sheet_name}'.",
+            raise missing_row_uid_error(
+                sheet_name=sheet_name,
+                requested_uids=[req.row_uid],
+                found_count=0,
             )
 
         # Validate field_name — must exist in the row
-        row = sheet.rows[row_idx]
+        row_idx, row = found
+        if req.field_name not in row and req.field_name in _CREATABLE_GRID_FIELDS:
+            row[req.field_name] = ""
         if req.field_name not in row:
             logger.warning(
                 "cell_edit_failed_field_not_found",
@@ -287,16 +294,18 @@ class EditService:
 
         uid_set = set(req.row_uids)
 
-        # Find indices for all requested UIDs
-        indices = [i for i, r in enumerate(sheet.rows) if r.get("_row_uid") in uid_set]
+        lookup = row_lookup(sheet)
+        indices = [idx for uid, (idx, _row) in lookup.items() if uid in uid_set]
 
         # Validate all UIDs were found
-        found_uids = {sheet.rows[i].get("_row_uid") for i in indices}
+        found_uids = {row_uid(sheet.rows[i]) for i in indices}
         missing = uid_set - found_uids
         if missing:
-            raise HTTPException(
+            raise missing_row_uid_error(
+                sheet_name=sheet_name,
+                requested_uids=req.row_uids,
+                found_count=len(found_uids),
                 status_code=400,
-                detail=f"Row UIDs not found: {list(missing)}",
             )
 
         # Remove rows in reverse index order so earlier indices stay valid

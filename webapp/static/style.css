@@ -999,7 +999,7 @@ tr.row-has-changes {
 }
 
 /* U-08: Keyboard shortcut hint inside buttons */
-.kbd-hint {
+.shortcut-hint {
     display: inline-block;
     background: rgba(255,255,255,0.2);
     border: 1px solid rgba(255,255,255,0.4);
@@ -1007,9 +1007,13 @@ tr.row-has-changes {
     padding: 1px 5px;
     font-size: 11px;
     font-family: monospace;
-    margin-left: 6px;
+    margin-inline-start: 6px;
     vertical-align: middle;
     line-height: 1.4;
+    direction: ltr;
+    unicode-bidi: isolate;
+    white-space: nowrap;
+    opacity: 0.85;
 }
 
 @keyframes spin {
@@ -1268,6 +1272,54 @@ table.data-grid th:has(.col-filter-btn.col-filter-active) {
 /* Prevent body scroll while overlay is open */
 body.grid-overlay-open {
     overflow: hidden;
+}
+
+.multi-edit-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 8px 0;
+    padding: 10px 12px;
+    border: 1px solid #2f6fed;
+    border-inline-start-width: 4px;
+    border-radius: 6px;
+    background: #eef5ff;
+    color: #173b74;
+    font-weight: 600;
+}
+
+.multi-edit-bar.hidden {
+    display: none;
+}
+
+table.data-grid td.multi-edit-target {
+    background: #fff7d6;
+    outline: 2px solid #b7791f;
+    outline-offset: -2px;
+    box-shadow: inset 0 0 0 1px #7c4a03;
+}
+
+table.data-grid td.cell-updated {
+    background: #e7f8ed;
+    outline: 2px solid #16834a;
+    outline-offset: -2px;
+    position: relative;
+}
+
+table.data-grid td.cell-updated::after {
+    content: "✓";
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    margin-inline-start: 6px;
+    border: 1px solid #16834a;
+    border-radius: 50%;
+    color: #16834a;
+    font-size: 11px;
+    font-weight: 700;
 }
 
 

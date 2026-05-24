@@ -41,7 +41,7 @@ async function runstandardization() {
         showError(`הרצת הסטנדרטיזציה נכשלה: ${err.message}`);
     } finally {
         btn.disabled = false;
-        btn.innerHTML = '▶ הרץ סטנדרטיזציה';
+        btn.innerHTML = '▶ הרצת סטנדרטיזציה <span class="shortcut-hint">Ctrl+Enter</span>';
     }
 }
 
@@ -67,7 +67,36 @@ async function exportWorkbook() {
         showError(`הייצוא נכשל: ${err.message}`);
     } finally {
         btn.disabled = false;
-        btn.innerHTML = '⬇ ייצא';
+        btn.innerHTML = '⬇ ייצוא קובץ <span class="shortcut-hint">Ctrl+S</span>';
+    }
+}
+
+async function exportCurrentSheet() {
+    if (!state.sessionId || !state.currentSheet) return;
+    dismissError();
+
+    const btn = document.getElementById('export-sheet-btn');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = 'מייצא גיליון...';
+    }
+
+    try {
+        await _downloadFile(
+            `/api/workbook/${state.sessionId}/sheet/${encodeURIComponent(state.currentSheet)}/export`,
+            'POST',
+            `${state.currentSheet}.xlsx`
+        );
+        const stats = document.getElementById('grid-stats');
+        if (stats) stats.textContent = `ייצוא הגיליון ${state.currentSheet} הושלם`;
+        await refreshProcessingReport();
+    } catch (err) {
+        showError(`ייצוא הגיליון נכשל: ${err.message}`);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = 'ייצוא גיליון <span class="shortcut-hint">Ctrl+Shift+E</span>';
+        }
     }
 }
 
@@ -154,4 +183,4 @@ async function _downloadFile(url, method, defaultFilename) {
     URL.revokeObjectURL(objUrl);
 }
 
-Object.assign(window, { runstandardization, exportWorkbook, exportBulk, exportSelected, _downloadFile });
+Object.assign(window, { runstandardization, exportWorkbook, exportCurrentSheet, exportBulk, exportSelected, _downloadFile });

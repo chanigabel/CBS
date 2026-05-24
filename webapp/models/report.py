@@ -10,6 +10,9 @@ from pydantic import BaseModel, Field
 class ReportSummary(BaseModel):
     total_sheets: int = 0
     total_rows: int = 0
+    rows_processed: int = 0
+    rows_changed_automatically: int = 0
+    rows_changed_manually: int = 0
     edited_cells: int = 0
     rows_with_warnings: int = 0
     rows_with_errors: int = 0
@@ -35,7 +38,11 @@ class ReportIssue(BaseModel):
 
 class SheetReport(BaseModel):
     sheet_name: str
+    status: str = ""
     row_count: int = 0
+    rows_processed: int = 0
+    rows_changed_automatically: int = 0
+    rows_changed_manually: int = 0
     column_count: int = 0
     rows_with_warnings: int = 0
     rows_with_errors: int = 0
@@ -48,6 +55,7 @@ class WorkbookProcessingReport(BaseModel):
     session_id: str
     file_name: str = ""
     status: str = ""
+    display_status: str = ""
     export_ready: bool = False
     dirty: bool = False
     stale: bool = False

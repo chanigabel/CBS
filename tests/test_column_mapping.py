@@ -54,7 +54,7 @@ def test_update_column_mapping_records_mapping_without_mutating_rows():
     assert sheet.rows[0] == {"source_first": "Dana", "last_name": "Cohen"}
 
 
-def test_editing_allows_duplicate_column_mappings():
+def test_editing_rejects_duplicate_column_mappings():
     session_service = SessionService()
     session_service.clear_all()
     sheet = SheetDataset(
@@ -69,16 +69,19 @@ def test_editing_allows_duplicate_column_mappings():
 
     service = WorkbookService(session_service)
     service.update_column_mapping("duplicate-edit-session", "Sheet1", "source_first", "first_name")
-    response = service.update_column_mapping(
-        "duplicate-edit-session",
-        "Sheet1",
-        "source_last",
-        "first_name",
-    )
 
-    assert response.column_mappings == {
-        "source_first": "first_name",
-        "source_last": "first_name",
+    with pytest.raises(HTTPException) as exc_info:
+        service.update_column_mapping(
+            "duplicate-edit-session",
+            "Sheet1",
+            "source_last",
+            "first_name",
+        )
+
+    assert exc_info.value.status_code == 400
+    assert "שדה סטנדרטי" in exc_info.value.detail
+    assert session_service.get("duplicate-edit-session").column_mappings == {
+        "Sheet1": {"source_first": "first_name"}
     }
     assert sheet.field_names == ["source_first", "source_last"]
     assert sheet.rows[0] == {"source_first": "Dana", "source_last": "Cohen"}

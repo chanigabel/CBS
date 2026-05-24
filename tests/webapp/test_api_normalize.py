@@ -57,14 +57,12 @@ def test_normalize_blocks_duplicate_mappings_then_runs_after_fix(client):
         f"/api/workbook/{session_id}/sheet/People/column-mapping",
         json={"old_name": "custom_a", "new_name": "first_name"},
     ).status_code == 200
-    assert client.post(
+    duplicate_response = client.post(
         f"/api/workbook/{session_id}/sheet/People/column-mapping",
         json={"old_name": "custom_b", "new_name": "first_name"},
-    ).status_code == 200
-
-    blocked_response = client.post(f"/api/workbook/{session_id}/normalize?sheet=People")
-    assert blocked_response.status_code == 400
-    assert "Cannot start standardization" in blocked_response.json()["detail"]
+    )
+    assert duplicate_response.status_code == 400
+    assert "שדה סטנדרטי" in duplicate_response.json()["detail"]
 
     assert client.post(
         f"/api/workbook/{session_id}/sheet/People/column-mapping",

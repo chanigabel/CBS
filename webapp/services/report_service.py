@@ -57,6 +57,7 @@ class ReportService:
             session_id=session_id,
             file_name=record.original_filename or "",
             status=record.status,
+            display_status=self._workbook_display_status(record.status, record.workbook_dataset),
             dirty=bool(record.working_dataset_dirty),
             stale=bool(record.working_dataset_dirty),
         )
@@ -87,10 +88,17 @@ class ReportService:
         total_warning_rows = 0
         total_error_rows = 0
         total_corrected_fields = 0
+        total_manual_rows = 0
         sheets: list[SheetReport] = []
 
         for sheet in workbook_dataset.sheets:
-            sheet_report, sheet_issues = self._sheet_report(sheet, include_details=include_details)
+            sheet_manual_rows = self._manual_rows_for_sheet(record.edits, sheet.sheet_name)
+            sheet_report, sheet_issues = self._sheet_report(
+                sheet,
+                include_details=include_details,
+                manual_row_count=sheet_manual_rows,
+                standardized=record.status == "standardized",
+            )
             sheets.append(sheet_report)
             if include_details:
                 issues.extend(sheet_issues)
@@ -98,22 +106,38 @@ class ReportService:
             total_warning_rows += sheet_report.rows_with_warnings
             total_error_rows += sheet_report.rows_with_errors
             total_corrected_fields += sheet_report.corrected_fields
+            total_manual_rows += sheet_manual_rows
 
         report.sheets = sheets
         report.summary = ReportSummary(
             total_sheets=len(sheets),
             total_rows=total_rows,
+            rows_processed=total_rows if record.status == "standardized" else 0,
+            rows_changed_automatically=total_corrected_fields,
+            rows_changed_manually=total_manual_rows,
             edited_cells=report.manual_edits.edited_cells,
             rows_with_warnings=total_warning_rows,
             rows_with_errors=total_error_rows,
             rows_without_issues=max(total_rows - total_warning_rows - total_error_rows, 0),
             corrected_fields=total_corrected_fields,
         )
+        if record.status == "standardized":
+            report.display_status = (
+                "בוצע עם אזהרות"
+                if total_warning_rows or total_error_rows
+                else "בוצע"
+            )
         if include_details:
             report.issues = issues
         return report
 
-    def _sheet_report(self, sheet, include_details: bool = False) -> tuple[SheetReport, list[ReportIssue]]:
+    def _sheet_report(
+        self,
+        sheet,
+        include_details: bool = False,
+        manual_row_count: int = 0,
+        standardized: bool = False,
+    ) -> tuple[SheetReport, list[ReportIssue]]:
         status_counts: dict[str, Counter[str]] = {}
         warning_rows = 0
         error_rows = 0
@@ -160,7 +184,15 @@ class ReportService:
 
         return SheetReport(
             sheet_name=sheet.sheet_name,
+            status=self._sheet_display_status(
+                standardized=standardized,
+                rows_with_warnings=warning_rows,
+                rows_with_errors=error_rows,
+            ),
             row_count=len(sheet.rows),
+            rows_processed=len(sheet.rows) if standardized else 0,
+            rows_changed_automatically=corrected_fields,
+            rows_changed_manually=manual_row_count,
             column_count=len(sheet.field_names or []),
             rows_with_warnings=warning_rows,
             rows_with_errors=error_rows,
@@ -171,6 +203,40 @@ class ReportService:
                 for field, counter in sorted(status_counts.items())
             },
         ), issues
+
+    @staticmethod
+    def _manual_rows_for_sheet(edits: dict, sheet_name: str) -> int:
+        row_uids = set()
+        for key in edits:
+            if not isinstance(key, tuple) or len(key) != 3:
+                continue
+            edit_sheet, row_uid, _field_name = key
+            if str(edit_sheet) == str(sheet_name):
+                row_uids.add(str(row_uid))
+        return len(row_uids)
+
+    @staticmethod
+    def _sheet_display_status(
+        *,
+        standardized: bool,
+        rows_with_warnings: int,
+        rows_with_errors: int,
+    ) -> str:
+        if rows_with_errors:
+            return "נכשל"
+        if not standardized:
+            return "טרם בוצע"
+        if rows_with_warnings:
+            return "בוצע עם אזהרות"
+        return "בוצע"
+
+    @staticmethod
+    def _workbook_display_status(status: str, workbook_dataset) -> str:
+        if status != "standardized":
+            return "טרם בוצע"
+        if workbook_dataset is None:
+            return "טרם בוצע"
+        return "בוצע"
 
     @staticmethod
     def _manual_edits_summary(edits: dict) -> ManualEditsSummary:

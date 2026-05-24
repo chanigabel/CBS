@@ -8,9 +8,11 @@ from fastapi import HTTPException
 
 from webapp.models.requests import CellEditRequest
 from webapp.services.edit_service import is_editable_source_field, _coerce_to_original_type
+from webapp.services.row_identity import missing_row_uid_error, row_lookup
 from webapp.services.session_service import SessionService
 
 logger = logging.getLogger(__name__)
+_CREATABLE_GRID_FIELDS = {"MosadID", "SugMosad"}
 
 
 class MultiRowEditRequest:
@@ -116,7 +118,7 @@ class MultiRowEditService:
             )
             raise HTTPException(
                 status_code=404,
-                detail=f"Sheet '{sheet_name}' not found in this workbook.",
+                detail=f"הגיליון '{sheet_name}' לא נמצא בקובץ.",
             )
 
         # Validate field_name is editable
@@ -135,15 +137,10 @@ class MultiRowEditService:
                 detail=f"Field '{field_name}' is an internal field and cannot be edited.",
             )
 
-        # Build map of row_uid to row index for fast lookup
-        uid_to_idx: Dict[str, int] = {}
-        for i, row in enumerate(sheet.rows):
-            uid = row.get("_row_uid", "")
-            if uid:
-                uid_to_idx[uid] = i
+        uid_to_row = row_lookup(sheet)
 
         # Validate all row_uids exist
-        missing_uids = [uid for uid in row_uids if uid not in uid_to_idx]
+        missing_uids = [uid for uid in row_uids if uid not in uid_to_row]
         if missing_uids:
             logger.warning(
                 "multi_row_edit_failed_rows_not_found",
@@ -154,15 +151,17 @@ class MultiRowEditService:
                     "missing_uids": missing_uids,
                 },
             )
-            raise HTTPException(
-                status_code=404,
-                detail=f"Rows with uids {missing_uids} not found in sheet '{sheet_name}'.",
+            raise missing_row_uid_error(
+                sheet_name=sheet_name,
+                requested_uids=row_uids,
+                found_count=len(row_uids) - len(missing_uids),
             )
 
         # Validate field_name exists in all rows
         for uid in row_uids:
-            idx = uid_to_idx[uid]
-            row = sheet.rows[idx]
+            _idx, row = uid_to_row[uid]
+            if field_name not in row and field_name in _CREATABLE_GRID_FIELDS:
+                row[field_name] = ""
             if field_name not in row:
                 logger.warning(
                     "multi_row_edit_failed_field_not_found",
@@ -185,8 +184,7 @@ class MultiRowEditService:
         # Apply the edit to all rows
         updated_rows: Dict[str, Dict[str, Any]] = {}
         for uid in row_uids:
-            idx = uid_to_idx[uid]
-            row = sheet.rows[idx]
+            _idx, row = uid_to_row[uid]
 
             # Coerce new value to match original type
             original_value = row.get(field_name)

@@ -79,6 +79,10 @@ def test_report_works_for_standardized_dataset(session_service):
     assert report.summary.total_rows == 2
     assert report.summary.edited_cells == 1
     assert report.summary.corrected_fields == 1
+    assert report.summary.rows_processed == 2
+    assert report.summary.rows_changed_automatically == 1
+    assert report.summary.rows_changed_manually == 1
+    assert report.display_status == "בוצע עם אזהרות"
     assert report.manual_edits.edited_sheets == ["Sheet1"]
     assert report.manual_edits.edited_fields == ["first_name"]
 
@@ -95,6 +99,31 @@ def test_report_counts_status_values(session_service):
     assert sheet_report.status_counts["_standardization_failures"]["identifier failed"] == 1
     assert sheet_report.rows_with_warnings == 1
     assert sheet_report.rows_with_errors == 1
+    assert sheet_report.status == "נכשל"
+
+
+def test_report_marks_clean_success_as_completed(session_service):
+    record = _standardized_record()
+    sheet = record.workbook_dataset.sheets[0]
+    sheet.rows = [
+        {
+            "_row_uid": "row-1",
+            "first_name": "Alice",
+            "first_name_corrected": "Alice",
+            "gender_status": "תקין",
+            "identifier_status": "",
+            "birth_date_status": "",
+            "_validation_status": "ok",
+            "_standardization_failures": [],
+        }
+    ]
+    record.edits = {}
+    session_service.create(record)
+
+    report = ReportService(session_service).build("report-session")
+
+    assert report.display_status == "בוצע"
+    assert report.sheets[0].status == "בוצע"
 
 
 def test_report_includes_dirty_export_state(session_service):

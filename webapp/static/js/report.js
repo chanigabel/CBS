@@ -55,6 +55,11 @@ function renderWorkbookReport(report) {
         : (s.total_rows || 0);
     const warningCount = Number(s.rows_with_warnings || 0);
     const errorCount = Number(s.rows_with_errors || 0);
+    const displayStatus = report.display_status || (
+        report.status === 'standardized'
+            ? (warningCount || errorCount ? 'בוצע עם אזהרות' : 'בוצע')
+            : 'טרם בוצע'
+    );
     const hasAttention = Boolean(report.export_blocked_reason) || warningCount > 0 || errorCount > 0;
     const attentionCount = warningCount + errorCount + (report.export_blocked_reason ? 1 : 0);
 
@@ -62,6 +67,7 @@ function renderWorkbookReport(report) {
         ? (report.dirty || report.stale ? 'מוכן לייצוא עם עריכות ידניות' : 'מוכן לעבודה')
         : 'נדרשת בדיקה';
     status.className = `report-status ${report.export_ready ? 'ready' : 'blocked'}`;
+    status.textContent = displayStatus;
 
     summary.innerHTML = `
         <div class="report-meta">

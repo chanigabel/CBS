@@ -16,6 +16,10 @@ const state = {
     selectedRows: new Set(),
     // columnFilters: Map<colName, Set<string>> — active value filters per column
     columnFilters: new Map(),
+    undoStack: [],
+    focusedEditColumn: null,
+    lastUpdatedCells: new Set(),
+    gridShortcutActive: false,
 };
 
 Object.assign(window, { sessions, state });

@@ -6,6 +6,12 @@
 const STANDARDIZATION_STATE_KEY = 'excelStandardizationState:v1';
 
 function initApp() {
+    const actionBar = document.getElementById('action-bar');
+    const reportSection = document.getElementById('processing-report-section');
+    if (actionBar && reportSection && actionBar.previousElementSibling !== reportSection) {
+        actionBar.parentNode.insertBefore(reportSection, actionBar);
+    }
+
     const form = document.getElementById('upload-form');
     if (form) form.addEventListener('submit', handleUpload);
 
@@ -21,19 +27,7 @@ function initApp() {
         });
     }
 
-    // Keyboard shortcuts.
-    document.addEventListener('keydown', e => {
-        const mod = e.ctrlKey || e.metaKey;
-        if (!mod) return;
-
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            if (state.sessionId) runstandardization();
-        } else if (e.key === 's') {
-            e.preventDefault();
-            if (state.sessionId) exportWorkbook();
-        }
-    });
+    initKeyboardShortcuts();
 
     // Institution metadata form.
     const instId    = document.getElementById('inst-id');
@@ -77,12 +71,163 @@ function initApp() {
     updateMosadTypeDropdown();
     updateInstSheetSelector();
     onScopeChange();
+    if (typeof updateUndoButton === 'function') updateUndoButton();
+    if (typeof updateDeleteButton === 'function') updateDeleteButton();
 
     restoreStandardizationUiState().catch(err => {
         console.warn('Failed to restore standardization UI state', err);
     });
 
     window.addEventListener('pagehide', saveStandardizationUiState);
+}
+
+function keyboardMessage(message) {
+    const stats = document.getElementById('grid-stats');
+    if (stats) stats.textContent = message;
+}
+
+function isKeyboardEditableTarget(target) {
+    if (!target || target === document || target === window) return false;
+    if (target.isContentEditable) return true;
+    if (target.closest && target.closest('[contenteditable="true"]')) return true;
+    if (target.matches && target.matches('textarea, select, [role="textbox"]')) return true;
+    if (target.matches && target.matches('input')) {
+        const type = (target.getAttribute('type') || 'text').toLowerCase();
+        return !['button', 'submit', 'reset', 'checkbox', 'radio'].includes(type);
+    }
+    return false;
+}
+
+function isGridShortcutContext(event) {
+    const target = event?.target || document.activeElement;
+    if (target?.closest && target.closest('#grid-section, #grid-overlay')) return true;
+    return Boolean(state.gridShortcutActive && state.sheetData);
+}
+
+function isOverlayOpen() {
+    const overlay = document.getElementById('grid-overlay');
+    return Boolean(overlay && !overlay.classList.contains('hidden'));
+}
+
+function hasVisibleGridRows() {
+    return Boolean(state.sheetData && getFilteredRows(state.sheetData.rows).length > 0);
+}
+
+function isButtonEnabled(buttonId) {
+    const button = document.getElementById(buttonId);
+    return Boolean(button && !button.disabled);
+}
+
+function selectAllVisibleGridRows() {
+    if (!state.sheetData) return;
+    const visibleRows = getFilteredRows(state.sheetData.rows);
+    state.selectedRows = new Set(
+        visibleRows.map(row => getRowUid(row)).filter(Boolean)
+    );
+    renderGrid(state.sheetData, visibleRows);
+    keyboardMessage('נבחרו כל השורות המוצגות');
+}
+
+function clearSelectionFromShortcut() {
+    clearRowSelection();
+    keyboardMessage('הבחירה נוקתה');
+}
+
+function deleteSelectedRowsFromShortcut() {
+    if (state.selectedRows.size === 0) {
+        keyboardMessage('לא נבחרו שורות למחיקה');
+        return;
+    }
+    deleteSelectedRows();
+}
+
+function exportCurrentSheetFromShortcut() {
+    if (!state.sessionId || !state.currentSheet || !isButtonEnabled('export-sheet-btn')) {
+        keyboardMessage('אין גיליון נבחר לייצוא');
+        return;
+    }
+    exportCurrentSheet();
+}
+
+const keyboardShortcutRegistry = [
+    {
+        id: 'normalize',
+        label: 'הרצת סטנדרטיזציה',
+        match: event => (event.ctrlKey || event.metaKey) && event.key === 'Enter',
+        enabled: () => Boolean(state.sessionId && isButtonEnabled('normalize-btn')),
+        action: () => runstandardization(),
+    },
+    {
+        id: 'undo',
+        label: 'בטל שינוי אחרון',
+        match: event => (event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'z',
+        enabled: () => Boolean(state.sessionId),
+        action: () => undoLastGridEdit(),
+    },
+    {
+        id: 'delete-selected',
+        label: 'מחיקת שורות נבחרות',
+        match: event => !event.ctrlKey && !event.metaKey && !event.altKey && event.key === 'Delete',
+        enabled: event => Boolean(state.sessionId && isGridShortcutContext(event)),
+        action: () => deleteSelectedRowsFromShortcut(),
+    },
+    {
+        id: 'clear-selection',
+        label: 'נקה בחירה',
+        match: event => !event.ctrlKey && !event.metaKey && !event.altKey && event.key === 'Escape',
+        enabled: event => Boolean(isOverlayOpen() || (state.selectedRows.size > 0 && isGridShortcutContext(event))),
+        action: () => {
+            if (isOverlayOpen()) closeGridOverlay();
+            else clearSelectionFromShortcut();
+        },
+    },
+    {
+        id: 'select-all-visible',
+        label: 'בחר את כל השורות המוצגות',
+        match: event => (event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'a',
+        enabled: event => Boolean(isGridShortcutContext(event) && hasVisibleGridRows()),
+        action: () => selectAllVisibleGridRows(),
+    },
+    {
+        id: 'export-workbook',
+        label: 'ייצא קובץ',
+        match: event => (event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 's',
+        enabled: () => Boolean(state.sessionId && isButtonEnabled('export-btn')),
+        action: () => exportWorkbook(),
+    },
+    {
+        id: 'export-current-sheet',
+        label: 'ייצא גיליון',
+        match: event => (event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === 'e',
+        enabled: () => Boolean(state.sessionId),
+        action: () => exportCurrentSheetFromShortcut(),
+    },
+];
+
+function handleKeyboardShortcut(event) {
+    if (isKeyboardEditableTarget(event.target)) return;
+    const shortcut = keyboardShortcutRegistry.find(item => item.match(event));
+    if (!shortcut) return;
+    if (!shortcut.enabled(event)) return;
+    event.preventDefault();
+    shortcut.action(event);
+}
+
+function initKeyboardShortcuts() {
+    if (window.__keyboardShortcutsInitialized) return;
+    window.__keyboardShortcutsInitialized = true;
+
+    document.addEventListener('pointerdown', event => {
+        state.gridShortcutActive = Boolean(
+            event.target?.closest && event.target.closest('#grid-section, #grid-overlay')
+        );
+    }, true);
+    document.addEventListener('focusin', event => {
+        if (event.target?.closest && event.target.closest('#grid-section, #grid-overlay')) {
+            state.gridShortcutActive = true;
+        }
+    });
+    document.addEventListener('keydown', handleKeyboardShortcut);
 }
 
 function readValue(id) {

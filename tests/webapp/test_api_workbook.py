@@ -113,7 +113,7 @@ def test_sheet_data_includes_generated_passport_corrected_without_source_passpor
     assert row["passport_corrected"] == "ABC123"
 
 
-def test_column_mapping_edit_allows_duplicates_and_grid_shows_effective_mapping(client):
+def test_column_mapping_edit_rejects_duplicates_and_grid_keeps_valid_mapping(client):
     response = client.post(
         "/api/upload",
         files={"file": ("mapping.xlsx", make_mapping_xlsx_bytes(), "application/octet-stream")},
@@ -133,7 +133,8 @@ def test_column_mapping_edit_allows_duplicates_and_grid_shows_effective_mapping(
         f"/api/workbook/{session_id}/sheet/People/column-mapping",
         json={"old_name": "custom_b", "new_name": "first_name"},
     )
-    assert duplicate_response.status_code == 200
+    assert duplicate_response.status_code == 400
+    assert "שדה סטנדרטי" in duplicate_response.json()["detail"]
 
     data_response = client.get(f"/api/workbook/{session_id}/sheet/People")
     assert data_response.status_code == 200
@@ -144,9 +145,6 @@ def test_column_mapping_edit_allows_duplicates_and_grid_shows_effective_mapping(
     assert "gender" in data["field_names"]
     assert data["rows"][0]["custom_a"] == "Alice"
     assert data["rows"][0]["custom_b"] == "Smith"
-    assert data["column_mappings"] == {
-        "custom_a": "first_name",
-        "custom_b": "first_name",
-    }
+    assert data["column_mappings"] == {"custom_a": "first_name"}
     assert data["column_display_names"]["custom_a"] == "custom_a \u2192 first_name"
-    assert data["column_display_names"]["custom_b"] == "custom_b \u2192 first_name"
+    assert "custom_b" not in data["column_display_names"]

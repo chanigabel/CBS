@@ -1,8 +1,6 @@
 """Workbook service for session-backed workbook summaries and sheet data."""
 
 import logging
-import uuid
-
 from fastapi import HTTPException
 
 from webapp.models.responses import (
@@ -14,6 +12,7 @@ from webapp.models.responses import (
 )
 from webapp.services.column_mapping_schema import ColumnMappingSchemaService
 from webapp.services.grid_payload import build_sheet_grid_payload
+from webapp.services.row_identity import ensure_sheet_row_uids
 from webapp.services.session_service import SessionService
 from webapp.services.workbook_loader import (
     WorkbookLoadError,
@@ -368,9 +367,7 @@ class WorkbookService:
                 detail=f"Sheet '{sheet_name}' not found in this workbook.",
             )
 
-        for row in sheet.rows:
-            if "_row_uid" not in row:
-                row["_row_uid"] = uuid.uuid4().hex
+        ensure_sheet_row_uids(sheet)
 
         session_mosad_id = record.mosad_id or None
         meta_mosad_id = session_mosad_id or sheet.get_metadata("MosadID")

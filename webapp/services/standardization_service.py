@@ -14,6 +14,7 @@ from src.excel_standardization.engines.identifier_engine import IdentifierEngine
 from src.excel_standardization.engines.text_processor import TextProcessor
 from src.excel_standardization.engine_management import EngineManager
 from src.excel_standardization.data_types import SheetDataset
+from webapp.services.row_identity import ensure_sheet_row_uids
 
 from webapp.models.responses import StandardizeResponse, PerSheetStat
 from webapp.services.processing_report_service import ProcessingReportService
@@ -217,7 +218,9 @@ class StandardizationService:
 
         for sheet in sheets_to_normalize:
             try:
+                ensure_sheet_row_uids(sheet)
                 norm = pipeline.normalize_dataset(sheet)
+                ensure_sheet_row_uids(norm)
                 normalized_sheets.append(norm)
                 stats = norm.get_metadata("standardization_statistics", {})
                 per_sheet_stats.append(PerSheetStat(
@@ -307,6 +310,7 @@ class StandardizationService:
                     "Workbook-level institution-report validation completed for session %s",
                     session_id,
                 )
+            self._add_institution_reference_warnings(session_id, record)
             self.processing_report_service.complete_stage(session_id, "validate")
         except Exception as _wv_exc:
             self.processing_report_service.add_warning(
@@ -383,6 +387,32 @@ class StandardizationService:
                 exc.detail if isinstance(exc.detail, str) else "Column mapping validation failed.",
             )
             raise
+
+    def _add_institution_reference_warnings(self, session_id: str, record) -> None:
+        """Validate institution reference data through the service layer.
+
+        The default service has no DB validators configured, so it returns
+        non-blocking warnings. When DB-backed validators are injected in a later
+        stage, this call path will surface real invalid code/type warnings
+        without moving the logic into UI or export code.
+        """
+        from webapp.services.institution_validation_service import (
+            InstitutionValidationService,
+            ValidationStatus,
+        )
+
+        validation_service = InstitutionValidationService.create_default_service()
+
+        checks = []
+        if str(record.mosad_id or "").strip():
+            checks.append(validation_service.validate_institution_code(record.mosad_id))
+        for mosad_type in record.mosad_types or []:
+            if str(mosad_type or "").strip():
+                checks.append(validation_service.validate_institution_type(mosad_type))
+
+        for result in checks:
+            if result.status in {ValidationStatus.INVALID, ValidationStatus.UNKNOWN}:
+                self.processing_report_service.add_warning(session_id, result.message)
 
     # בונה pipeline עם כל המנועים שה־Web flow מפעיל בפועל.
     def _build_pipeline(self) -> StandardizationPipeline:

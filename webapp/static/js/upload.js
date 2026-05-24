@@ -123,7 +123,9 @@ function renderSessionSwitcher() {
         const hasWarning = sheetStats && Object.values(sheetStats).some(s => s.success_rate < 1.0);
         let label = filename;
         if (isNormalized) label += hasWarning ? ' ⚠' : ' ✓';
-        btn.textContent = label;
+        btn.textContent = isNormalized
+            ? `${filename} - ${hasWarning ? 'בוצע עם אזהרות' : 'בוצע'}`
+            : label;
         btn.title = filename;
 
         if (sessionId === state.sessionId) btn.classList.add('active');
@@ -167,6 +169,10 @@ async function activateSession(sessionId) {
     state.currentSheet = null;
     state.sheetData = null;
     state.selectedRows.clear();
+    state.undoStack = [];
+    if (typeof updateUndoButton === 'function') updateUndoButton();
+    state.focusedEditColumn = null;
+    state.lastUpdatedCells.clear();
 
     _highlightActiveSession();
 
@@ -208,6 +214,8 @@ function renderSheetSelector(sheetNames, sheetStats) {
             btn.textContent = `${name} ⚠ ${Math.round(stat.success_rate * 100)}%`;
             btn.title = `${stat.rows} שורות — ${Math.round(stat.success_rate * 100)}% תוקננו בהצלחה`;
             btn.classList.add('sheet-tab-warning');
+        } else if (stat) {
+            btn.textContent = `${name} - בוצע`;
         } else {
             btn.textContent = name;
         }
@@ -238,6 +246,10 @@ async function loadSheet(sheetName) {
     // preserve selections so the user can apply a second type to other rows.
     if (sheetName !== state.currentSheet) {
         state.selectedRows.clear();
+        state.undoStack = [];
+        if (typeof updateUndoButton === 'function') updateUndoButton();
+        state.focusedEditColumn = null;
+        state.lastUpdatedCells.clear();
     }
 
     state.currentSheet = sheetName;
@@ -259,6 +271,8 @@ async function loadSheet(sheetName) {
     try {
         const data = await apiCall('GET', `/api/workbook/${state.sessionId}/sheet/${encodeURIComponent(sheetName)}`);
         state.sheetData = data;
+        const validRowUids = new Set((data.rows || []).map(row => getRowUid(row)).filter(Boolean));
+        state.selectedRows = new Set([...state.selectedRows].filter(uid => validRowUids.has(uid)));
         renderGrid(data, getFilteredRows(data.rows));
         if (typeof refreshColumnMappingControls === 'function') {
             await refreshColumnMappingControls(data);

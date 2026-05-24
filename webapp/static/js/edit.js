@@ -25,7 +25,7 @@ async function _deleteRows(rowUids) {
         );
 
         const uidSet = new Set(rowUids);
-        state.sheetData.rows = state.sheetData.rows.filter(r => !uidSet.has(r._row_uid));
+        state.sheetData.rows = state.sheetData.rows.filter(r => !uidSet.has(getRowUid(r)));
 
         // Clear deleted rows from the selection set.
         uidSet.forEach(uid => state.selectedRows.delete(uid));
@@ -50,6 +50,8 @@ function makeEditable(td, rowUid, fieldName) {
     if (td.querySelector('input[type=text]')) return;
 
     const currentValue = td.textContent;
+    state.focusedEditColumn = fieldName;
+    refreshMultiEditHighlights();
     td.className = (td.className || '') + ' editing';
     td.textContent = '';
 
@@ -60,6 +62,20 @@ function makeEditable(td, rowUid, fieldName) {
     input.focus();
     input.select();
 
+    function selectedEditRowUids() {
+        if (!state.selectedRows.has(rowUid) || state.selectedRows.size <= 1) return [rowUid];
+        return [...state.selectedRows];
+    }
+
+    function rowByUid(uid) {
+        return state.sheetData?.rows.find(r => getRowUid(r) === uid);
+    }
+
+    function setGridMessage(message) {
+        const stats = document.getElementById('grid-stats');
+        if (stats) stats.textContent = message;
+    }
+
     async function commitEdit() {
         const newValue = input.value;
         if (newValue === currentValue) {
@@ -67,38 +83,47 @@ function makeEditable(td, rowUid, fieldName) {
             td.className = td.className.replace(' editing', '');
             return;
         }
+        const affectedUids = selectedEditRowUids();
+        const oldValues = {};
+        affectedUids.forEach(uid => {
+            const row = rowByUid(uid);
+            oldValues[uid] = row ? row[fieldName] : '';
+        });
         try {
-            const response = await apiCall(
-                'PATCH',
-                `/api/workbook/${state.sessionId}/cell`,
-                {
-                    sheet_name: state.currentSheet,
-                    row_uid: rowUid,
-                    field: fieldName,
-                    value: newValue
+            if (affectedUids.length > 1) {
+                const response = await apiCall(
+                    'PATCH',
+                    `/api/workbook/${state.sessionId}/sheet/${encodeURIComponent(state.currentSheet)}/multi-edit`,
+                    { row_uids: affectedUids, field_name: fieldName, new_value: newValue }
+                );
+                Object.entries(response.updated_rows || {}).forEach(([uid, updatedRow]) => {
+                    const row = rowByUid(uid);
+                    if (row) Object.assign(row, updatedRow);
+                });
+                setGridMessage(`עודכנו ${response.edited_count || affectedUids.length} תאים בעמודה ${fieldName}`);
+            } else {
+                const response = await apiCall(
+                    'PATCH',
+                    `/api/workbook/${state.sessionId}/cell`,
+                    {
+                        sheet_name: state.currentSheet,
+                        row_uid: rowUid,
+                        field: fieldName,
+                        value: newValue
+                    }
+                );
+                const editedRow = rowByUid(rowUid);
+                const updatedRow = response && response.updated_row ? response.updated_row : null;
+                if (editedRow) {
+                    if (updatedRow) Object.assign(editedRow, updatedRow);
+                    else editedRow[fieldName] = newValue;
                 }
-            );
-            // Update the cached row data.
-            const editedRow = state.sheetData?.rows.find(r => r._row_uid === rowUid);
-            const updatedRow = response && response.updated_row ? response.updated_row : null;
-            if (editedRow) {
-                if (updatedRow) Object.assign(editedRow, updatedRow);
-                else editedRow[fieldName] = newValue;
+                setGridMessage(`עודכן תא בעמודה ${fieldName}`);
             }
-            const displayValue = updatedRow && Object.prototype.hasOwnProperty.call(updatedRow, fieldName)
-                ? updatedRow[fieldName]
-                : newValue;
-            td.textContent = displayValue !== null && displayValue !== undefined ? String(displayValue) : '';
-            td.className = td.className.replace(' editing', '');
-            if (fieldName.endsWith('_corrected')) {
-                // Compare normalized values to avoid false highlights.
-                const origVal = editedRow ? editedRow[fieldName.replace(/_corrected$/, '')] : null;
-                const origStr = (origVal !== null && origVal !== undefined) ? String(origVal).trim() : '';
-                const displayStr = td.textContent.trim();
-                td.className = (displayStr !== '' && displayStr !== origStr)
-                    ? 'corrected-changed' : 'corrected-cell';
-            }
-            // Mark the session as dirty.
+            state.undoStack.push({ sheetName: state.currentSheet, rowUids: affectedUids, fieldName, oldValues });
+            updateUndoButton();
+            renderGrid(state.sheetData, getFilteredRows(state.sheetData.rows));
+            markUpdatedCells(affectedUids, fieldName);
             const session = sessions.get(state.sessionId);
             if (session) session.hasEdits = true;
         } catch (err) {
@@ -118,9 +143,61 @@ function makeEditable(td, rowUid, fieldName) {
     });
 }
 
+async function undoLastGridEdit() {
+    if (!state.sessionId) return;
+    if (state.undoStack.length === 0) {
+        const stats = document.getElementById('grid-stats');
+        if (stats) stats.textContent = 'אין שינוי לביטול';
+        updateUndoButton();
+        return;
+    }
+    const active = document.activeElement;
+    if (active && active.matches && active.matches('input[type="text"], textarea')) return;
+
+    const action = state.undoStack.pop();
+    try {
+        await Promise.all(action.rowUids.map(uid => apiCall(
+            'PATCH',
+            `/api/workbook/${state.sessionId}/cell`,
+            {
+                sheet_name: action.sheetName,
+                row_uid: uid,
+                field: action.fieldName,
+                value: action.oldValues[uid] === null || action.oldValues[uid] === undefined
+                    ? ''
+                    : String(action.oldValues[uid])
+            }
+        ).then(response => {
+            const row = state.sheetData?.rows.find(r => getRowUid(r) === uid);
+            if (row && response?.updated_row) Object.assign(row, response.updated_row);
+            else if (row) row[action.fieldName] = action.oldValues[uid];
+        })));
+        renderGrid(state.sheetData, getFilteredRows(state.sheetData.rows));
+        markUpdatedCells(action.rowUids, action.fieldName);
+        const stats = document.getElementById('grid-stats');
+        if (stats) stats.textContent = 'השינוי האחרון בוטל';
+        updateUndoButton();
+    } catch (err) {
+        showError(`ביטול השינוי נכשל: ${err.message}`);
+        state.undoStack.push(action);
+        updateUndoButton();
+    }
+}
+
+function updateUndoButton() {
+    const btn = document.getElementById('undo-edit-btn');
+    if (!btn) return;
+    const enabled = Boolean(state.sessionId && state.undoStack.length > 0);
+    btn.disabled = !enabled;
+    btn.title = enabled
+        ? 'בטל את השינוי הידני האחרון (Ctrl+Z)'
+        : 'אין שינוי לביטול (Ctrl+Z)';
+    btn.setAttribute('aria-label', btn.title);
+}
+
 // ---------------------------------------------------------------------------
 // Editing helpers
 // ---------------------------------------------------------------------------
 
 
-Object.assign(window, { deleteSingleRow, deleteSelectedRows, _deleteRows, makeEditable });
+Object.assign(window, { deleteSingleRow, deleteSelectedRows, _deleteRows, makeEditable, undoLastGridEdit, updateUndoButton });
